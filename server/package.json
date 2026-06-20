@@ -1,0 +1,28 @@
+{
+  "name": "koitus-server",
+  "version": "1.0.0",
+  "description": "Koitus Chat App - Real-time Messaging and Video Calls",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "chat",
+    "dating",
+    "realtime",
+    "webrtc",
+    "socketio"
+  ],
+  "author": "Koitus Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

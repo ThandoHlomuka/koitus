@@ -961,6 +961,7 @@ ul, ol {
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: var(--z-modal);
     align-items: center;
     justify-content: center;
@@ -3480,6 +3481,7 @@ select:disabled {
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 10000;
     display: flex;
     align-items: center;

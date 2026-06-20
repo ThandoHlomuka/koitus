@@ -422,7 +422,7 @@
                     <p>Sign in to continue your connections</p>
                 </div>
 
-                <form class="auth-form" onsubmit="handleLogin(event)">
+                <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
                     <div class="form-group">
                         <label for="login-email">Email Address</label>
                         <input type="email" id="login-email" required placeholder="you@example.com">
@@ -482,7 +482,7 @@
                     <p>Access the admin dashboard</p>
                 </div>
 
-                <form class="auth-form" onsubmit="handleAdminLogin(event)">
+                <form id="admin-login-form" class="auth-form" onsubmit="handleAdminLogin(event)">
                     <div class="form-group">
                         <label for="admin-login-email">Admin Email</label>
                         <input type="email" id="admin-login-email" required placeholder="admin@example.com">
@@ -523,7 +523,7 @@
                     <p>Join thousands of people finding connections</p>
                 </div>
                 
-                <form class="auth-form" onsubmit="handleSignup(event)">
+                <form id="signup-form" class="auth-form" onsubmit="handleSignup(event)">
                     <div class="form-group">
                         <label for="signup-name">Full Name</label>
                         <input type="text" id="signup-name" required placeholder="John Doe">
@@ -3113,29 +3113,122 @@ Tips for a great post:
     <script src="config.js?v=1.0.0"></script>
     <script src="script.js?v=2.5.0"></script>
     <script>
-        // Force reload admin dashboard if admin is logged in
-        window.addEventListener('load', function() {
-            const savedUser = localStorage.getItem('koitus_user');
-            if (savedUser) {
-                try {
-                    const user = JSON.parse(savedUser);
-                    if (user.isAdmin || user.role === 'admin') {
-                        console.log('🛡️ Admin detected, loading dashboard...');
-                        setTimeout(function() {
-                            const modal = document.getElementById('admin-dashboard-modal');
-                            if (modal) {
-                                modal.style.display = 'flex';
-                                if (typeof loadAdminSection === 'function') {
-                                    loadAdminSection('analytics');
-                                }
+        (function() {
+            console.log('🔧 Koitus UI Bootstrapper running...');
+
+            // Click delegation for auth/admin buttons
+            function handleAuthClicks(e) {
+                var target = e.target;
+                while (target && target !== document.body) {
+                    if (target.tagName === 'BUTTON' || target.tagName === 'A') {
+                        var text = target.textContent.trim().toLowerCase();
+                        var html = target.innerHTML.toLowerCase();
+
+                        if (text === 'sign in' || text === 'sign in ' || text === 'user login') {
+                            e.preventDefault();
+                            if (typeof showLogin === 'function') showLogin();
+                            else console.error('showLogin not defined');
+                            return;
+                        }
+                        if (text === 'get started' || text === 'create free account') {
+                            e.preventDefault();
+                            if (typeof showSignup === 'function') showSignup();
+                            else console.error('showSignup not defined');
+                            return;
+                        }
+                        if (html.indexOf('admin') !== -1 && text.indexOf('exit') === -1) {
+                            // Check title attribute for Admin Login
+                            if (target.getAttribute('title') === 'Admin Login') {
+                                e.preventDefault();
+                                if (typeof showAdminLogin === 'function') showAdminLogin();
+                                else console.error('showAdminLogin not defined');
+                                return;
                             }
-                        }, 1000);
+                        }
+                        if (text === 'sign up' || text === 'sign up ') {
+                            e.preventDefault();
+                            if (typeof showSignup === 'function') showSignup();
+                            else console.error('showSignup not defined');
+                            return;
+                        }
+                        // Handle close buttons on auth modals
+                        if (text === '✕' || text.indexOf('cancel') !== -1) {
+                            var modal = target.closest('.auth-modal');
+                            if (modal) {
+                                e.preventDefault();
+                                if (typeof closeAuth === 'function') closeAuth();
+                                if (typeof closeAdminLogin === 'function') closeAdminLogin();
+                                return;
+                            }
+                        }
                     }
-                } catch(e) {
-                    console.log('User data parse error:', e);
+                    target = target.parentElement;
                 }
             }
-        });
+            document.addEventListener('click', handleAuthClicks);
+
+            // Bind auth modal close buttons
+            function bindModalCloses() {
+                ['login-modal', 'signup-modal', 'admin-login-modal'].forEach(function(id) {
+                    var modal = document.getElementById(id);
+                    if (modal) {
+                        var closeBtn = modal.querySelector('.modal-close');
+                        if (closeBtn) {
+                            closeBtn.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                modal.classList.remove('active');
+                            });
+                        }
+                        modal.addEventListener('click', function(e) {
+                            if (e.target === modal) {
+                                modal.classList.remove('active');
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Auth form submit delegation
+            document.addEventListener('submit', function(e) {
+                var form = e.target;
+                if (form.id === 'admin-login-form' && typeof handleAdminLogin === 'function') {
+                    handleAdminLogin(e);
+                } else if (form.id === 'login-form' && typeof handleLogin === 'function') {
+                    handleLogin(e);
+                } else if (form.id === 'signup-form' && typeof handleSignup === 'function') {
+                    handleSignup(e);
+                }
+            });
+
+            // Force reload admin dashboard if admin is logged in
+            window.addEventListener('load', function() {
+                bindModalCloses();
+                console.log('🔧 Koitus UI Bootstrapper ready');
+
+                var savedUser = localStorage.getItem('koitus_user');
+                if (savedUser) {
+                    try {
+                        var user = JSON.parse(savedUser);
+                        if (user.isAdmin || user.role === 'admin') {
+                            console.log('🛡️ Admin detected, loading dashboard...');
+                            setTimeout(function() {
+                                var modal = document.getElementById('admin-dashboard-modal');
+                                if (modal) {
+                                    modal.style.display = 'flex';
+                                    if (typeof loadAdminSection === 'function') {
+                                        loadAdminSection('analytics');
+                                    }
+                                }
+                            }, 1000);
+                        }
+                    } catch(e) {
+                        console.log('User data parse error:', e);
+                    }
+                }
+            });
+
+            console.log('🔧 Koitus UI Bootstrapper initialized');
+        })();
     </script>
 </body>
 </html>

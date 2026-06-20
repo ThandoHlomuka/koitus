@@ -1188,6 +1188,120 @@ function loadSampleData() {
     state.products = [...sampleProducts];
     state.clubs = [...sampleClubs];
 
+    // Load sample reports
+    state.adminData.reports = [
+        {
+            id: 1,
+            type: 'post',
+            postId: 1,
+            reason: 'Inappropriate content - this post contains offensive language',
+            date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+            status: 'pending',
+            reporterId: 2,
+            reporterName: 'Sarah'
+        },
+        {
+            id: 2,
+            type: 'post',
+            postId: 3,
+            reason: 'Spam - suspicious link in post',
+            date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+            status: 'resolved',
+            resolvedBy: 'Administrator',
+            resolvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+            reporterId: 5,
+            reporterName: 'Emily'
+        }
+    ];
+
+    // Load sample activity logs
+    state.adminData.activityLogs = [
+        {
+            id: Date.now() - 1000,
+            timestamp: new Date(Date.now() - 1 * 60 * 1000),
+            userId: 1,
+            userName: 'Sarah',
+            userEmail: 'sarah@example.com',
+            type: ActivityType.LOGIN,
+            level: ActivityLevel.INFO,
+            action: 'User logged in',
+            details: {},
+            ipAddress: '192.168.1.100',
+            userAgent: navigator.userAgent,
+            session: 'sess_001'
+        },
+        {
+            id: Date.now() - 2000,
+            timestamp: new Date(Date.now() - 5 * 60 * 1000),
+            userId: 2,
+            userName: 'Michael',
+            userEmail: 'michael@example.com',
+            type: ActivityType.SIGNUP,
+            level: ActivityLevel.INFO,
+            action: 'New user registered',
+            details: { email: 'michael@example.com' },
+            ipAddress: '192.168.1.101',
+            userAgent: navigator.userAgent,
+            session: 'sess_002'
+        },
+        {
+            id: Date.now() - 3000,
+            timestamp: new Date(Date.now() - 15 * 60 * 1000),
+            userId: 1,
+            userName: 'Sarah',
+            userEmail: 'sarah@example.com',
+            type: ActivityType.MESSAGE_SENT,
+            level: ActivityLevel.INFO,
+            action: 'Sent a message in chat',
+            details: { conversationId: 1 },
+            ipAddress: '192.168.1.100',
+            userAgent: navigator.userAgent,
+            session: 'sess_001'
+        },
+        {
+            id: Date.now() - 4000,
+            timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+            userId: 4,
+            userName: 'Thabo',
+            userEmail: 'thabo@example.com',
+            type: ActivityType.FORUM_POST,
+            level: ActivityLevel.INFO,
+            action: 'Created new forum post',
+            details: { postId: 3, title: 'Weekend Hiking Meetup' },
+            ipAddress: '192.168.1.102',
+            userAgent: navigator.userAgent,
+            session: 'sess_003'
+        },
+        {
+            id: Date.now() - 5000,
+            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+            userId: 6,
+            userName: 'Jessica',
+            userEmail: 'jessica@example.com',
+            type: ActivityType.REPORT_SUBMIT,
+            level: ActivityLevel.WARNING,
+            action: 'Reported a post for inappropriate content',
+            details: { postId: 1, reason: 'Inappropriate content' },
+            ipAddress: '192.168.1.103',
+            userAgent: navigator.userAgent,
+            session: 'sess_004'
+        },
+        {
+            id: Date.now() - 6000,
+            timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
+            userId: 'admin',
+            userName: 'Administrator',
+            userEmail: 'fanasihlomuka@gmail.com',
+            type: ActivityType.ADMIN_ACTION,
+            level: ActivityLevel.CRITICAL,
+            action: 'Resolved a user report',
+            details: { reportId: 2, resolution: 'Content removed, user warned' },
+            ipAddress: '192.168.1.1',
+            userAgent: navigator.userAgent,
+            session: 'sess_admin'
+        }
+    ];
+
     // Create sample conversations
     state.conversations = sampleMatches.map(match => ({
         id: match.id,

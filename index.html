@@ -49,11 +49,11 @@
                     <span class="logo-text">Koitus</span>
                 </div>
                 <div class="nav-actions">
-                    <button class="btn btn-ghost" onclick="showAdminLogin()" title="Admin Login">
+                    <button class="btn btn-ghost" data-auth="admin" title="Admin Login">
                         <i class="fas fa-shield-alt"></i> Admin
                     </button>
-                    <button class="btn btn-ghost" onclick="showLogin()">Sign In</button>
-                    <button class="btn btn-primary" onclick="showSignup()">Get Started</button>
+                    <button class="btn btn-ghost" data-auth="login">Sign In</button>
+                    <button class="btn btn-primary" data-auth="signup">Get Started</button>
                 </div>
             </nav>
             
@@ -71,8 +71,8 @@
                     Swipe, match, and chat with people who share your interests.
                 </p>
                 <div class="hero-cta">
-                    <button class="btn btn-primary btn-lg" onclick="showSignup()">
-                        <i class="fas fa-rocket"></i> Start Matching Free
+                    <button class="btn btn-primary btn-lg" data-auth="signup">
+                        <i class="fas fa-heart"></i> Start Matching Free
                     </button>
                     <button class="btn btn-outline btn-lg" onclick="scrollToFeatures()">
                         <i class="fas fa-play"></i> Learn More
@@ -339,7 +339,7 @@
                 <div class="cta-content">
                     <h2>Ready to Find Your <span class="gradient-text">Person</span>?</h2>
                     <p>Join Koitus today and start connecting with amazing people near you.</p>
-                    <button class="btn btn-primary btn-lg" onclick="showSignup()">
+                    <button class="btn btn-primary btn-lg" data-auth="signup">
                         <i class="fas fa-heart"></i> Create Free Account
                     </button>
                 </div>
@@ -460,7 +460,7 @@
                 </div>
 
                 <p class="auth-switch">
-                    Don't have an account? <a href="#" onclick="showSignup()">Sign up</a>
+                    Don't have an account? <a href="#" data-auth="signup">Sign up</a>
                 </p>
             </div>
         </div>
@@ -501,7 +501,7 @@
                 </form>
 
                 <p class="auth-switch">
-                    Not an admin? <a href="#" onclick="showLogin()">User Login</a>
+                    Not an admin? <a href="#" data-auth="login">User Login</a>
                 </p>
             </div>
         </div>
@@ -662,7 +662,7 @@
                 </div>
                 
                 <p class="auth-switch">
-                    Already have an account? <a href="#" onclick="showLogin()">Sign in</a>
+                    Already have an account? <a href="#" data-auth="login">Sign in</a>
                 </p>
             </div>
         </div>
@@ -3113,121 +3113,74 @@ Tips for a great post:
     <script src="config.js?v=1.0.0"></script>
     <script src="script.js?v=2.5.0"></script>
     <script>
-        (function() {
-            console.log('🔧 Koitus UI Bootstrapper running...');
+        (function bootKoitus() {
+            console.log('🔧 Koitus Bootstrapper running...');
 
-            // Click delegation for auth/admin buttons
-            function handleAuthClicks(e) {
-                var target = e.target;
-                while (target && target !== document.body) {
-                    if (target.tagName === 'BUTTON' || target.tagName === 'A') {
-                        var text = target.textContent.trim().toLowerCase();
-                        var html = target.innerHTML.toLowerCase();
-
-                        if (text === 'sign in' || text === 'sign in ' || text === 'user login') {
-                            e.preventDefault();
-                            if (typeof showLogin === 'function') showLogin();
-                            else console.error('showLogin not defined');
-                            return;
-                        }
-                        if (text === 'get started' || text === 'create free account') {
-                            e.preventDefault();
-                            if (typeof showSignup === 'function') showSignup();
-                            else console.error('showSignup not defined');
-                            return;
-                        }
-                        if (html.indexOf('admin') !== -1 && text.indexOf('exit') === -1) {
-                            // Check title attribute for Admin Login
-                            if (target.getAttribute('title') === 'Admin Login') {
-                                e.preventDefault();
-                                if (typeof showAdminLogin === 'function') showAdminLogin();
-                                else console.error('showAdminLogin not defined');
-                                return;
-                            }
-                        }
-                        if (text === 'sign up' || text === 'sign up ') {
-                            e.preventDefault();
-                            if (typeof showSignup === 'function') showSignup();
-                            else console.error('showSignup not defined');
-                            return;
-                        }
-                        // Handle close buttons on auth modals
-                        if (text === '✕' || text.indexOf('cancel') !== -1) {
-                            var modal = target.closest('.auth-modal');
-                            if (modal) {
-                                e.preventDefault();
-                                if (typeof closeAuth === 'function') closeAuth();
-                                if (typeof closeAdminLogin === 'function') closeAdminLogin();
-                                return;
-                            }
-                        }
+            // Wait until showLogin is defined (script.js may take time to parse)
+            function whenReady(fn) {
+                if (typeof showLogin === 'function') { fn(); return; }
+                var check = setInterval(function() {
+                    if (typeof showLogin === 'function') {
+                        clearInterval(check);
+                        fn();
                     }
-                    target = target.parentElement;
-                }
+                }, 200);
+                // Timeout after 30 seconds
+                setTimeout(function() { clearInterval(check); }, 30000);
             }
-            document.addEventListener('click', handleAuthClicks);
 
-            // Bind auth modal close buttons
-            function bindModalCloses() {
+            whenReady(function() {
+                console.log('🔧 Koitus Bootstrapper: script.js loaded, binding buttons...');
+
+                // Bind ALL auth buttons by data attributes added in HTML below
+                document.querySelectorAll('[data-auth]').forEach(function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var action = btn.getAttribute('data-auth');
+                        if (action === 'login' && typeof showLogin === 'function') showLogin();
+                        else if (action === 'signup' && typeof showSignup === 'function') showSignup();
+                        else if (action === 'admin' && typeof showAdminLogin === 'function') showAdminLogin();
+                    });
+                });
+
+                // Bind auth form submits
+                document.getElementById('login-form')?.addEventListener('submit', function(e) {
+                    if (typeof handleLogin === 'function') handleLogin(e);
+                });
+                document.getElementById('signup-form')?.addEventListener('submit', function(e) {
+                    if (typeof handleSignup === 'function') handleSignup(e);
+                });
+                document.getElementById('admin-login-form')?.addEventListener('submit', function(e) {
+                    if (typeof handleAdminLogin === 'function') handleAdminLogin(e);
+                });
+
+                // Bind modal close buttons and overlay clicks
                 ['login-modal', 'signup-modal', 'admin-login-modal'].forEach(function(id) {
                     var modal = document.getElementById(id);
                     if (modal) {
-                        var closeBtn = modal.querySelector('.modal-close');
-                        if (closeBtn) {
-                            closeBtn.addEventListener('click', function(e) {
-                                e.stopPropagation();
-                                modal.classList.remove('active');
-                            });
-                        }
-                        modal.addEventListener('click', function(e) {
-                            if (e.target === modal) {
-                                modal.classList.remove('active');
-                            }
-                        });
+                        var closeBtn = modal.querySelector('.modal-close, .auth-close');
+                        if (closeBtn) closeBtn.addEventListener('click', function() { modal.classList.remove('active'); });
+                        modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
                     }
                 });
-            }
 
-            // Auth form submit delegation
-            document.addEventListener('submit', function(e) {
-                var form = e.target;
-                if (form.id === 'admin-login-form' && typeof handleAdminLogin === 'function') {
-                    handleAdminLogin(e);
-                } else if (form.id === 'login-form' && typeof handleLogin === 'function') {
-                    handleLogin(e);
-                } else if (form.id === 'signup-form' && typeof handleSignup === 'function') {
-                    handleSignup(e);
-                }
-            });
-
-            // Force reload admin dashboard if admin is logged in
-            window.addEventListener('load', function() {
-                bindModalCloses();
-                console.log('🔧 Koitus UI Bootstrapper ready');
-
+                // Check for saved admin session
                 var savedUser = localStorage.getItem('koitus_user');
                 if (savedUser) {
                     try {
                         var user = JSON.parse(savedUser);
                         if (user.isAdmin || user.role === 'admin') {
-                            console.log('🛡️ Admin detected, loading dashboard...');
                             setTimeout(function() {
                                 var modal = document.getElementById('admin-dashboard-modal');
-                                if (modal) {
-                                    modal.style.display = 'flex';
-                                    if (typeof loadAdminSection === 'function') {
-                                        loadAdminSection('analytics');
-                                    }
-                                }
+                                if (modal) { modal.style.display = 'flex'; }
+                                if (typeof loadAdminSection === 'function') loadAdminSection('analytics');
                             }, 1000);
                         }
-                    } catch(e) {
-                        console.log('User data parse error:', e);
-                    }
+                    } catch(e) { console.log('User data parse error:', e); }
                 }
-            });
 
-            console.log('🔧 Koitus UI Bootstrapper initialized');
+                console.log('🔧 Koitus Bootstrapper ready');
+            });
         })();
     </script>
 </body>

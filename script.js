@@ -4,6 +4,69 @@
  * Version: 2.0.0 - Real-time with WebRTC
  */
 
+// ==================== ERROR LOG & CHANGE DIARY SYSTEM ====================
+window.__KOITUS_LOGS = {
+    errors: JSON.parse(localStorage.getItem('koitus_error_log') || '[]'),
+    changes: JSON.parse(localStorage.getItem('koitus_change_diary') || '[]'),
+    MAX_LOG: 500
+};
+
+function saveErrors() {
+    try {
+        localStorage.setItem('koitus_error_log', JSON.stringify(window.__KOITUS_LOGS.errors.slice(-window.__KOITUS_LOGS.MAX_LOG)));
+    } catch(e) { /* localStorage full, silently ignore */ }
+}
+
+function saveDiary() {
+    try {
+        localStorage.setItem('koitus_change_diary', JSON.stringify(window.__KOITUS_LOGS.changes.slice(-window.__KOITUS_LOGS.MAX_LOG)));
+    } catch(e) { /* localStorage full, silently ignore */ }
+}
+
+function logError(source, error) {
+    var entry = {
+        ts: new Date().toISOString(),
+        source: source,
+        message: error && error.message ? error.message : String(error),
+        stack: error && error.stack ? error.stack : '',
+        url: window.location.href,
+        userAgent: navigator.userAgent
+    };
+    window.__KOITUS_LOGS.errors.push(entry);
+    saveErrors();
+    console.log('📝 [Koitus Error Log]', entry.message);
+    return entry;
+}
+
+function logChange(description, category) {
+    var entry = {
+        ts: new Date().toISOString(),
+        description: description,
+        category: category || 'general',
+        version: '2.0.0'
+    };
+    window.__KOITUS_LOGS.changes.push(entry);
+    saveDiary();
+    console.log('📓 [Koitus Change Diary]', description);
+    return entry;
+}
+
+window.addEventListener('error', function(e) {
+    logError('uncaught', e.error || e.message);
+});
+window.addEventListener('unhandledrejection', function(e) {
+    logError('unhandled_promise', e.reason);
+});
+var _origConsoleError = console.error;
+console.error = function() {
+    var args = Array.prototype.slice.call(arguments);
+    logError('console.error', args.join(' '));
+    _origConsoleError.apply(console, arguments);
+};
+
+// Log startup
+logChange('App initialized', 'system');
+
 // ==================== STATE MANAGEMENT ====================
 const state = {
     currentUser: null,
@@ -3248,12 +3311,25 @@ document.addEventListener('keydown', (e) => {
 
 // ==================== REAL-TIME CONNECTION (Socket.io) ====================
 function initRealtimeConnection() {
+    try {
+        if (typeof io !== 'function') {
+            console.warn('Socket.io not available (blocked by adblocker or CDN failure). Running in offline mode.');
+            logError('realtime', new Error('Socket.io library not loaded'));
+            return;
+        }
+    } catch (libCheck) {
+        console.warn('Socket.io check failed. Running in offline mode.');
+        logError('realtime', libCheck);
+        return;
+    }
+
     // Auto-detect server URL based on environment
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const productionServerUrl = 'https://koitus-server-f2qm.onrender.com';
     const SERVER_URL = isLocalhost ? 'http://localhost:3001' : (window.KOITUS_CONFIG?.SERVER_URL || productionServerUrl);
     
-    state.socket = io(SERVER_URL, {
+    try {
+        state.socket = io(SERVER_URL, {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000
@@ -3418,6 +3494,11 @@ function initRealtimeConnection() {
             }
         });
     });
+    } catch (socketError) {
+        console.error('Failed to initialize real-time connection:', socketError);
+        logError('realtime', socketError);
+        showNotification('Chat server unavailable - using offline mode', 'warning');
+    }
 }
 
 function joinPlatform() {

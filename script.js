@@ -3136,7 +3136,7 @@ document.addEventListener('keydown', (e) => {
 function initRealtimeConnection() {
     // Auto-detect server URL based on environment
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const productionServerUrl = 'https://koitus-server.onrender.com'; // Update after Render deploy
+    const productionServerUrl = 'https://koitus-server-f2qm.onrender.com';
     const SERVER_URL = isLocalhost ? 'http://localhost:3001' : (window.KOITUS_CONFIG?.SERVER_URL || productionServerUrl);
     
     state.socket = io(SERVER_URL, {

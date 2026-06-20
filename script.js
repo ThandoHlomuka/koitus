@@ -3134,8 +3134,10 @@ document.addEventListener('keydown', (e) => {
 
 // ==================== REAL-TIME CONNECTION (Socket.io) ====================
 function initRealtimeConnection() {
-    // Connect to server (change URL for production)
-    const SERVER_URL = 'http://localhost:3001';
+    // Auto-detect server URL based on environment
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const productionServerUrl = 'https://koitus-server.onrender.com'; // Update after Render deploy
+    const SERVER_URL = isLocalhost ? 'http://localhost:3001' : (window.KOITUS_CONFIG?.SERVER_URL || productionServerUrl);
     
     state.socket = io(SERVER_URL, {
         reconnection: true,

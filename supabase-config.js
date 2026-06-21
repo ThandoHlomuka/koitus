@@ -21,18 +21,34 @@
 
 // ==================== SUPABASE CLIENT ====================
 
-let supabaseClient = null;
+var supabaseClient = null;
+
+function getSupabaseUrl() {
+    var url = localStorage.getItem('supabase_url');
+    if (!url && window.__supabaseConfig && window.__supabaseConfig.supabaseUrl) {
+        url = window.__supabaseConfig.supabaseUrl;
+        localStorage.setItem('supabase_url', url);
+    }
+    return url;
+}
+
+function getSupabaseAnonKey() {
+    var key = localStorage.getItem('supabase_anon_key');
+    if (!key && window.__supabaseConfig && window.__supabaseConfig.supabaseAnonKey) {
+        key = window.__supabaseConfig.supabaseAnonKey;
+        localStorage.setItem('supabase_anon_key', key);
+    }
+    return key;
+}
 
 function initSupabase() {
     if (supabaseClient) return supabaseClient;
     
-    var SUPABASE_URL = localStorage.getItem('supabase_url');
-    var SUPABASE_ANON_KEY = localStorage.getItem('supabase_anon_key');
+    var SUPABASE_URL = getSupabaseUrl();
+    var SUPABASE_ANON_KEY = getSupabaseAnonKey();
     
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
         console.warn('⚠️ Supabase not configured. Using localStorage fallback.');
-        console.warn('📋 Connect Supabase via Vercel dashboard,');
-        console.warn('   or run: configureSupabase("https://project.supabase.co", "anon-key")');
         return null;
     }
     

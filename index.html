@@ -4903,6 +4903,7 @@ Tips for a great post:
         (function fetchSupabaseConfig() {
             fetch('/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
                 if (cfg.configured) {
+                    window.__supabaseConfig = cfg;
                     localStorage.setItem('supabase_url', cfg.supabaseUrl);
                     localStorage.setItem('supabase_anon_key', cfg.supabaseAnonKey);
                     console.log('☁️ Supabase config loaded from Vercel env');

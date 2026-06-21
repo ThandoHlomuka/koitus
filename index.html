@@ -961,9 +961,17 @@
                     <i class="fas fa-user"></i>
                     <span>Profile</span>
                 </a>
+                <a href="#" class="nav-item" onclick="showAdvertiseModal()">
+                    <i class="fas fa-bullhorn" style="color:var(--warning)"></i>
+                    <span>Advertise</span>
+                </a>
                 <a href="#" class="nav-item" data-view="settings" onclick="switchView('settings')">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
+                </a>
+                <a href="#" class="nav-item" data-view="about" onclick="switchView('about')">
+                    <i class="fas fa-info-circle" style="color:var(--primary)"></i>
+                    <span>About</span>
                 </a>
             </nav>
             
@@ -1080,12 +1088,9 @@
                     <!-- Populated by JS -->
                 </div>
 
-                <!-- Recent Activity Feed -->
-                <div class="discover-feed" id="discover-feed">
-                    <h2 class="section-title"><i class="fas fa-bolt"></i> Recent Activity</h2>
-                    <div id="discover-feed-container">
-                        <!-- Populated by JS -->
-                    </div>
+                <!-- Discover Sections (populated by JS) -->
+                <div id="discover-sections">
+                    <!-- Each content section rendered dynamically -->
                 </div>
             </div>
             
@@ -1175,7 +1180,9 @@
                                     </button>
                                     <div class="chat-more-menu" id="chat-more-menu" style="display:none;">
                                         <button class="btn btn-ghost btn-sm dropdown-item" onclick="toggleIceBreakersSetting()"><i class="fas fa-magic"></i> <span id="icebreakers-menu-text">AI Ice Breakers: On</span></button>
-                                        <button class="btn btn-ghost btn-sm dropdown-item" onclick="if(state.currentChat)clearConversation(state.currentChat.id)"><i class="fas fa-trash"></i> Clear Chat</button>
+                                        <button class="btn btn-ghost btn-sm dropdown-item" onclick="if(state.currentChat)clearConversation(state.currentChat.id)"><i class="fas fa-eraser"></i> Clear Chat</button>
+                                        <button class="btn btn-ghost btn-sm dropdown-item" onclick="if(state.currentChat)deleteConversation(state.currentChat.id)"><i class="fas fa-trash-alt"></i> Delete Conversation</button>
+                                        <button class="btn btn-ghost btn-sm dropdown-item" id="block-user-btn" onclick="if(state.currentChat)toggleBlockUser(state.currentChat.id)"><i class="fas fa-ban"></i> <span id="block-user-text">Block User</span></button>
                                     </div>
                                 </div>
                             </div>
@@ -1201,6 +1208,19 @@
                                 <button class="btn btn-icon" onclick="attachFile()">
                                     <i class="fas fa-paperclip"></i>
                                 </button>
+                                <button class="btn btn-icon" id="voice-record-btn" onclick="toggleVoiceRecording()">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <div class="voice-recording-indicator" id="voice-recording-indicator" style="display:none;">
+                                    <span class="voice-recording-dot"></span>
+                                    <span class="voice-recording-time" id="voice-recording-time">0:00</span>
+                                    <button class="btn btn-icon btn-sm" onclick="cancelVoiceRecording()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <button class="btn btn-icon btn-sm voice-send-btn" onclick="sendVoiceRecording()">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </div>
                                 <input type="text" id="message-input" placeholder="Type a message..." onkeypress="handleMessageKeypress(event)">
                                 <button class="btn btn-icon" onclick="toggleChatEmojiPicker()">
                                     <i class="fas fa-smile"></i>
@@ -2582,6 +2602,187 @@
                     <button class="btn btn-primary" onclick="showPostPersonalsModal()">
                         <i class="fas fa-plus"></i> Post Ad
                     </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About App View -->
+            <div id="view-about" class="view">
+                <div class="view-header">
+                    <h1><i class="fas fa-info-circle"></i> About Koitus</h1>
+                </div>
+
+                <div class="about-hero">
+                    <div class="about-hero-icon">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <h2>Welcome to Koitus</h2>
+                    <p class="about-tagline">Where meaningful connections begin. A modern platform for dating, social networking, and community building.</p>
+                </div>
+
+                <div class="about-stats-bar">
+                    <div class="about-stat">
+                        <span class="about-stat-num" id="stat-users">10K+</span>
+                        <span class="about-stat-label">Active Users</span>
+                    </div>
+                    <div class="about-stat">
+                        <span class="about-stat-num" id="stat-matches">5K+</span>
+                        <span class="about-stat-label">Matches Made</span>
+                    </div>
+                    <div class="about-stat">
+                        <span class="about-stat-num" id="stat-streams">1K+</span>
+                        <span class="about-stat-label">Live Streams</span>
+                    </div>
+                    <div class="about-stat">
+                        <span class="about-stat-num" id="stat-events">500+</span>
+                        <span class="about-stat-label">Events Created</span>
+                    </div>
+                </div>
+
+                <div class="about-section">
+                    <h3><i class="fas fa-rocket" style="color:var(--primary)"></i> What is Koitus?</h3>
+                    <div class="about-content-card">
+                        <div class="about-content-text">
+                            <p>Koitus is a comprehensive social platform that combines dating, live streaming, content sharing, events, and community features in one seamless experience. Whether you're looking for romance, friendship, professional networking, or entertainment, Koitus provides the tools you need to connect authentically.</p>
+                            <ul class="about-features-list">
+                                <li><i class="fas fa-check-circle" style="color:var(--success)"></i> Smart matching algorithm</li>
+                                <li><i class="fas fa-check-circle" style="color:var(--success)"></i> Live video streaming</li>
+                                <li><i class="fas fa-check-circle" style="color:var(--success)"></i> Community forums and clubs</li>
+                                <li><i class="fas fa-check-circle" style="color:var(--success)"></i> Events and meetups</li>
+                                <li><i class="fas fa-check-circle" style="color:var(--success)"></i> Marketplace for creators</li>
+                                <li><i class="fas fa-check-circle" style="color:var(--success)"></i> Privacy-first design</li>
+                            </ul>
+                        </div>
+                        <div class="about-content-visual">
+                            <div class="about-illustration">
+                                <i class="fas fa-connections"></i>
+                                <div class="about-dots">
+                                    <span></span><span></span><span></span><span></span><span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="about-section">
+                    <h3><i class="fas fa-compass" style="color:var(--warning)"></i> How to Use Koitus</h3>
+                    <div class="about-steps">
+                        <div class="about-step">
+                            <div class="about-step-num">1</div>
+                            <div class="about-step-icon"><i class="fas fa-user-plus"></i></div>
+                            <h4>Create Your Profile</h4>
+                            <p>Sign up and set up your profile with photos, interests, and what makes you unique.</p>
+                        </div>
+                        <div class="about-step-connector"><i class="fas fa-arrow-right"></i></div>
+                        <div class="about-step">
+                            <div class="about-step-num">2</div>
+                            <div class="about-step-icon"><i class="fas fa-compass"></i></div>
+                            <h4>Discover People</h4>
+                            <p>Swipe through profiles, use filters to find your type, and explore the community.</p>
+                        </div>
+                        <div class="about-step-connector"><i class="fas fa-arrow-right"></i></div>
+                        <div class="about-step">
+                            <div class="about-step-num">3</div>
+                            <div class="about-step-icon"><i class="fas fa-comment-dots"></i></div>
+                            <h4>Connect & Chat</h4>
+                            <p>Match with people, send messages, make voice and video calls, and build connections.</p>
+                        </div>
+                        <div class="about-step-connector"><i class="fas fa-arrow-right"></i></div>
+                        <div class="about-step">
+                            <div class="about-step-num">4</div>
+                            <div class="about-step-icon"><i class="fas fa-heart"></i></div>
+                            <h4>Build Community</h4>
+                            <p>Join clubs, attend events, share content, and become part of something bigger.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="about-section">
+                    <h3><i class="fas fa-shield-alt" style="color:var(--success)"></i> Safety & Guidelines</h3>
+                    <div class="about-guidelines">
+                        <div class="guideline-card">
+                            <i class="fas fa-shield-alt"></i>
+                            <h4>Stay Safe</h4>
+                            <p>Never share personal information. Report suspicious behavior. Use in-app messaging.</p>
+                        </div>
+                        <div class="guideline-card">
+                            <i class="fas fa-user-check"></i>
+                            <h4>Be Respectful</h4>
+                            <p>Treat others with kindness. No harassment, hate speech, or inappropriate content.</p>
+                        </div>
+                        <div class="guideline-card">
+                            <i class="fas fa-verified"></i>
+                            <h4>Verify Your Profile</h4>
+                            <p>Verified profiles build trust. Complete your profile for better connections.</p>
+                        </div>
+                        <div class="guideline-card">
+                            <i class="fas fa-flag"></i>
+                            <h4>Report Issues</h4>
+                            <p>Use the report feature for any violations. Our team reviews reports within 24 hours.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="about-section">
+                    <h3><i class="fas fa-star" style="color:var(--warning)"></i> Features Overview</h3>
+                    <div class="about-features-grid">
+                        <div class="about-feature-card">
+                            <div class="about-feature-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <h4>Smart Matching</h4>
+                            <p>AI-powered matching based on interests, location, and compatibility.</p>
+                        </div>
+                        <div class="about-feature-card">
+                            <div class="about-feature-icon" style="background:linear-gradient(135deg,#ec4899,#f472b6)">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <h4>Live Streaming</h4>
+                            <p>Go live, watch streams, and interact with creators in real-time.</p>
+                        </div>
+                        <div class="about-feature-card">
+                            <div class="about-feature-icon" style="background:linear-gradient(135deg,#22c55e,#34d399)">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h4>Exclusive Clubs</h4>
+                            <p>Join and create private clubs around your interests and passions.</p>
+                        </div>
+                        <div class="about-feature-card">
+                            <div class="about-feature-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <h4>Events & Parties</h4>
+                            <p>Discover and RSVP to events, parties, and social gatherings near you.</p>
+                        </div>
+                        <div class="about-feature-card">
+                            <div class="about-feature-icon" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa)">
+                                <i class="fas fa-store"></i>
+                            </div>
+                            <h4>Marketplace</h4>
+                            <p>Buy and sell products and services within the community.</p>
+                        </div>
+                        <div class="about-feature-card">
+                            <div class="about-feature-icon" style="background:linear-gradient(135deg,#14b8a6,#2dd4bf)">
+                                <i class="fas fa-newspaper"></i>
+                            </div>
+                            <h4>Activity Feed</h4>
+                            <p>Stay updated with what's happening in your network.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="about-section about-cta-section">
+                    <div class="about-cta">
+                        <h3>Ready to Join?</h3>
+                        <p>Thousands of people are already connecting on Koitus. Start your journey today.</p>
+                        <div class="about-cta-buttons">
+                            <button class="btn btn-primary btn-lg" onclick="showSignup()">
+                                <i class="fas fa-user-plus"></i> Get Started Free
+                            </button>
+                            <button class="btn btn-outline btn-lg" onclick="showLogin()">
+                                <i class="fas fa-sign-in-alt"></i> Sign In
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3989,6 +4190,84 @@ Tips for a great post:
                         <i class="fas fa-broadcast-tower"></i> Go Live
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advertise Modal -->
+    <div id="advertise-modal" class="modal-overlay" style="display: none;" onclick="closeAdvertiseModal(event)">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-bullhorn" style="color:var(--warning)"></i> Advertise With Us</h2>
+                <button class="modal-close" onclick="closeAdvertiseModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="advertise-hero" style="text-align:center;padding:var(--spacing-4) 0;">
+                    <div style="font-size:3rem;color:var(--warning);margin-bottom:var(--spacing-3);">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Reach Our Community</h3>
+                    <p style="color:var(--text-secondary);font-size:0.9rem;max-width:400px;margin:0 auto;">
+                        Promote your brand, service, or event to thousands of engaged users in the Koitus community.
+                    </p>
+                </div>
+                <form id="advertise-form" onsubmit="submitAdvertiseRequest(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="adv-name">Your Name *</label>
+                            <input type="text" id="adv-name" required placeholder="John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-email">Email Address *</label>
+                            <input type="email" id="adv-email" required placeholder="john@example.com">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="adv-company">Company / Brand Name</label>
+                        <input type="text" id="adv-company" placeholder="Your Company">
+                    </div>
+                    <div class="form-group">
+                        <label for="adv-type">Advert Type *</label>
+                        <select id="adv-type" required>
+                            <option value="">Select type</option>
+                            <option value="banner">Banner Ad</option>
+                            <option value="sponsored">Sponsored Content</option>
+                            <option value="event">Event Sponsorship</option>
+                            <option value="social">Social Media Promotion</option>
+                            <option value="partner">Partnership</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="adv-budget">Budget Range</label>
+                        <select id="adv-budget">
+                            <option value="">Select range</option>
+                            <option value="500-1000">R500 - R1,000</option>
+                            <option value="1000-5000">R1,000 - R5,000</option>
+                            <option value="5000-10000">R5,000 - R10,000</option>
+                            <option value="10000+">R10,000+</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="adv-message">Tell us about your campaign *</label>
+                        <textarea id="adv-message" required rows="4" placeholder="Describe what you want to promote, target audience, duration..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="adv-terms" required>
+                            I agree to the <a href="#" onclick="alert('Advertising terms and conditions would be shown here');return false;">Advertising Terms</a>
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-ghost" onclick="closeAdvertiseModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Submit Request
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

@@ -183,7 +183,27 @@ const state = {
         reviews: [],
         tab: 'products',
         orderFilter: 'all'
-    }
+    },
+    // Discover section tabs
+    discoverTabs: {
+        events: 'upcoming',
+        clubs: 'all',
+        streams: 'all',
+        content: 'videos',
+        personals: 'all',
+        products: 'all'
+    },
+    // Call state
+    callType: null, // 'phone' or 'video'
+    videoCallCount: 0,
+    maxFreeVideoCalls: 3,
+    // Blocked users
+    blockedUsers: [],
+    // Voice recording
+    mediaRecorder: null,
+    audioChunks: [],
+    isRecording: false,
+    recordingStartTime: null
 };
 
 // Simple UUID generator for frontend
@@ -229,6 +249,7 @@ const profileTypes = {
     club: { label: 'Club Owner', icon: 'door-open', color: '#a855f7' },
     vendor: { label: 'Vendor', icon: 'store-alt', color: '#22c55e' },
     seller: { label: 'Seller', icon: 'store', color: '#10b981' },
+    advertiser: { label: 'Advertiser', icon: 'bullhorn', color: '#f97316' },
 
     // Provider Additional Services
     consulting: { label: 'Consulting', icon: 'comments', color: '#14b8a6' },
@@ -2062,6 +2083,31 @@ function selectProviderType(el, type) {
     if (radio) radio.checked = true;
 }
 
+// ==================== ADVERTISE FUNCTIONS ====================
+function showAdvertiseModal() {
+    var modal = document.getElementById('advertise-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeAdvertiseModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('advertise-modal');
+        if (modal) modal.style.display = 'none';
+    }
+}
+
+function submitAdvertiseRequest(event) {
+    event.preventDefault();
+    var name = document.getElementById('adv-name').value;
+    var email = document.getElementById('adv-email').value;
+    var type = document.getElementById('adv-type').value;
+    var message = document.getElementById('adv-message').value;
+    if (!name || !email || !type || !message) return;
+    showToast('Thank you! Your advertising request has been submitted. Our team will contact you within 48 hours. 📢');
+    closeAdvertiseModal();
+    document.getElementById('advertise-form').reset();
+}
+
 // ==================== ONBOARDING SYSTEM ====================
 var onboardingStep = 1;
 
@@ -2546,132 +2592,173 @@ function followProfile(profileId) {
 
 // ==================== DISCOVER FEED ====================
 function renderDiscoverFeed() {
-    var container = document.getElementById('discover-feed-container');
+    renderDiscoverSections();
+}
+
+function renderDiscoverSections() {
+    var container = document.getElementById('discover-sections');
     if (!container) return;
 
-    var items = [];
+    var sections = [];
 
-    // Events
-    if (state.events && state.events.length > 0) {
-        var latestEvents = state.events.slice(0, 2);
-        latestEvents.forEach(function(e) {
-            items.push({
-                icon: 'calendar-alt',
-                color: '#8b5cf6',
-                title: e.title,
-                subtitle: e.date || 'Event',
-                onClick: 'switchView(\'events\')'
-            });
-        });
-    }
-
-    // Profiles
-    if (state.profiles && state.profiles.length > 0) {
-        var recent = state.profiles.slice(0, 2);
-        recent.forEach(function(p) {
-            items.push({
-                icon: 'user',
-                color: '#6366f1',
-                title: p.name + ', ' + p.age,
-                subtitle: p.location || 'New profile',
-                onClick: 'openUserProfile(' + p.id + ')'
-            });
-        });
-    }
-
-    // Clubs
-    if (state.clubs && state.clubs.length > 0) {
-        state.clubs.slice(0, 1).forEach(function(c) {
-            items.push({
-                icon: 'users',
-                color: '#22c55e',
-                title: c.name,
-                subtitle: (c.members ? c.members.length : 0) + ' members',
-                onClick: 'switchView(\'clubs\')'
-            });
-        });
-    }
-
-    // Streams
-    if (state.streams && state.streams.length > 0) {
-        state.streams.slice(0, 1).forEach(function(s) {
-            items.push({
-                icon: 'video',
-                color: '#ef4444',
-                title: s.title || s.name,
-                subtitle: (s.viewers || 0) + ' watching',
-                onClick: 'switchView(\'streams\')'
-            });
-        });
-    }
-
-    // Content
-    if (state.content && state.content.length > 0) {
-        state.content.slice(0, 1).forEach(function(c) {
-            items.push({
-                icon: 'photo-video',
-                color: '#ec4899',
-                title: c.title || 'New content',
-                subtitle: c.type || 'Content',
-                onClick: 'switchView(\'content\')'
-            });
-        });
-    }
-
-    // Stories
-    if (state.stories && state.stories.length > 0) {
-        state.stories.slice(0, 1).forEach(function(s) {
-            items.push({
-                icon: 'book-open',
-                color: '#f59e0b',
-                title: s.title || 'Story',
-                subtitle: s.author || 'New story',
-                onClick: 'switchView(\'stories\')'
-            });
-        });
-    }
-
-    // Personals
-    if (state.personals && state.personals.length > 0) {
-        state.personals.slice(0, 1).forEach(function(p) {
-            items.push({
-                icon: 'heart',
-                color: '#ef4444',
-                title: p.title || 'Personals ad',
-                subtitle: p.type || 'Classified',
-                onClick: 'switchView(\'personals\')'
-            });
-        });
-    }
-
-    // Products
-    if (state.products && state.products.length > 0) {
-        state.products.slice(0, 1).forEach(function(p) {
-            items.push({
-                icon: 'store',
-                color: '#10b981',
-                title: p.name || 'Product',
-                subtitle: 'R' + (p.price || 0),
-                onClick: 'openProductDetail(' + p.id + ')'
-            });
-        });
-    }
-
-    if (items.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>No recent activity yet</p></div>';
-        return;
-    }
-
-    container.innerHTML = '<div class="discover-feed-grid">' + items.map(function(item) {
+    // Events Section
+    sections.push(buildDiscoverSection('events', 'calendar-alt', '#8b5cf6', 'Events', state.discoverTabs.events, [
+        { tab: 'upcoming', label: 'Upcoming' },
+        { tab: 'past', label: 'Past' },
+        { tab: 'my-events', label: 'My Events' }
+    ], state.events, function(item) {
         return '\
-            <div class="discover-feed-card" onclick="' + item.onClick + '">\
-                <div class="feed-icon" style="background:' + item.color + '">\
-                    <i class="fas fa-' + item.icon + '"></i>\
+            <div class="disco-card" onclick="switchView(\'events\')">\
+                <div class="disco-card-icon" style="background:#8b5cf6"><i class="fas fa-calendar-alt"></i></div>\
+                <div class="disco-card-body">\
+                    <h4>' + (item.title || 'Event') + '</h4>\
+                    <p><i class="fas fa-map-marker-alt"></i> ' + (item.location || 'Various') + ' &middot; ' + (item.date || 'TBD') + '</p>\
                 </div>\
-                <h4>' + item.title + '</h4>\
-                <p>' + item.subtitle + '</p>\
             </div>';
-    }).join('') + '</div>';
+    }));
+
+    // Clubs Section
+    sections.push(buildDiscoverSection('clubs', 'users', '#22c55e', 'Clubs', state.discoverTabs.clubs, [
+        { tab: 'all', label: 'All' },
+        { tab: 'professional', label: 'Professional' },
+        { tab: 'adventure', label: 'Adventure' },
+        { tab: 'luxury', label: 'Luxury' },
+        { tab: 'creative', label: 'Creative' },
+        { tab: 'fitness', label: 'Fitness' }
+    ], state.clubs, function(item) {
+        var memberCount = item.members ? item.members.length : 0;
+        return '\
+            <div class="disco-card" onclick="switchView(\'clubs\')">\
+                <div class="disco-card-icon" style="background:#22c55e"><i class="fas fa-users"></i></div>\
+                <div class="disco-card-body">\
+                    <h4>' + (item.name || 'Club') + '</h4>\
+                    <p>' + memberCount + ' members &middot; ' + (item.category || 'General') + '</p>\
+                </div>\
+            </div>';
+    }));
+
+    // Streams Section
+    sections.push(buildDiscoverSection('streams', 'video', '#ef4444', 'Live Streams', state.discoverTabs.streams, [
+        { tab: 'all', label: 'All' },
+        { tab: 'webcam', label: 'Webcams' },
+        { tab: 'lifestyle', label: 'Lifestyle' },
+        { tab: 'music', label: 'Music' },
+        { tab: 'food', label: 'Food' }
+    ], state.streams, function(item) {
+        return '\
+            <div class="disco-card" onclick="switchView(\'streams\')">\
+                <div class="disco-card-icon" style="background:#ef4444"><i class="fas fa-video"></i></div>\
+                <div class="disco-card-body">\
+                    <h4>' + (item.title || item.name || 'Stream') + '</h4>\
+                    <p>' + (item.viewers || 0) + ' watching &middot; ' + (item.category || 'Live') + '</p>\
+                </div>\
+            </div>';
+    }));
+
+    // Content Section
+    sections.push(buildDiscoverSection('content', 'photo-video', '#ec4899', 'Content', state.discoverTabs.content, [
+        { tab: 'videos', label: 'Videos' },
+        { tab: 'photos', label: 'Photos' },
+        { tab: 'popular', label: 'Popular' },
+        { tab: 'following', label: 'Following' }
+    ], state.content, function(item) {
+        return '\
+            <div class="disco-card" onclick="switchView(\'content\')">\
+                <div class="disco-card-icon" style="background:#ec4899"><i class="fas fa-photo-video"></i></div>\
+                <div class="disco-card-body">\
+                    <h4>' + (item.title || 'Content') + '</h4>\
+                    <p>' + (item.type || 'Media') + ' &middot; ' + (item.likes || 0) + ' likes</p>\
+                </div>\
+            </div>';
+    }));
+
+    // Personals Section
+    sections.push(buildDiscoverSection('personals', 'heart', '#ef4444', 'Personals', state.discoverTabs.personals, [
+        { tab: 'all', label: 'All' },
+        { tab: 'dating', label: 'Dating' },
+        { tab: 'friendship', label: 'Friendship' },
+        { tab: 'casual', label: 'Casual' }
+    ], state.personals, function(item) {
+        return '\
+            <div class="disco-card" onclick="switchView(\'personals\')">\
+                <div class="disco-card-icon" style="background:#ef4444"><i class="fas fa-heart"></i></div>\
+                <div class="disco-card-body">\
+                    <h4>' + (item.title || 'Ad') + '</h4>\
+                    <p>' + (item.type || 'General') + ' &middot; ' + (item.location || 'Various') + '</p>\
+                </div>\
+            </div>';
+    }));
+
+    // Products Section
+    sections.push(buildDiscoverSection('products', 'store', '#10b981', 'Marketplace', state.discoverTabs.products, [
+        { tab: 'all', label: 'All' },
+        { tab: 'featured', label: 'Featured' },
+        { tab: 'services', label: 'Services' },
+        { tab: 'digital', label: 'Digital' }
+    ], state.products, function(item) {
+        return '\
+            <div class="disco-card" onclick="openProductDetail(' + item.id + ')">\
+                <div class="disco-card-icon" style="background:#10b981"><i class="fas fa-store"></i></div>\
+                <div class="disco-card-body">\
+                    <h4>' + (item.name || 'Product') + '</h4>\
+                    <p>R' + (item.price || 0) + ' &middot; ' + (item.category || 'General') + '</p>\
+                </div>\
+            </div>';
+    }));
+
+    container.innerHTML = sections.join('');
+}
+
+function buildDiscoverSection(key, icon, color, title, activeTab, tabs, items, renderItem) {
+    var filtered = items || [];
+    if (activeTab !== 'all' && activeTab !== 'upcoming' && activeTab !== 'videos') {
+        if (key === 'clubs') {
+            filtered = filtered.filter(function(i) { return (i.category || '').toLowerCase() === activeTab; });
+        } else if (key === 'streams') {
+            filtered = filtered.filter(function(i) { return (i.category || i.type || '').toLowerCase() === activeTab; });
+        } else if (key === 'content') {
+            filtered = filtered.filter(function(i) { return (i.type || '').toLowerCase() === activeTab; });
+        } else if (key === 'personals') {
+            filtered = filtered.filter(function(i) { return (i.type || '').toLowerCase() === activeTab; });
+        } else if (key === 'products') {
+            if (activeTab === 'featured') {
+                filtered = filtered.filter(function(i) { return i.isFeatured; });
+            } else {
+                filtered = filtered.filter(function(i) { return (i.category || '').toLowerCase() === activeTab; });
+            }
+        }
+    } else if (key === 'events') {
+        if (activeTab === 'upcoming') {
+            filtered = filtered.filter(function(i) { return !i.past; });
+        } else if (activeTab === 'past') {
+            filtered = filtered.filter(function(i) { return i.past; });
+        }
+    }
+
+    var tabHtml = tabs.map(function(t) {
+        return '<button class="disco-tab' + (t.tab === activeTab ? ' active' : '') + '" onclick="switchDiscoverTab(\'' + key + '\',\'' + t.tab + '\')">' + t.label + '</button>';
+    }).join('');
+
+    var itemsHtml = filtered.slice(0, 4).map(renderItem).join('');
+    if (!itemsHtml) {
+        itemsHtml = '<div class="disco-empty"><p>No ' + title.toLowerCase() + ' found</p></div>';
+    }
+
+    return '\
+        <div class="discover-section">\
+            <div class="discover-section-header">\
+                <h3><i class="fas fa-' + icon + '" style="color:' + color + '"></i> ' + title + '</h3>\
+                <a href="#" onclick="switchView(\'' + key + '\');return false;">View All &rarr;</a>\
+            </div>\
+            <div class="disco-tabs">' + tabHtml + '</div>\
+            <div class="disco-items">' + itemsHtml + '</div>\
+        </div>';
+}
+
+function switchDiscoverTab(section, tab) {
+    if (!state.discoverTabs) state.discoverTabs = {};
+    state.discoverTabs[section] = tab;
+    renderDiscoverSections();
 }
 
 // ==================== USERS VIEW ====================
@@ -3126,6 +3213,16 @@ function openChat(conversationId) {
     document.getElementById('chat-user-avatar').src = conversation.avatar;
     document.getElementById('chat-user-name').textContent = conversation.name;
     document.getElementById('chat-user-status').textContent = conversation.online ? 'Online' : 'Offline';
+    document.getElementById('chat-user-status').style.color = isUserBlocked(conversation.id) ? 'var(--error)' : '';
+
+    // Update block button text
+    updateBlockButton();
+
+    // Disable input if blocked
+    var input = document.getElementById('message-input');
+    var sendBtn = document.querySelector('.chat-input-area .btn-primary');
+    if (input) input.disabled = isUserBlocked(conversation.id);
+    if (sendBtn) sendBtn.style.opacity = isUserBlocked(conversation.id) ? '0.4' : '1';
 
     // Render messages
     renderMessages();
@@ -3138,8 +3235,12 @@ function renderMessages() {
     messagesContainer.innerHTML = state.currentChat.messages.map(msg => {
         var bubbleContent = '';
         if (msg.attachment) {
+            var attachId = msg.id || 'att_' + Math.random().toString(36).substr(2, 9);
+            msg.id = attachId;
+            state.attachmentMap = state.attachmentMap || {};
+            state.attachmentMap[attachId] = msg.attachment.data;
             if (msg.attachment.isImage) {
-                bubbleContent = '<div class="msg-attachment"><img src="' + msg.attachment.data + '" alt="' + msg.attachment.name + '" class="msg-attach-image" onclick="window.open(\'' + msg.attachment.data + '\')"><div class="msg-attach-name"><i class="fas fa-image"></i> ' + msg.attachment.name + '</div></div>';
+                bubbleContent = '<div class="msg-attachment"><img src="' + msg.attachment.data + '" alt="' + msg.attachment.name + '" class="msg-attach-image" onclick="openAttachmentImage(\'' + attachId + '\')"><div class="msg-attach-name"><i class="fas fa-image"></i> ' + msg.attachment.name + '</div></div>';
             } else {
                 var icon = 'fa-file';
                 if (msg.attachment.type.includes('pdf')) icon = 'fa-file-pdf';
@@ -3147,8 +3248,26 @@ function renderMessages() {
                 else if (msg.attachment.type.includes('zip')) icon = 'fa-file-archive';
                 else if (msg.attachment.type.includes('audio')) icon = 'fa-file-audio';
                 else if (msg.attachment.type.includes('video')) icon = 'fa-file-video';
-                bubbleContent = '<div class="msg-attachment"><div class="msg-attach-file" onclick="downloadAttachment(\'' + msg.attachment.name + '\',\'' + msg.attachment.data + '\')"><i class="fas ' + icon + '"></i><div class="msg-attach-info"><span class="msg-attach-filename">' + msg.attachment.name + '</span><span class="msg-attach-size">' + msg.attachment.size + '</span></div></div></div>';
+                bubbleContent = '<div class="msg-attachment"><div class="msg-attach-file" onclick="downloadAttachment(\'' + msg.attachment.name + '\',\'' + attachId + '\')"><i class="fas ' + icon + '"></i><div class="msg-attach-info"><span class="msg-attach-filename">' + msg.attachment.name + '</span><span class="msg-attach-size">' + msg.attachment.size + '</span></div></div></div>';
             }
+        }
+        if (msg.voiceNote) {
+            var vnId = msg.id || 'vn_' + Math.random().toString(36).substr(2, 9);
+            msg.id = vnId;
+            state.voiceNotesMap = state.voiceNotesMap || {};
+            state.voiceNotesMap[vnId] = msg.voiceNote;
+            bubbleContent = '\
+            <div class="voice-note-bubble">\
+                <button class="voice-note-btn" onclick="playVoiceNote(\'' + vnId + '\', this)">\
+                    <i class="fas fa-play"></i>\
+                </button>\
+                <div class="voice-note-wave">\
+                    <span></span><span></span><span></span><span></span><span></span>\
+                    <span></span><span></span><span></span><span></span><span></span>\
+                    <span></span><span></span><span></span><span></span><span></span>\
+                </div>\
+                <span class="voice-note-duration">' + (msg.voiceDuration || '0:05') + '</span>\
+            </div>';
         }
         if (msg.text) {
             bubbleContent = parseEmoji(msg.text) + bubbleContent;
@@ -3183,6 +3302,11 @@ function sendMessage() {
     const text = input.value.trim();
 
     if (!text || !state.currentChat) return;
+
+    if (isUserBlocked(state.currentChat.id)) {
+        showToast('You cannot send messages to a blocked user');
+        return;
+    }
 
     // Try real-time messaging first
     const sentViaSocket = sendMessageRealTime(state.currentChat.id, text);
@@ -3496,7 +3620,14 @@ function attachFile() {
     input.click();
 }
 
-function downloadAttachment(name, data) {
+function openAttachmentImage(attachId) {
+    var data = state.attachmentMap && state.attachmentMap[attachId];
+    if (data) window.open(data);
+}
+
+function downloadAttachment(name, attachId) {
+    var data = state.attachmentMap && state.attachmentMap[attachId];
+    if (!data) return;
     var a = document.createElement('a');
     a.href = data;
     a.download = name;
@@ -11941,6 +12072,206 @@ function clearConversation(conversationId) {
     renderConversations();
     saveUserData();
     showToast('Conversation cleared');
+}
+
+// ==================== BLOCK / DELETE CONVERSATION ====================
+function toggleBlockUser(userId) {
+    var idx = state.blockedUsers.indexOf(userId);
+    if (idx > -1) {
+        state.blockedUsers.splice(idx, 1);
+        showToast('User unblocked');
+    } else {
+        if (!confirm('Block this user? They will not be able to send you messages.')) return;
+        state.blockedUsers.push(userId);
+        showToast('User blocked');
+    }
+    updateBlockButton();
+    saveUserData();
+}
+
+function updateBlockButton() {
+    var btn = document.getElementById('block-user-text');
+    if (!btn || !state.currentChat) return;
+    var isBlocked = state.blockedUsers.indexOf(state.currentChat.id) > -1;
+    btn.textContent = isBlocked ? 'Unblock User' : 'Block User';
+    var icon = document.querySelector('#block-user-btn i');
+    if (icon) icon.className = isBlocked ? 'fas fa-check-circle' : 'fas fa-ban';
+}
+
+function isUserBlocked(userId) {
+    return state.blockedUsers.indexOf(userId) > -1;
+}
+
+function deleteConversation(conversationId) {
+    if (!confirm('Delete this entire conversation? This action cannot be undone.')) return;
+    var idx = state.conversations.findIndex(c => c.id === conversationId);
+    if (idx === -1) return;
+
+    state.conversations.splice(idx, 1);
+
+    if (state.currentChat && state.currentChat.id === conversationId) {
+        state.currentChat = null;
+        document.getElementById('chat-placeholder').style.display = 'flex';
+        document.getElementById('chat-container').style.display = 'none';
+    }
+
+    renderConversations();
+    saveUserData();
+    showToast('Conversation deleted');
+}
+
+// ==================== VOICE RECORDING ====================
+var voiceRecordingInterval = null;
+
+function toggleVoiceRecording() {
+    if (state.isRecording) {
+        stopVoiceRecording();
+    } else {
+        startVoiceRecording();
+    }
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('Voice recording not supported in this browser');
+        return;
+    }
+
+    if (!state.currentChat) return;
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        state.mediaRecorder = new MediaRecorder(stream);
+        state.audioChunks = [];
+        state.isRecording = true;
+        state.recordingStartTime = Date.now();
+
+        state.mediaRecorder.ondataavailable = function(e) {
+            if (e.data.size > 0) {
+                state.audioChunks.push(e.data);
+            }
+        };
+
+        state.mediaRecorder.onstop = function() {
+            stream.getTracks().forEach(function(t) { t.stop(); });
+        };
+
+        state.mediaRecorder.start();
+
+        // Show recording UI
+        document.getElementById('voice-record-btn').style.display = 'none';
+        document.getElementById('voice-recording-indicator').style.display = 'flex';
+        document.getElementById('message-input').disabled = true;
+
+        // Start timer
+        var seconds = 0;
+        voiceRecordingInterval = setInterval(function() {
+            seconds++;
+            var m = Math.floor(seconds / 60);
+            var s = seconds % 60;
+            document.getElementById('voice-recording-time').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+        }, 1000);
+
+    }).catch(function(err) {
+        showToast('Microphone access denied');
+    });
+}
+
+function stopVoiceRecording() {
+    if (!state.isRecording || !state.mediaRecorder) return;
+
+    return new Promise(function(resolve) {
+        state.mediaRecorder.onstop = function() {
+            state.mediaRecorder.stream.getTracks().forEach(function(t) { t.stop(); });
+            state.isRecording = false;
+
+            clearInterval(voiceRecordingInterval);
+
+            document.getElementById('voice-record-btn').style.display = '';
+            document.getElementById('voice-recording-indicator').style.display = 'none';
+            document.getElementById('message-input').disabled = false;
+
+            resolve();
+        };
+
+        state.mediaRecorder.stop();
+    });
+}
+
+function cancelVoiceRecording() {
+    if (!state.isRecording) return;
+    state.audioChunks = [];
+    stopVoiceRecording().then(function() {
+        showToast('Recording cancelled');
+    });
+}
+
+function sendVoiceRecording() {
+    if (!state.isRecording || state.audioChunks.length === 0 || !state.currentChat) return;
+
+    var blob = new Blob(state.audioChunks, { type: 'audio/webm' });
+    var reader = new FileReader();
+
+    reader.onloadend = function() {
+        var audioData = reader.result;
+        var duration = Math.floor((Date.now() - state.recordingStartTime) / 1000);
+        var minutes = Math.floor(duration / 60);
+        var seconds = duration % 60;
+        var durationStr = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+
+        state.audioChunks = [];
+
+        stopVoiceRecording().then(function() {
+            state.currentChat.messages.push({
+                id: uuidv4(),
+                text: '',
+                sent: true,
+                time: 'Now',
+                delivered: true,
+                read: false,
+                voiceNote: audioData,
+                voiceDuration: durationStr
+            });
+
+            renderMessages();
+            renderConversations();
+            saveUserData();
+            showToast('Voice note sent');
+        });
+    };
+
+    reader.readAsDataURL(blob);
+}
+
+function playVoiceNote(vnId, btnElement) {
+    var audioData = state.voiceNotesMap && state.voiceNotesMap[vnId];
+    if (!audioData) {
+        showToast('Voice note data not available');
+        return;
+    }
+
+    if (state.activeAudio && !state.activeAudio.paused) {
+        state.activeAudio.pause();
+        var prevBtn = document.querySelector('.voice-note-btn.playing');
+        if (prevBtn) prevBtn.classList.remove('playing');
+    }
+
+    var audio = new Audio(audioData);
+    state.activeAudio = audio;
+
+    btnElement.classList.add('playing');
+    btnElement.innerHTML = '<i class="fas fa-pause"></i>';
+
+    audio.onended = function() {
+        btnElement.classList.remove('playing');
+        btnElement.innerHTML = '<i class="fas fa-play"></i>';
+        state.activeAudio = null;
+    };
+
+    audio.play().catch(function() {
+        btnElement.classList.remove('playing');
+        btnElement.innerHTML = '<i class="fas fa-play"></i>';
+        showToast('Could not play voice note');
+    });
 }
 
 // -------------------------------------------------------------------

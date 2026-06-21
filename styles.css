@@ -2201,8 +2201,10 @@ select:disabled {
     height: calc(100vh - 140px);
     background: var(--bg-primary);
     border-radius: var(--radius-xl);
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     border: 1px solid var(--border-light);
+    -webkit-overflow-scrolling: touch;
 }
 
 .conversations-panel {
@@ -2444,6 +2446,17 @@ select:disabled {
     padding: var(--spacing-3) var(--spacing-4);
     border-radius: var(--radius-lg);
     line-height: 1.5;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+.message-bubble img,
+.message-bubble video {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    display: block;
 }
 
 .message.received .message-bubble {
@@ -3630,6 +3643,27 @@ select:disabled {
     
     .story-detail-header h1 {
         font-size: 1.5rem;
+    }
+
+    .messages-layout {
+        height: calc(100vh - 100px);
+        border-radius: 0;
+        border: none;
+    }
+
+    .conversations-list {
+        height: auto;
+        min-height: 200px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .chat-panel {
+        min-height: 400px;
+    }
+
+    .message {
+        max-width: 85%;
     }
 }
 

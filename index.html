@@ -3250,13 +3250,14 @@ Tips for a great post:
     <div id="add-product-modal" class="modal-overlay" style="display: none;" onclick="closeAddProductModal(event)">
         <div class="modal-content add-product-modal-content">
             <div class="modal-header">
-                <h2>Sell a Product</h2>
+                <h2 id="add-product-modal-title">Sell a Product</h2>
                 <button class="modal-close" onclick="closeAddProductModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <form id="add-product-form" onsubmit="addProduct(event)">
+                    <input type="hidden" id="edit-product-id" value="">
                     <div class="form-group">
                         <label for="product-name">Product Name *</label>
                         <input type="text" id="product-name" required placeholder="e.g., Luxury Lingerie Set">
@@ -3318,7 +3319,7 @@ Tips for a great post:
 
                     <div class="modal-actions">
                         <button type="button" class="btn btn-ghost" onclick="closeAddProductModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="add-product-submit-btn">
                             <i class="fas fa-plus"></i> List Product
                         </button>
                     </div>

@@ -7244,7 +7244,23 @@ function searchStoreProducts() {
 }
 
 function editStoreProduct(id) {
-    showToast('Edit product feature coming soon! ✏️');
+    var product = state.store.products.find(function(p) { return p.id === id; });
+    if (!product) { showToast('Product not found'); return; }
+
+    document.getElementById('edit-product-id').value = id;
+    document.getElementById('product-name').value = product.name || '';
+    document.getElementById('product-category').value = product.category || '';
+    document.getElementById('product-price').value = product.price || '';
+    document.getElementById('product-original-price').value = product.originalPrice || '';
+    document.getElementById('product-description').value = product.description || '';
+    document.getElementById('product-stock').value = product.stock || 999;
+    document.getElementById('product-featured').checked = !!product.isFeatured;
+
+    document.getElementById('add-product-modal-title').textContent = 'Edit Product';
+    document.getElementById('add-product-submit-btn').innerHTML = '<i class=\"fas fa-save\"></i> Save Changes';
+
+    var modal = document.getElementById('add-product-modal');
+    if (modal) modal.style.display = 'flex';
 }
 
 function deleteStoreProduct(id) {
@@ -7513,11 +7529,15 @@ function closeAddProductModal(event) {
         const modal = document.getElementById('add-product-modal');
         if (modal) modal.style.display = 'none';
     }
+    document.getElementById('edit-product-id').value = '';
+    document.getElementById('add-product-modal-title').textContent = 'Sell a Product';
+    document.getElementById('add-product-submit-btn').innerHTML = '<i class="fas fa-plus"></i> List Product';
 }
 
 function addProduct(event) {
     event.preventDefault();
 
+    const editId = document.getElementById('edit-product-id').value;
     const name = document.getElementById('product-name').value;
     const category = document.getElementById('product-category').value;
     const price = parseFloat(document.getElementById('product-price').value);
@@ -7525,6 +7545,34 @@ function addProduct(event) {
     const description = document.getElementById('product-description').value;
     const stock = parseInt(document.getElementById('product-stock').value) || 999;
     const isFeatured = document.getElementById('product-featured').checked;
+
+    if (editId) {
+        var existing = state.store.products.find(function(p) { return p.id === parseInt(editId); });
+        if (existing) {
+            existing.name = name;
+            existing.category = category;
+            existing.price = price;
+            existing.originalPrice = originalPrice;
+            existing.description = description;
+            existing.stock = stock;
+            existing.isFeatured = isFeatured;
+        }
+        var globalProduct = state.products.find(function(p) { return p.id === parseInt(editId); });
+        if (globalProduct) {
+            globalProduct.name = name;
+            globalProduct.category = category;
+            globalProduct.price = price;
+            globalProduct.originalPrice = originalPrice;
+            globalProduct.description = description;
+            globalProduct.stock = stock;
+            globalProduct.isFeatured = isFeatured;
+        }
+        closeAddProductModal();
+        renderStoreProducts();
+        renderProducts();
+        showToast('Product updated successfully! ✏️');
+        return;
+    }
 
     const newProduct = {
         id: Date.now(),
@@ -7548,7 +7596,10 @@ function addProduct(event) {
     };
 
     state.products.unshift(newProduct);
+    state.store.products.unshift(newProduct);
     renderProducts();
+    renderStoreProducts();
+    updateStoreStats();
     closeAddProductModal();
     showToast('Product listed successfully! 📦');
 }
@@ -8755,7 +8806,7 @@ function showAddUserModal() {
                         <div class="form-group">
                             <label for="new-user-account-type">Account Type *</label>
                             <select id="new-user-account-type" required onchange="toggleProviderFields()">
-                                <option value="customer">Customer</option>
+                                <option value="customer">User</option>
                                 <option value="provider">Service Provider</option>
                             </select>
                         </div>
@@ -11799,7 +11850,7 @@ function editAdminUserProfile(userId) {
                         <div class="form-group">
                             <label for="euser-account-type">Account Type</label>
                             <select id="euser-account-type">
-                                <option value="customer" ${user.accountType==='customer'?'selected':''}>Customer</option>
+                                <option value="customer" ${user.accountType==='customer'?'selected':''}>User</option>
                                 <option value="provider" ${user.accountType==='provider'?'selected':''}>Service Provider</option>
                             </select>
                         </div>

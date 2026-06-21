@@ -250,6 +250,7 @@ const profileTypes = {
     vendor: { label: 'Vendor', icon: 'store-alt', color: '#22c55e' },
     seller: { label: 'Seller', icon: 'store', color: '#10b981' },
     advertiser: { label: 'Advertiser', icon: 'bullhorn', color: '#f97316' },
+    webcammer: { label: 'Webcammer', icon: 'video', color: '#ef4444' },
 
     // Provider Additional Services
     consulting: { label: 'Consulting', icon: 'comments', color: '#14b8a6' },
@@ -2402,6 +2403,9 @@ function switchView(viewName) {
         case 'store':
             renderStore();
             break;
+        case 'provider-portal':
+            renderProviderPortal();
+            break;
     }
 }
 
@@ -3267,6 +3271,22 @@ function renderMessages() {
                     <span></span><span></span><span></span><span></span><span></span>\
                 </div>\
                 <span class="voice-note-duration">' + (msg.voiceDuration || '0:05') + '</span>\
+            </div>';
+        }
+        if (msg.location) {
+            bubbleContent = '\
+            <div class="msg-location" onclick="window.open(\'' + msg.location.url + '\',\'_blank\')">\
+                <div class="msg-location-preview">\
+                    <i class="fas fa-map-marker-alt"></i>\
+                    <div class="msg-location-info">\
+                        <strong>Live Location</strong>\
+                        <span>' + msg.location.lat.toFixed(4) + ', ' + msg.location.lng.toFixed(4) + '</span>\
+                    </div>\
+                </div>\
+                <div class="msg-location-map" style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(34,197,94,0.15))">\
+                    <i class="fas fa-map"></i>\
+                    <span>View on Google Maps</span>\
+                </div>\
             </div>';
         }
         if (msg.text) {
@@ -7422,9 +7442,18 @@ function renderStore() {
     // Show store nav item for vendors/providers/admins
     var navStore = document.getElementById('nav-store');
     if (navStore) {
-        var isVendor = state.currentUser.type === 'vendor' || state.currentUser.type === 'seller' || state.currentUser.accountType === 'provider';
+        var providerTypes = ['provider','creator','dancer','model','escort','promoter','studio','venue','club','vendor','seller','advertiser','webcammer'];
+        var userType = state.currentUser.type || state.currentUser.accountType || '';
+        var isProvider = providerTypes.indexOf(userType) > -1 || state.currentUser.accountType === 'provider';
         var isAdminUser = state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
-        navStore.style.display = (isVendor || isAdminUser) ? 'flex' : 'none';
+        var hasStore = userType === 'vendor' || userType === 'seller' || userType === 'provider' || isAdminUser;
+        navStore.style.display = hasStore ? 'flex' : 'none';
+    }
+
+    // Show provider portal nav for providers/admins
+    var navPortal = document.getElementById('nav-provider-portal');
+    if (navPortal) {
+        navPortal.style.display = (isProvider || isAdminUser) ? 'flex' : 'none';
     }
 }
 
@@ -12072,6 +12101,616 @@ function clearConversation(conversationId) {
     renderConversations();
     saveUserData();
     showToast('Conversation cleared');
+}
+
+// ==================== PROVIDER PORTAL ====================
+var portalState = {
+    section: 'dashboard',
+    contentTab: 'all',
+    storeTab: 'products',
+    bookingTab: 'upcoming'
+};
+
+function renderProviderPortal() {
+    var user = state.currentUser;
+    if (!user || !user.profile) {
+        showToast('Please complete your profile first');
+        switchView('discover');
+        return;
+    }
+
+    // Set profile summary
+    document.getElementById('portal-avatar').src = user.image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&background=6366f1&color=fff';
+    document.getElementById('portal-name').textContent = user.name;
+
+    var typeKey = user.accountType === 'provider' ? (user.profile.providerType || 'general') : (user.accountType || 'general');
+    var pt = profileTypes[typeKey] || profileTypes.general;
+    var typeBadge = document.getElementById('portal-type-badge');
+    typeBadge.textContent = pt.label;
+    typeBadge.style.background = pt.color + '22';
+    typeBadge.style.color = pt.color;
+
+    // Set date
+    document.getElementById('portal-date').textContent = new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    renderPortalDashboard();
+    switchPortalSection(portalState.section);
+}
+
+function closeProviderPortal() {
+    switchView('discover');
+}
+
+function switchPortalSection(section) {
+    portalState.section = section;
+
+    document.querySelectorAll('.portal-nav-item').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.section === section);
+    });
+    document.querySelectorAll('.portal-section').forEach(function(el) {
+        el.classList.toggle('active', el.id === 'portal-' + section);
+    });
+
+    switch (section) {
+        case 'dashboard': renderPortalDashboard(); break;
+        case 'content': renderPortalContent(); break;
+        case 'store': renderPortalStore(); break;
+        case 'analytics': renderPortalAnalytics(); break;
+        case 'bookings': renderPortalBookings(); break;
+        case 'promotions': break;
+        case 'monetization': renderPortalMonetization(); break;
+        case 'messages': renderPortalMessages(); break;
+        case 'settings': renderPortalSettings(); break;
+    }
+}
+
+function renderPortalDashboard() {
+    var user = state.currentUser;
+    var stats = calculateProviderStats();
+
+    document.getElementById('portal-stat-views').textContent = stats.views;
+    document.getElementById('portal-stat-messages').textContent = stats.messages;
+    document.getElementById('portal-stat-earnings').textContent = 'R' + stats.earnings;
+    document.getElementById('portal-stat-listings').textContent = stats.listings;
+
+    // Recent activity
+    var activityHtml = '';
+    var activities = state.activityFeed || [];
+    var recent = activities.slice(-5).reverse();
+    if (recent.length === 0) {
+        var sampleActivities = [
+            { icon: 'fa-user', text: 'Someone viewed your profile', time: '2 hours ago', color: 'var(--primary)' },
+            { icon: 'fa-heart', text: 'You received a new like', time: '5 hours ago', color: 'var(--error)' },
+            { icon: 'fa-comment', text: 'New message from a client', time: '1 day ago', color: 'var(--success)' }
+        ];
+        recent = sampleActivities;
+    }
+    activityHtml = recent.map(function(a) {
+        return '<div class="portal-activity-item"><div class="portal-activity-icon" style="background:' + (a.color || 'var(--bg-tertiary)') + '22;color:' + (a.color || 'var(--text-secondary)') + '"><i class="fas ' + (a.icon || 'fa-circle') + '"></i></div><div class="portal-activity-info"><p>' + (a.text || '') + '</p><span>' + (a.time || '') + '</span></div></div>';
+    }).join('');
+    document.getElementById('portal-recent-activity').innerHTML = activityHtml;
+
+    // Performance chart
+    renderPortalMiniChart();
+}
+
+function renderPortalMiniChart() {
+    var canvas = document.getElementById('portal-chart-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    if (window.portalChart) window.portalChart.destroy();
+
+    var labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var data = labels.map(function() { return Math.floor(Math.random() * 50) + 10; });
+
+    if (typeof Chart !== 'undefined') {
+        window.portalChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Profile Views',
+                    data: data,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99,102,241,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#6366f1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                    y: { grid: { color: 'rgba(148,163,184,0.1)' }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+    }
+}
+
+function calculateProviderStats() {
+    var totalMessages = state.conversations ? state.conversations.reduce(function(sum, c) {
+        return sum + (c.messages ? c.messages.length : 0);
+    }, 0) : 0;
+    var totalEarnings = state.store.earnings ? state.store.earnings.reduce(function(s, e) { return s + e.amount; }, 0) : 0;
+    var totalListings = (state.store.products ? state.store.products.length : 0) + (state.content ? state.content.length : 0);
+
+    return {
+        views: Math.floor(Math.random() * 500) + 100,
+        messages: totalMessages,
+        earnings: totalEarnings,
+        listings: totalListings
+    };
+}
+
+function renderPortalContent() {
+    var grid = document.getElementById('portal-content-grid');
+    if (!grid) return;
+    var tab = portalState.contentTab || 'all';
+    var items = state.content || [];
+    if (items.length === 0) {
+        grid.innerHTML = '<div class="portal-empty-state"><i class="fas fa-camera" style="font-size:2rem;margin-bottom:var(--spacing-3);color:var(--text-muted)"></i><p>No content uploaded yet</p><button class="btn btn-primary btn-sm" onclick="showUploadContentModal()"><i class="fas fa-plus"></i> Upload Content</button></div>';
+        return;
+    }
+    var filtered = tab === 'all' ? items : items.filter(function(i) { return i.type === tab; });
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div class="portal-empty-state">No ' + tab + ' content</div>';
+        return;
+    }
+    grid.innerHTML = filtered.map(function(item) {
+        return '\
+        <div class="portal-content-item">\
+            <div class="portal-content-thumb" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">\
+                <i class="fas fa-' + (item.type === 'video' ? 'video' : 'image') + '"></i>\
+            </div>\
+            <div class="portal-content-info">\
+                <h5>' + (item.title || 'Untitled') + '</h5>\
+                <span class="portal-content-meta">' + (item.views || 0) + ' views · ' + (item.likes || 0) + ' likes</span>\
+            </div>\
+            <button class="btn btn-icon btn-sm" onclick="editContent(' + (item.id || 0) + ')"><i class="fas fa-edit"></i></button>\
+        </div>';
+    }).join('');
+}
+
+function switchPortalContentTab(tab) {
+    portalState.contentTab = tab;
+    document.querySelectorAll('.portal-content-tab').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.ctab === tab);
+    });
+    renderPortalContent();
+}
+
+function renderPortalStore() {
+    updatePortalStoreStats();
+    switchPortalStoreTab(portalState.storeTab);
+}
+
+function updatePortalStoreStats() {
+    var products = state.store.products || [];
+    var orders = state.store.orders || [];
+    var earnings = state.store.earnings || [];
+    var reviews = state.store.reviews || [];
+
+    document.getElementById('portal-store-products').textContent = products.length;
+    document.getElementById('portal-store-orders').textContent = orders.length;
+    var total = earnings.reduce(function(s, e) { return s + e.amount; }, 0);
+    document.getElementById('portal-store-earnings').textContent = 'R' + total;
+    var avgRating = reviews.length > 0 ? (reviews.reduce(function(s, r) { return s + r.rating; }, 0) / reviews.length).toFixed(1) : '0.0';
+    document.getElementById('portal-store-rating').textContent = avgRating;
+}
+
+function switchPortalStoreTab(tab) {
+    portalState.storeTab = tab;
+    document.querySelectorAll('.portal-store-tab').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.stab === tab);
+    });
+
+    var container = document.getElementById('portal-store-content');
+    if (!container) return;
+
+    switch (tab) {
+        case 'products':
+            var products = state.store.products || [];
+            if (products.length === 0) {
+                container.innerHTML = '<div class="portal-empty-state">No products yet. <button class="btn btn-primary btn-sm" onclick="showAddProductModal()">Add Product</button></div>';
+            } else {
+                container.innerHTML = products.map(function(p) {
+                    var statusClass = p.status === 'active' ? 'success' : (p.status === 'draft' ? 'warning' : 'muted');
+                    return '\
+                    <div class="portal-store-item">\
+                        <div class="portal-store-item-img" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">\
+                            <i class="fas fa-box"></i>\
+                        </div>\
+                        <div class="portal-store-item-info">\
+                            <h5>' + (p.name || 'Product') + '</h5>\
+                            <span class="portal-store-item-price">R' + (p.price || 0) + '</span>\
+                            <span class="portal-store-item-status" style="color:var(--' + statusClass + ')">' + (p.status || 'draft') + '</span>\
+                        </div>\
+                        <div class="portal-store-item-actions">\
+                            <button class="btn btn-icon btn-sm" onclick="editStoreProduct(' + p.id + ')"><i class="fas fa-edit"></i></button>\
+                            <button class="btn btn-icon btn-sm" onclick="deleteStoreProduct(' + p.id + ')"><i class="fas fa-trash"></i></button>\
+                        </div>\
+                    </div>';
+                }).join('');
+            }
+            break;
+        case 'orders':
+            var orders = state.store.orders || [];
+            if (orders.length === 0) {
+                container.innerHTML = '<div class="portal-empty-state">No orders yet</div>';
+            } else {
+                container.innerHTML = orders.map(function(o) {
+                    var statusColor = o.status === 'delivered' ? 'var(--success)' : (o.status === 'pending' ? 'var(--warning)' : (o.status === 'shipped' ? 'var(--primary)' : 'var(--text-muted)'));
+                    return '\
+                    <div class="portal-store-item">\
+                        <div class="portal-store-item-info">\
+                            <h5>' + (o.product || 'Order #' + o.id) + '</h5>\
+                            <span class="portal-store-item-customer"><i class="fas fa-user"></i> ' + (o.customer || 'Unknown') + '</span>\
+                            <span class="portal-store-item-price">R' + (o.amount || 0) + ' x ' + (o.quantity || 1) + '</span>\
+                            <span class="portal-store-item-status" style="color:' + statusColor + '">' + (o.status || 'pending') + '</span>\
+                        </div>\
+                        <div class="portal-store-item-actions">\
+                            <select class="portal-order-status-select" onchange="updateOrderStatus(' + o.id + ', this.value)">\
+                                <option value="pending"' + (o.status === 'pending' ? ' selected' : '') + '>Pending</option>\
+                                <option value="shipped"' + (o.status === 'shipped' ? ' selected' : '') + '>Shipped</option>\
+                                <option value="delivered"' + (o.status === 'delivered' ? ' selected' : '') + '>Delivered</option>\
+                                <option value="cancelled"' + (o.status === 'cancelled' ? ' selected' : '') + '>Cancelled</option>\
+                            </select>\
+                        </div>\
+                    </div>';
+                }).join('');
+            }
+            break;
+        case 'earnings':
+            var earnings = state.store.earnings || [];
+            var total = earnings.reduce(function(s, e) { return s + e.amount; }, 0);
+            if (earnings.length === 0) {
+                container.innerHTML = '<div class="portal-empty-state">No earnings yet</div>';
+            } else {
+                container.innerHTML = '\
+                <div class="portal-earnings-summary">\
+                    <div class="portal-earnings-total"><span>Total Earnings</span><strong>R' + total + '</strong></div>\
+                </div>\
+                <div class="portal-earnings-list">' +
+                earnings.map(function(e) {
+                    return '<div class="portal-earnings-item"><span>' + (e.description || 'Sale') + '</span><span class="portal-earnings-amount">+R' + e.amount + '</span><span class="portal-earnings-date">' + (e.date ? new Date(e.date).toLocaleDateString() : '') + '</span></div>';
+                }).join('') + '</div>';
+            }
+            break;
+        case 'reviews':
+            var reviews = state.store.reviews || [];
+            if (reviews.length === 0) {
+                container.innerHTML = '<div class="portal-empty-state">No reviews yet</div>';
+            } else {
+                container.innerHTML = reviews.map(function(r) {
+                    var stars = '';
+                    for (var i = 0; i < 5; i++) {
+                        stars += '<i class="fas fa-star" style="color:' + (i < r.rating ? 'var(--warning)' : 'var(--border-light)') + ';font-size:0.8rem"></i>';
+                    }
+                    return '\
+                    <div class="portal-store-item">\
+                        <div class="portal-store-item-info">\
+                            <h5>' + (r.customer || 'Anonymous') + '</h5>\
+                            <div>' + stars + '</div>\
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px">' + (r.text || '') + '</p>\
+                        </div>\
+                    </div>';
+                }).join('');
+            }
+            break;
+    }
+}
+
+function searchPortalStore(value) {
+    var q = value.toLowerCase().trim();
+    var products = state.store.products || [];
+    var filtered = q ? products.filter(function(p) { return (p.name || '').toLowerCase().indexOf(q) > -1; }) : products;
+    var container = document.getElementById('portal-store-content');
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="portal-empty-state">No products matching "' + q + '"</div>';
+    } else {
+        container.innerHTML = filtered.map(function(p) {
+            return '\
+            <div class="portal-store-item">\
+                <div class="portal-store-item-img" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">\
+                    <i class="fas fa-box"></i>\
+                </div>\
+                <div class="portal-store-item-info">\
+                    <h5>' + (p.name || 'Product') + '</h5>\
+                    <span class="portal-store-item-price">R' + (p.price || 0) + '</span>\
+                </div>\
+                <div class="portal-store-item-actions">\
+                    <button class="btn btn-icon btn-sm" onclick="editStoreProduct(' + p.id + ')"><i class="fas fa-edit"></i></button>\
+                    <button class="btn btn-icon btn-sm" onclick="deleteStoreProduct(' + p.id + ')"><i class="fas fa-trash"></i></button>\
+                </div>\
+            </div>';
+        }).join('');
+    }
+}
+
+function renderPortalAnalytics() {
+    if (typeof Chart === 'undefined') return;
+    var period = parseInt(document.getElementById('portal-analytics-period').value) || 30;
+    var labels = [];
+    for (var i = period - 1; i >= 0; i--) {
+        var d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' }));
+    }
+
+    var charts = [
+        { id: 'analytics-views-chart', label: 'Views', color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+        { id: 'analytics-messages-chart', label: 'Messages', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+        { id: 'analytics-earnings-chart', label: 'Earnings', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+        { id: 'analytics-engagement-chart', label: 'Engagement', color: '#ec4899', bg: 'rgba(236,72,153,0.1)' }
+    ];
+
+    charts.forEach(function(c) {
+        var canvas = document.getElementById(c.id);
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        if (window[c.id]) window[c.id].destroy();
+
+        var data = labels.map(function() { return Math.floor(Math.random() * 80) + 5; });
+
+        window[c.id] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: c.label,
+                    data: data,
+                    borderColor: c.color,
+                    backgroundColor: c.bg,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
+                    y: { grid: { color: 'rgba(148,163,184,0.1)' }, ticks: { color: '#94a3b8', maxTicksLimit: 4 } }
+                }
+            }
+        });
+    });
+}
+
+function renderPortalBookings() {
+    var tab = portalState.bookingTab || 'upcoming';
+    var list = document.getElementById('portal-bookings-list');
+    if (!list) return;
+
+    var events = state.events || [];
+    var now = new Date();
+
+    var filtered;
+    if (tab === 'upcoming') {
+        filtered = events.filter(function(e) { return new Date(e.date || e.startDate) > now; });
+    } else if (tab === 'pending') {
+        filtered = events.filter(function(e) { return e.status === 'pending' || e.rsvp === 'pending'; });
+    } else {
+        filtered = events.filter(function(e) { return new Date(e.date || e.startDate) <= now; });
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="portal-empty-state">No ' + tab + ' bookings</div>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(function(e) {
+        var d = new Date(e.date || e.startDate || Date.now());
+        return '\
+        <div class="portal-booking-item">\
+            <div class="portal-booking-date">\
+                <span class="portal-booking-day">' + d.getDate() + '</span>\
+                <span class="portal-booking-month">' + d.toLocaleDateString('en-ZA', { month: 'short' }) + '</span>\
+            </div>\
+            <div class="portal-booking-info">\
+                <h5>' + (e.title || 'Event') + '</h5>\
+                <p>' + (e.location || 'Online') + ' · ' + (e.rsvpCount || 0) + ' attending</p>\
+            </div>\
+            <button class="btn btn-sm btn-outline" onclick="viewAttendeesList(' + e.id + ')"><i class="fas fa-users"></i></button>\
+        </div>';
+    }).join('');
+}
+
+function switchPortalBookingTab(tab) {
+    portalState.bookingTab = tab;
+    document.querySelectorAll('.portal-booking-tab').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.btab === tab);
+    });
+    renderPortalBookings();
+}
+
+function renderPortalMessages() {
+    var list = document.getElementById('portal-messages-list');
+    if (!list) return;
+
+    var conversations = state.conversations || [];
+    if (conversations.length === 0) {
+        list.innerHTML = '<div class="portal-empty-state">No conversations yet</div>';
+        return;
+    }
+
+    list.innerHTML = conversations.map(function(c) {
+        var lastMsg = c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1].text : 'No messages yet';
+        return '\
+        <div class="portal-message-item" onclick="switchView(\'messages\');openChat(' + c.id + ')">\
+            <img src="' + (c.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name) + '&background=6366f1&color=fff') + '" alt="" class="portal-message-avatar">\
+            <div class="portal-message-info">\
+                <h5>' + c.name + '</h5>\
+                <p>' + (typeof lastMsg === 'string' ? lastMsg.substring(0, 60) : '') + '</p>\
+            </div>\
+        </div>';
+    }).join('');
+}
+
+function renderPortalSettings() {
+    var user = state.currentUser;
+    if (!user) return;
+
+    var typeKey = user.accountType === 'provider' ? (user.profile.providerType || 'general') : (user.accountType || 'general');
+    var pt = profileTypes[typeKey] || profileTypes.general;
+
+    document.getElementById('portal-setting-type').innerHTML = '<span style="background:' + pt.color + '22;color:' + pt.color + ';padding:4px 12px;border-radius:20px;font-weight:600">' + pt.label + '</span>';
+    document.getElementById('portal-setting-name').value = user.name || '';
+    document.getElementById('portal-setting-bio').value = user.bio || user.profile?.bio || '';
+    document.getElementById('portal-setting-email').value = user.email || '';
+}
+
+function savePortalSettings() {
+    var user = state.currentUser;
+    if (!user) return;
+
+    user.name = document.getElementById('portal-setting-name').value || user.name;
+    user.bio = document.getElementById('portal-setting-bio').value || user.bio;
+    user.email = document.getElementById('portal-setting-email').value || user.email;
+    if (user.profile) {
+        user.profile.bio = user.bio;
+    }
+
+    saveUserData();
+    showToast('Settings saved successfully!');
+}
+
+// ==================== PORTAL MONETIZATION ====================
+function renderPortalMonetization() {
+    if (!state.monetization) {
+        state.monetization = {
+            enabled: {},
+            settings: {
+                tips: { minAmount: 10, message: 'Buy me a coffee!' },
+                ppv: { price: 25, previewDuration: 10 },
+                subscription: { monthly: 49, yearly: 499 },
+                privateShow: { pricePerMin: 15, freePreviewMin: 1 },
+                affiliate: { rate: 15, code: '' },
+                store: { shippingFee: 50, paymentMethod: 'all' }
+            }
+        };
+    }
+
+    var settings = state.monetization;
+    var methods = ['tips','ppv','subscription','private-show','affiliate','store'];
+
+    methods.forEach(function(m) {
+        var checkbox = document.querySelector('.monetization-toggle[data-method="' + m + '"]');
+        if (checkbox) checkbox.checked = !!settings.enabled[m];
+        var details = document.getElementById('monetization-' + m.replace('-', '') + '-details');
+        if (!details) details = document.getElementById('monetization-' + m + '-details');
+        if (details) details.style.display = settings.enabled[m] ? 'block' : 'none';
+    });
+
+    // Restore input values
+    var s = settings.settings;
+    setFieldValue('monetization-tips-min', s.tips.minAmount);
+    setFieldValue('monetization-tips-message', s.tips.message);
+    setFieldValue('monetization-ppv-price', s.ppv.price);
+    setFieldValue('monetization-ppv-preview', s.ppv.previewDuration);
+    setFieldValue('monetization-sub-monthly', s.subscription.monthly);
+    setFieldValue('monetization-sub-yearly', s.subscription.yearly);
+    setFieldValue('monetization-private-price', s.privateShow.pricePerMin);
+    setFieldValue('monetization-private-preview', s.privateShow.freePreviewMin);
+    setFieldValue('monetization-affiliate-rate', s.affiliate.rate);
+    setFieldValue('monetization-affiliate-code', s.affiliate.code);
+    setFieldValue('monetization-store-shipping', s.store.shippingFee);
+    setFieldValue('monetization-store-payment', s.store.paymentMethod);
+
+    updateMonetizationSummary();
+
+    var activeCount = Object.keys(settings.enabled).filter(function(k) { return settings.enabled[k]; }).length;
+    document.getElementById('portal-monetization-status').innerHTML = activeCount > 0
+        ? '<span style="background:rgba(34,197,94,0.12);color:var(--success);padding:4px 12px;border-radius:20px;font-size:0.85rem;font-weight:600"><i class="fas fa-check-circle"></i> ' + activeCount + ' method(s) active</span>'
+        : '<span style="background:rgba(239,68,68,0.12);color:var(--error);padding:4px 12px;border-radius:20px;font-size:0.85rem;font-weight:600"><i class="fas fa-times-circle"></i> No methods active</span>';
+}
+
+function toggleMonetizationMethod(method, enabled) {
+    if (!state.monetization) return;
+    state.monetization.enabled[method] = enabled;
+    var details = document.getElementById('monetization-' + method.replace('-', '') + '-details');
+    if (!details) details = document.getElementById('monetization-' + method + '-details');
+    if (details) details.style.display = enabled ? 'block' : 'none';
+    updateMonetizationSummary();
+}
+
+function saveMonetizationSettings() {
+    if (!state.monetization) return;
+    var s = state.monetization.settings;
+
+    s.tips.minAmount = parseInt(document.getElementById('monetization-tips-min')?.value) || 10;
+    s.tips.message = document.getElementById('monetization-tips-message')?.value || 'Buy me a coffee!';
+    s.ppv.price = parseInt(document.getElementById('monetization-ppv-price')?.value) || 25;
+    s.ppv.previewDuration = parseInt(document.getElementById('monetization-ppv-preview')?.value) || 10;
+    s.subscription.monthly = parseInt(document.getElementById('monetization-sub-monthly')?.value) || 49;
+    s.subscription.yearly = parseInt(document.getElementById('monetization-sub-yearly')?.value) || 499;
+    s.privateShow.pricePerMin = parseInt(document.getElementById('monetization-private-price')?.value) || 15;
+    s.privateShow.freePreviewMin = parseInt(document.getElementById('monetization-private-preview')?.value) || 1;
+    s.affiliate.rate = parseInt(document.getElementById('monetization-affiliate-rate')?.value) || 15;
+    s.affiliate.code = document.getElementById('monetization-affiliate-code')?.value || '';
+    s.store.shippingFee = parseInt(document.getElementById('monetization-store-shipping')?.value) || 50;
+    s.store.paymentMethod = document.getElementById('monetization-store-payment')?.value || 'all';
+
+    saveUserData();
+    showToast('Monetization settings saved!');
+    updateMonetizationSummary();
+}
+
+function updateMonetizationSummary() {
+    if (!state.monetization) return;
+    var activeCount = Object.keys(state.monetization.enabled).filter(function(k) { return state.monetization.enabled[k]; }).length;
+    document.getElementById('monetization-active-methods').textContent = activeCount;
+    document.getElementById('monetization-total-earned').textContent = Math.floor(Math.random() * 5000) + 100;
+    document.getElementById('monetization-transactions').textContent = Math.floor(Math.random() * 50) + 5;
+    document.getElementById('monetization-payout').textContent = 'R' + Math.floor(Math.random() * 2000) + 50;
+}
+
+// ==================== LIVE LOCATION SHARING ====================
+function sendLiveLocation() {
+    if (!state.currentChat) {
+        showToast('Open a conversation first');
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        showToast('Location sharing not supported in this browser');
+        return;
+    }
+
+    showToast('Getting your location...');
+
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            var lat = pos.coords.latitude;
+            var lng = pos.coords.longitude;
+            var mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+
+            state.currentChat.messages.push({
+                id: uuidv4(),
+                text: '',
+                sent: true,
+                time: 'Now',
+                delivered: true,
+                read: false,
+                location: { lat: lat, lng: lng, url: mapsUrl }
+            });
+
+            renderMessages();
+            renderConversations();
+            saveUserData();
+            showToast('Location sent!');
+        },
+        function(err) {
+            showToast('Could not get location: ' + (err.message || 'Unknown error'));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
 }
 
 // ==================== BLOCK / DELETE CONVERSATION ====================

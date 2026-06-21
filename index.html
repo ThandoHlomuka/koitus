@@ -973,6 +973,10 @@
                     <i class="fas fa-info-circle" style="color:var(--primary)"></i>
                     <span>About</span>
                 </a>
+                <a href="#" class="nav-item" data-view="provider-portal" onclick="switchView('provider-portal')" id="nav-provider-portal" style="display:none;">
+                    <i class="fas fa-tachometer-alt" style="color:var(--warning)"></i>
+                    <span>Provider Portal</span>
+                </a>
             </nav>
             
             <!-- Guest auth section (shown when not logged in) -->
@@ -1207,6 +1211,9 @@
                             <div class="chat-input-area">
                                 <button class="btn btn-icon" onclick="attachFile()">
                                     <i class="fas fa-paperclip"></i>
+                                </button>
+                                <button class="btn btn-icon" onclick="sendLiveLocation()" title="Share live location">
+                                    <i class="fas fa-map-marker-alt"></i>
                                 </button>
                                 <button class="btn btn-icon" id="voice-record-btn" onclick="toggleVoiceRecording()">
                                     <i class="fas fa-microphone"></i>
@@ -1709,10 +1716,12 @@
                                             <button class="btn btn-sm btn-primary" onclick="submitComment()">
                                                 <i class="fas fa-paper-plane"></i> Post Comment
                                             </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="profile-section">
+                            <div class="profile-section">
                             <h3><i class="fas fa-chart-bar"></i> Community Stats</h3>
                             <div class="community-stats-grid" id="community-stats">
                                 <div class="community-stat-item">
@@ -1771,9 +1780,6 @@
                                 <!-- Populated by JS -->
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
                     </div>
                 </div>
             </div>
@@ -2118,6 +2124,557 @@
                 <div class="store-tab-content" id="store-reviews" style="display:none;">
                     <div class="store-reviews-list" id="store-reviews-list">
                         <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Provider Portal View -->
+            <div id="view-provider-portal" class="view">
+                <div class="provider-portal-container">
+                    <!-- Portal Sidebar -->
+                    <div class="portal-sidebar" id="portal-sidebar">
+                        <div class="portal-sidebar-header">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <h3>Provider Portal</h3>
+                        </div>
+                        <div class="portal-profile-summary" id="portal-profile-summary">
+                            <img src="" alt="" id="portal-avatar">
+                            <div class="portal-profile-info">
+                                <h4 id="portal-name"></h4>
+                                <span id="portal-type-badge"></span>
+                            </div>
+                        </div>
+                        <nav class="portal-nav" id="portal-nav">
+                            <a href="#" class="portal-nav-item active" data-section="dashboard" onclick="switchPortalSection('dashboard')">
+                                <i class="fas fa-chart-pie"></i> <span>Dashboard</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="content" onclick="switchPortalSection('content')">
+                                <i class="fas fa-camera"></i> <span>Content</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="store" onclick="switchPortalSection('store')">
+                                <i class="fas fa-store"></i> <span>Store</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="analytics" onclick="switchPortalSection('analytics')">
+                                <i class="fas fa-chart-line"></i> <span>Analytics</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="bookings" onclick="switchPortalSection('bookings')">
+                                <i class="fas fa-calendar-check"></i> <span>Bookings</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="promotions" onclick="switchPortalSection('promotions')">
+                                <i class="fas fa-bullhorn"></i> <span>Promotions</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="monetization" onclick="switchPortalSection('monetization')">
+                                <i class="fas fa-dollar-sign"></i> <span>Monetization</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="messages" onclick="switchPortalSection('messages')">
+                                <i class="fas fa-envelope"></i> <span>Messages</span>
+                            </a>
+                            <a href="#" class="portal-nav-item" data-section="settings" onclick="switchPortalSection('settings')">
+                                <i class="fas fa-cog"></i> <span>Settings</span>
+                            </a>
+                        </nav>
+                        <div class="portal-sidebar-footer">
+                            <button class="btn btn-ghost btn-block" onclick="switchView('discover'); closeProviderPortal()">
+                                <i class="fas fa-arrow-left"></i> Back to App
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Portal Main -->
+                    <div class="portal-main" id="portal-main">
+                        <!-- Dashboard Section -->
+                        <div class="portal-section active" id="portal-dashboard">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-chart-pie"></i> Dashboard</h2>
+                                <span class="portal-date" id="portal-date"></span>
+                            </div>
+                            <div class="portal-stats-grid" id="portal-stats-grid">
+                                <div class="portal-stat-card">
+                                    <div class="portal-stat-icon" style="background:rgba(99,102,241,0.15)">
+                                        <i class="fas fa-eye" style="color:var(--primary)"></i>
+                                    </div>
+                                    <div class="portal-stat-info">
+                                        <span class="portal-stat-number" id="portal-stat-views">0</span>
+                                        <span class="portal-stat-label">Profile Views</span>
+                                    </div>
+                                    <span class="portal-stat-trend up">+12%</span>
+                                </div>
+                                <div class="portal-stat-card">
+                                    <div class="portal-stat-icon" style="background:rgba(34,197,94,0.15)">
+                                        <i class="fas fa-comments" style="color:var(--success)"></i>
+                                    </div>
+                                    <div class="portal-stat-info">
+                                        <span class="portal-stat-number" id="portal-stat-messages">0</span>
+                                        <span class="portal-stat-label">Messages</span>
+                                    </div>
+                                    <span class="portal-stat-trend up">+8%</span>
+                                </div>
+                                <div class="portal-stat-card">
+                                    <div class="portal-stat-icon" style="background:rgba(245,158,11,0.15)">
+                                        <i class="fas fa-coins" style="color:var(--warning)"></i>
+                                    </div>
+                                    <div class="portal-stat-info">
+                                        <span class="portal-stat-number" id="portal-stat-earnings">R0</span>
+                                        <span class="portal-stat-label">Earnings</span>
+                                    </div>
+                                    <span class="portal-stat-trend up">+23%</span>
+                                </div>
+                                <div class="portal-stat-card">
+                                    <div class="portal-stat-icon" style="background:rgba(139,92,246,0.15)">
+                                        <i class="fas fa-box" style="color:#8b5cf6"></i>
+                                    </div>
+                                    <div class="portal-stat-info">
+                                        <span class="portal-stat-number" id="portal-stat-listings">0</span>
+                                        <span class="portal-stat-label">Active Listings</span>
+                                    </div>
+                                    <span class="portal-stat-trend" id="portal-stat-listing-trend">0</span>
+                                </div>
+                            </div>
+
+                            <div class="portal-dashboard-grid">
+                                <div class="portal-card portal-recent-activity">
+                                    <div class="portal-card-header">
+                                        <h4><i class="fas fa-clock"></i> Recent Activity</h4>
+                                    </div>
+                                    <div class="portal-card-body" id="portal-recent-activity">
+                                        <div class="portal-empty-state">No recent activity</div>
+                                    </div>
+                                </div>
+                                <div class="portal-card portal-quick-actions">
+                                    <div class="portal-card-header">
+                                        <h4><i class="fas fa-bolt"></i> Quick Actions</h4>
+                                    </div>
+                                    <div class="portal-card-body">
+                                        <div class="portal-actions-grid">
+                                            <button class="portal-action-btn" onclick="switchPortalSection('store')">
+                                                <i class="fas fa-plus-circle"></i>
+                                                <span>Add Product</span>
+                                            </button>
+                                            <button class="portal-action-btn" onclick="switchPortalSection('content')">
+                                                <i class="fas fa-upload"></i>
+                                                <span>Upload Content</span>
+                                            </button>
+                                            <button class="portal-action-btn" onclick="switchPortalSection('promotions')">
+                                                <i class="fas fa-bullhorn"></i>
+                                                <span>Promote</span>
+                                            </button>
+                                            <button class="portal-action-btn" onclick="showCreateEventModal()">
+                                                <i class="fas fa-calendar-plus"></i>
+                                                <span>Create Event</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="portal-card portal-performance">
+                                <div class="portal-card-header">
+                                    <h4><i class="fas fa-chart-bar"></i> Performance This Week</h4>
+                                </div>
+                                <div class="portal-card-body">
+                                    <div class="portal-performance-chart" id="portal-performance-chart">
+                                        <canvas id="portal-chart-canvas" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content Section -->
+                        <div class="portal-section" id="portal-content">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-camera"></i> Content Management</h2>
+                                <button class="btn btn-primary btn-sm" onclick="showUploadContentModal()">
+                                    <i class="fas fa-plus"></i> Upload
+                                </button>
+                            </div>
+                            <div class="portal-content-tabs">
+                                <button class="portal-content-tab active" data-ctab="all" onclick="switchPortalContentTab('all')">All</button>
+                                <button class="portal-content-tab" data-ctab="images" onclick="switchPortalContentTab('images')">Images</button>
+                                <button class="portal-content-tab" data-ctab="videos" onclick="switchPortalContentTab('videos')">Videos</button>
+                                <button class="portal-content-tab" data-ctab="streams" onclick="switchPortalContentTab('streams')">Streams</button>
+                            </div>
+                            <div class="portal-content-grid" id="portal-content-grid">
+                                <div class="portal-empty-state">No content yet</div>
+                            </div>
+                        </div>
+
+                        <!-- Store Section -->
+                        <div class="portal-section" id="portal-store">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-store"></i> Store Management</h2>
+                                <button class="btn btn-primary btn-sm" onclick="showAddProductModal()">
+                                    <i class="fas fa-plus"></i> Add Product
+                                </button>
+                            </div>
+                            <div class="portal-store-stats">
+                                <div class="portal-store-stat">
+                                    <span class="portal-store-stat-num" id="portal-store-products">0</span>
+                                    <span class="portal-store-stat-label">Products</span>
+                                </div>
+                                <div class="portal-store-stat">
+                                    <span class="portal-store-stat-num" id="portal-store-orders">0</span>
+                                    <span class="portal-store-stat-label">Orders</span>
+                                </div>
+                                <div class="portal-store-stat">
+                                    <span class="portal-store-stat-num" id="portal-store-earnings">R0</span>
+                                    <span class="portal-store-stat-label">Earnings</span>
+                                </div>
+                                <div class="portal-store-stat">
+                                    <span class="portal-store-stat-num" id="portal-store-rating">0.0</span>
+                                    <span class="portal-store-stat-label">Rating</span>
+                                </div>
+                            </div>
+                            <div class="portal-store-tabs">
+                                <button class="portal-store-tab active" data-stab="products" onclick="switchPortalStoreTab('products')">Products</button>
+                                <button class="portal-store-tab" data-stab="orders" onclick="switchPortalStoreTab('orders')">Orders</button>
+                                <button class="portal-store-tab" data-stab="earnings" onclick="switchPortalStoreTab('earnings')">Earnings</button>
+                                <button class="portal-store-tab" data-stab="reviews" onclick="switchPortalStoreTab('reviews')">Reviews</button>
+                            </div>
+                            <div class="portal-store-search">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="portal-store-search" placeholder="Search products..." onkeyup="searchPortalStore(this.value)">
+                            </div>
+                            <div class="portal-store-content" id="portal-store-content">
+                                <div class="portal-empty-state">Loading...</div>
+                            </div>
+                        </div>
+
+                        <!-- Analytics Section -->
+                        <div class="portal-section" id="portal-analytics">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-chart-line"></i> Analytics</h2>
+                                <select class="portal-analytics-period" id="portal-analytics-period" onchange="renderPortalAnalytics()">
+                                    <option value="7">Last 7 Days</option>
+                                    <option value="30" selected>Last 30 Days</option>
+                                    <option value="90">Last 90 Days</option>
+                                </select>
+                            </div>
+                            <div class="portal-analytics-grid">
+                                <div class="portal-card">
+                                    <div class="portal-card-header"><h4><i class="fas fa-eye"></i> Profile Views</h4></div>
+                                    <div class="portal-card-body"><canvas id="analytics-views-chart" height="180"></canvas></div>
+                                </div>
+                                <div class="portal-card">
+                                    <div class="portal-card-header"><h4><i class="fas fa-comment"></i> Messages</h4></div>
+                                    <div class="portal-card-body"><canvas id="analytics-messages-chart" height="180"></canvas></div>
+                                </div>
+                                <div class="portal-card">
+                                    <div class="portal-card-header"><h4><i class="fas fa-coins"></i> Earnings</h4></div>
+                                    <div class="portal-card-body"><canvas id="analytics-earnings-chart" height="180"></canvas></div>
+                                </div>
+                                <div class="portal-card">
+                                    <div class="portal-card-header"><h4><i class="fas fa-heart"></i> Engagement</h4></div>
+                                    <div class="portal-card-body"><canvas id="analytics-engagement-chart" height="180"></canvas></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bookings Section -->
+                        <div class="portal-section" id="portal-bookings">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-calendar-check"></i> Bookings</h2>
+                                <button class="btn btn-primary btn-sm" onclick="showCreateEventModal()">
+                                    <i class="fas fa-plus"></i> Create Event
+                                </button>
+                            </div>
+                            <div class="portal-booking-tabs">
+                                <button class="portal-booking-tab active" data-btab="upcoming" onclick="switchPortalBookingTab('upcoming')">Upcoming</button>
+                                <button class="portal-booking-tab" data-btab="pending" onclick="switchPortalBookingTab('pending')">Pending</button>
+                                <button class="portal-booking-tab" data-btab="past" onclick="switchPortalBookingTab('past')">Past</button>
+                            </div>
+                            <div class="portal-bookings-list" id="portal-bookings-list">
+                                <div class="portal-empty-state">No bookings yet</div>
+                            </div>
+                        </div>
+
+                        <!-- Promotions Section -->
+                        <div class="portal-section" id="portal-promotions">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-bullhorn"></i> Promotions</h2>
+                            </div>
+                            <div class="portal-promo-cards">
+                                <div class="portal-promo-card">
+                                    <div class="portal-promo-icon"><i class="fas fa-rocket"></i></div>
+                                    <h4>Boost Profile</h4>
+                                    <p>Get your profile featured to more users in their discover feed.</p>
+                                    <button class="btn btn-primary" onclick="showBoostProfileModal()">Boost Now</button>
+                                </div>
+                                <div class="portal-promo-card">
+                                    <div class="portal-promo-icon"><i class="fas fa-star"></i></div>
+                                    <h4>Premium Listing</h4>
+                                    <p>Highlight your content and products with premium badges.</p>
+                                    <button class="btn btn-outline" onclick="showToast('Premium listing coming soon!')">Learn More</button>
+                                </div>
+                                <div class="portal-promo-card">
+                                    <div class="portal-promo-icon"><i class="fas fa-bullhorn"></i></div>
+                                    <h4>Advertise</h4>
+                                    <p>Reach a wider audience with targeted advertising options.</p>
+                                    <button class="btn btn-outline" onclick="showAdvertiseModal()">Get Started</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monetization Section -->
+                        <div class="portal-section" id="portal-monetization">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-dollar-sign"></i> Monetization</h2>
+                                <span class="portal-monetization-status" id="portal-monetization-status"></span>
+                            </div>
+
+                            <div class="portal-monetization-intro">
+                                <p>Choose how you want to earn money on Koitus. Select one or more monetization methods below. Some options require verification or setting up payment details.</p>
+                            </div>
+
+                            <div class="portal-monetization-options" id="portal-monetization-options">
+                                <!-- Tip / Donations -->
+                                <div class="portal-monetization-card" data-method="tips">
+                                    <div class="portal-monetization-card-header">
+                                        <div class="portal-monetization-icon" style="background:rgba(236,72,153,0.15)">
+                                            <i class="fas fa-heart" style="color:#ec4899"></i>
+                                        </div>
+                                        <div class="portal-monetization-card-info">
+                                            <h4>Tips & Donations</h4>
+                                            <p>Receive tips and donations from your fans and followers.</p>
+                                        </div>
+                                        <label class="portal-toggle">
+                                            <input type="checkbox" class="monetization-toggle" data-method="tips" onchange="toggleMonetizationMethod('tips', this.checked)">
+                                            <span class="portal-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="portal-monetization-details" id="monetization-tips-details" style="display:none;">
+                                        <div class="portal-setting-group">
+                                            <label>Minimum Tip Amount (R)</label>
+                                            <input type="number" class="portal-input" id="monetization-tips-min" value="10" min="1">
+                                        </div>
+                                        <div class="portal-setting-group">
+                                            <label>Tip Message</label>
+                                            <input type="text" class="portal-input" id="monetization-tips-message" placeholder="e.g. Buy me a coffee!">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pay-Per-View Content -->
+                                <div class="portal-monetization-card" data-method="ppv">
+                                    <div class="portal-monetization-card-header">
+                                        <div class="portal-monetization-icon" style="background:rgba(99,102,241,0.15)">
+                                            <i class="fas fa-lock" style="color:var(--primary)"></i>
+                                        </div>
+                                        <div class="portal-monetization-card-info">
+                                            <h4>Pay-Per-View Content</h4>
+                                            <p>Sell access to exclusive photos, videos, and streams.</p>
+                                        </div>
+                                        <label class="portal-toggle">
+                                            <input type="checkbox" class="monetization-toggle" data-method="ppv" onchange="toggleMonetizationMethod('ppv', this.checked)">
+                                            <span class="portal-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="portal-monetization-details" id="monetization-ppv-details" style="display:none;">
+                                        <div class="portal-setting-group">
+                                            <label>Default Price Per View (R)</label>
+                                            <input type="number" class="portal-input" id="monetization-ppv-price" value="25" min="1">
+                                        </div>
+                                        <div class="portal-setting-group">
+                                            <label>Content Preview Duration (seconds)</label>
+                                            <input type="number" class="portal-input" id="monetization-ppv-preview" value="10" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subscription -->
+                                <div class="portal-monetization-card" data-method="subscription">
+                                    <div class="portal-monetization-card-header">
+                                        <div class="portal-monetization-icon" style="background:rgba(34,197,94,0.15)">
+                                            <i class="fas fa-crown" style="color:var(--success)"></i>
+                                        </div>
+                                        <div class="portal-monetization-card-info">
+                                            <h4>Subscription</h4>
+                                            <p>Offer monthly or yearly subscriptions for exclusive access.</p>
+                                        </div>
+                                        <label class="portal-toggle">
+                                            <input type="checkbox" class="monetization-toggle" data-method="subscription" onchange="toggleMonetizationMethod('subscription', this.checked)">
+                                            <span class="portal-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="portal-monetization-details" id="monetization-subscription-details" style="display:none;">
+                                        <div class="portal-setting-group">
+                                            <label>Monthly Price (R)</label>
+                                            <input type="number" class="portal-input" id="monetization-sub-monthly" value="49" min="1">
+                                        </div>
+                                        <div class="portal-setting-group">
+                                            <label>Yearly Price (R)</label>
+                                            <input type="number" class="portal-input" id="monetization-sub-yearly" value="499" min="1">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Private Show (for webcammers) -->
+                                <div class="portal-monetization-card" data-method="private-show">
+                                    <div class="portal-monetization-card-header">
+                                        <div class="portal-monetization-icon" style="background:rgba(239,68,68,0.15)">
+                                            <i class="fas fa-video" style="color:var(--error)"></i>
+                                        </div>
+                                        <div class="portal-monetization-card-info">
+                                            <h4>Private Shows</h4>
+                                            <p>Offer one-on-one private video shows with per-minute pricing.</p>
+                                        </div>
+                                        <label class="portal-toggle">
+                                            <input type="checkbox" class="monetization-toggle" data-method="private-show" onchange="toggleMonetizationMethod('private-show', this.checked)">
+                                            <span class="portal-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="portal-monetization-details" id="monetization-private-show-details" style="display:none;">
+                                        <div class="portal-setting-group">
+                                            <label>Price Per Minute (R)</label>
+                                            <input type="number" class="portal-input" id="monetization-private-price" value="15" min="1">
+                                        </div>
+                                        <div class="portal-setting-group">
+                                            <label>Free Preview Minutes</label>
+                                            <input type="number" class="portal-input" id="monetization-private-preview" value="1" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Affiliate Marketing -->
+                                <div class="portal-monetization-card" data-method="affiliate">
+                                    <div class="portal-monetization-card-header">
+                                        <div class="portal-monetization-icon" style="background:rgba(245,158,11,0.15)">
+                                            <i class="fas fa-link" style="color:var(--warning)"></i>
+                                        </div>
+                                        <div class="portal-monetization-card-info">
+                                            <h4>Affiliate Marketing</h4>
+                                            <p>Earn commissions by promoting products and services.</p>
+                                        </div>
+                                        <label class="portal-toggle">
+                                            <input type="checkbox" class="monetization-toggle" data-method="affiliate" onchange="toggleMonetizationMethod('affiliate', this.checked)">
+                                            <span class="portal-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="portal-monetization-details" id="monetization-affiliate-details" style="display:none;">
+                                        <div class="portal-setting-group">
+                                            <label>Commission Rate (%)</label>
+                                            <input type="number" class="portal-input" id="monetization-affiliate-rate" value="15" min="1" max="100">
+                                        </div>
+                                        <div class="portal-setting-group">
+                                            <label>Affiliate Code</label>
+                                            <input type="text" class="portal-input" id="monetization-affiliate-code" placeholder="e.g. COUPLE15">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sell Products (Store) -->
+                                <div class="portal-monetization-card" data-method="store">
+                                    <div class="portal-monetization-card-header">
+                                        <div class="portal-monetization-icon" style="background:rgba(139,92,246,0.15)">
+                                            <i class="fas fa-store" style="color:#8b5cf6"></i>
+                                        </div>
+                                        <div class="portal-monetization-card-info">
+                                            <h4>Sell Products</h4>
+                                            <p>Sell physical or digital products through your store.</p>
+                                        </div>
+                                        <label class="portal-toggle">
+                                            <input type="checkbox" class="monetization-toggle" data-method="store" onchange="toggleMonetizationMethod('store', this.checked)">
+                                            <span class="portal-toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="portal-monetization-details" id="monetization-store-details" style="display:none;">
+                                        <div class="portal-setting-group">
+                                            <label>Default Shipping Fee (R)</label>
+                                            <input type="number" class="portal-input" id="monetization-store-shipping" value="50" min="0">
+                                        </div>
+                                        <div class="portal-setting-group">
+                                            <label>Payment Method</label>
+                                            <select class="portal-input" id="monetization-store-payment">
+                                                <option value="bank">Bank Transfer</option>
+                                                <option value="card">Credit/Debit Card</option>
+                                                <option value="wallet">Koitus Wallet</option>
+                                                <option value="all" selected>All Methods</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="portal-monetization-save">
+                                <button class="btn btn-primary btn-lg" onclick="saveMonetizationSettings()">
+                                    <i class="fas fa-save"></i> Save Monetization Settings
+                                </button>
+                            </div>
+
+                            <div class="portal-monetization-summary" id="portal-monetization-summary">
+                                <h4><i class="fas fa-chart-bar"></i> Your Monetization Summary</h4>
+                                <div class="portal-monetization-stats">
+                                    <div class="portal-monetization-stat">
+                                        <span class="portal-monetization-stat-num">R<span id="monetization-total-earned">0</span></span>
+                                        <span class="portal-monetization-stat-label">Total Earned</span>
+                                    </div>
+                                    <div class="portal-monetization-stat">
+                                        <span class="portal-monetization-stat-num" id="monetization-active-methods">0</span>
+                                        <span class="portal-monetization-stat-label">Active Methods</span>
+                                    </div>
+                                    <div class="portal-monetization-stat">
+                                        <span class="portal-monetization-stat-num" id="monetization-transactions">0</span>
+                                        <span class="portal-monetization-stat-label">Transactions</span>
+                                    </div>
+                                    <div class="portal-monetization-stat">
+                                        <span class="portal-monetization-stat-num" id="monetization-payout">R0</span>
+                                        <span class="portal-monetization-stat-label">Available for Payout</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Messages Section -->
+                        <div class="portal-section" id="portal-messages">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-envelope"></i> Messages</h2>
+                            </div>
+                            <div class="portal-messages-list" id="portal-messages-list">
+                                <div class="portal-empty-state">No messages yet</div>
+                            </div>
+                        </div>
+
+                        <!-- Settings Section -->
+                        <div class="portal-section" id="portal-settings">
+                            <div class="portal-section-header">
+                                <h2><i class="fas fa-cog"></i> Provider Settings</h2>
+                            </div>
+                            <div class="portal-settings-form">
+                                <div class="portal-setting-group">
+                                    <label>Provider Type</label>
+                                    <p id="portal-setting-type"></p>
+                                </div>
+                                <div class="portal-setting-group">
+                                    <label>Display Name</label>
+                                    <input type="text" id="portal-setting-name" class="portal-input">
+                                </div>
+                                <div class="portal-setting-group">
+                                    <label>Bio / Description</label>
+                                    <textarea id="portal-setting-bio" class="portal-input" rows="4"></textarea>
+                                </div>
+                                <div class="portal-setting-group">
+                                    <label>Contact Email</label>
+                                    <input type="email" id="portal-setting-email" class="portal-input">
+                                </div>
+                                <div class="portal-setting-group">
+                                    <label>Notification Preferences</label>
+                                    <div class="portal-toggle-row">
+                                        <span>New Messages</span>
+                                        <label class="portal-toggle"><input type="checkbox" checked><span class="portal-toggle-slider"></span></label>
+                                    </div>
+                                    <div class="portal-toggle-row">
+                                        <span>New Orders</span>
+                                        <label class="portal-toggle"><input type="checkbox" checked><span class="portal-toggle-slider"></span></label>
+                                    </div>
+                                    <div class="portal-toggle-row">
+                                        <span>New Bookings</span>
+                                        <label class="portal-toggle"><input type="checkbox" checked><span class="portal-toggle-slider"></span></label>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" onclick="savePortalSettings()">
+                                    <i class="fas fa-save"></i> Save Settings
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2655,7 +3212,7 @@
                         </div>
                         <div class="about-content-visual">
                             <div class="about-illustration">
-                                <i class="fas fa-connections"></i>
+                                <i class="fas fa-share-nodes"></i>
                                 <div class="about-dots">
                                     <span></span><span></span><span></span><span></span><span></span>
                                 </div>
@@ -2711,7 +3268,7 @@
                             <p>Treat others with kindness. No harassment, hate speech, or inappropriate content.</p>
                         </div>
                         <div class="guideline-card">
-                            <i class="fas fa-verified"></i>
+                            <i class="fas fa-badge-check"></i>
                             <h4>Verify Your Profile</h4>
                             <p>Verified profiles build trust. Complete your profile for better connections.</p>
                         </div>

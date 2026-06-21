@@ -2146,6 +2146,9 @@ function switchView(viewName) {
         case 'stories':
             renderStories();
             break;
+        case 'pricing':
+            renderPricing();
+            break;
     }
 }
 
@@ -6758,10 +6761,10 @@ function renderGames() {
     if (!container) return;
     container.innerHTML = '\
         <div class="games-grid">\
-            <div class="game-card" onclick="showToast(\'Truth or Dare coming soon!\')">\
-                <div class="game-icon"><i class="fas fa-smile-wink"></i></div>\
-                <h3>Truth or Dare</h3>\
-                <p>Play with matches and friends</p>\
+            <div class="game-card" onclick="showToast(\'Challenges coming soon!\')">\
+                <div class="game-icon"><i class="fas fa-trophy"></i></div>\
+                <h3>Challenges</h3>\
+                <p>Compete and earn rewards</p>\
             </div>\
             <div class="game-card" onclick="showToast(\'Icebreakers coming soon!\')">\
                 <div class="game-icon"><i class="fas fa-heart"></i></div>\
@@ -7051,6 +7054,113 @@ function insertEmoji(emoji) {
     clearEmojiPickerTimer();
     const picker = document.getElementById('chat-emoji-picker');
     if (picker) picker.style.display = 'none';
+}
+
+var pricingAnnual = false;
+
+function togglePricingPeriod() {
+    pricingAnnual = !pricingAnnual;
+    var btn = document.getElementById('pricing-toggle-btn');
+    if (btn) {
+        btn.innerHTML = pricingAnnual
+            ? '<i class="fas fa-calendar-alt"></i> Switch to Monthly'
+            : '<i class="fas fa-calendar-alt"></i> Switch to Annual';
+    }
+    renderPricing();
+}
+
+function renderPricing() {
+    var container = document.getElementById('pricing-container');
+    if (!container) return;
+
+    var plans = [
+        {
+            name: 'Free',
+            price: 0,
+            annualPrice: 0,
+            icon: 'fa-user',
+            color: '#6b7280',
+            features: [
+                'Basic profile',
+                'Browse users',
+                'Send 10 messages/day',
+                'Standard matching'
+            ],
+            cta: 'Current Plan',
+            ctaClass: 'btn-outline',
+            highlight: false
+        },
+        {
+            name: 'Premium',
+            price: 149,
+            annualPrice: 1199,
+            icon: 'fa-crown',
+            color: '#f59e0b',
+            features: [
+                'Unlimited messages',
+                'Advanced filters',
+                'See who liked you',
+                'Read receipts',
+                'Ad-free experience',
+                'Priority support'
+            ],
+            cta: 'Get Premium',
+            ctaClass: 'btn-primary',
+            highlight: true
+        },
+        {
+            name: 'VIP',
+            price: 449,
+            annualPrice: 3999,
+            icon: 'fa-gem',
+            color: '#8b5cf6',
+            features: [
+                'Everything in Premium',
+                'Profile boost',
+                'Incognito mode',
+                'Verified badge',
+                'Early access to features',
+                'Dedicated account manager'
+            ],
+            cta: 'Go VIP',
+            ctaClass: 'btn-success',
+            highlight: false
+        }
+    ];
+
+    var priceSuffix = pricingAnnual ? '/yr' : '/mo';
+    var html = '<div class="pricing-grid">';
+
+    plans.forEach(function(plan) {
+        var priceVal = pricingAnnual ? plan.annualPrice : plan.price;
+        var displayPrice = priceVal === 0 ? 'Free' : 'R' + priceVal;
+
+        html += '\
+            <div class="pricing-card' + (plan.highlight ? ' pricing-card-highlighted' : '') + '">\
+                ' + (plan.highlight ? '<div class="pricing-badge">Most Popular</div>' : '') + '\
+                <div class="pricing-card-header">\
+                    <div class="pricing-icon" style="background:' + plan.color + '20;color:' + plan.color + '">\
+                        <i class="fas ' + plan.icon + '"></i>\
+                    </div>\
+                    <h3>' + plan.name + '</h3>\
+                    <div class="pricing-amount">\
+                        <span class="pricing-price">' + displayPrice + '</span>\
+                        <span class="pricing-period">' + (priceVal === 0 ? '' : priceSuffix) + '</span>\
+                    </div>\
+                </div>\
+                <div class="pricing-features">\
+                    ' + plan.features.map(function(f) {
+                        return '<div class="pricing-feature"><i class="fas fa-check"></i> ' + f + '</div>';
+                    }).join('') + '\
+                </div>\
+                <button class="btn ' + plan.ctaClass + ' btn-block" onclick="showToast(\'' + plan.name + ' upgrade coming soon!\')">\
+                    ' + plan.cta + '\
+                </button>\
+            </div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 // ==================== WALLET RECHARGE REQUEST ====================

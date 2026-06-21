@@ -867,6 +867,14 @@
                     <i class="fas fa-photo-video"></i>
                     <span>Content</span>
                 </a>
+                <a href="#" class="nav-item" data-view="games" onclick="switchView('games')">
+                    <i class="fas fa-dice"></i>
+                    <span>Fun & Games</span>
+                </a>
+                <a href="#" class="nav-item" data-view="stories" onclick="switchView('stories')">
+                    <i class="fas fa-book-open"></i>
+                    <span>Stories</span>
+                </a>
                 <a href="#" class="nav-item" data-view="forum" onclick="switchView('forum')">
                     <i class="fas fa-comments"></i>
                     <span>Forum</span>
@@ -1499,6 +1507,39 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Fun & Games View -->
+            <div id="view-games" class="view">
+                <div class="view-header">
+                    <h1>Fun & Games</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-icon" onclick="switchView('games')">
+                            <i class="fas fa-redo-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="games-container" id="games-container">
+                    <div class="games-loading">Loading games...</div>
+                </div>
+            </div>
+
+            <!-- Stories View -->
+            <div id="view-stories" class="view">
+                <div class="view-header">
+                    <h1>Stories</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-icon" onclick="switchView('stories')">
+                            <i class="fas fa-redo-alt"></i>
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateStoryModal()">
+                            <i class="fas fa-plus"></i> <span class="hide-mobile">Create</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="stories-container" id="stories-container">
+                    <div class="stories-loading">Loading stories...</div>
                 </div>
             </div>
 

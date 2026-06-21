@@ -139,6 +139,9 @@ const state = {
     // Products
     products: [],
     productsTab: 'all',
+    // Stories
+    stories: [],
+    storiesFilter: 'all',
     // Admin
     adminData: {
         users: [],
@@ -1174,6 +1177,75 @@ const sampleProducts = [
     }
 ];
 
+const sampleStories = [
+    {
+        id: 'story-1',
+        title: 'The Night We Met',
+        type: 'story',
+        author: 'Sarah',
+        date: '2026-06-15',
+        excerpt: 'A chance encounter at a rooftop bar that changed everything...',
+        content: '<p>It was a warm summer evening when I decided to go to that rooftop bar alone for the first time. The city lights twinkled below as I ordered my usual cocktail. Little did I know that the stranger sitting two stools away would become the most important person in my life.</p><p>He smiled, I looked away. He said something funny, I laughed. Hours felt like minutes. We talked about everything and nothing at all. When the bar closed at 2 AM, we walked through the empty streets of Johannesburg, neither wanting the night to end.</p><p>That was six months ago. Now I can\'t imagine my life without him.</p>',
+        likes: 47,
+        image: 'https://picsum.photos/seed/story1/800/400'
+    },
+    {
+        id: 'story-2',
+        title: 'The Art of Connection',
+        type: 'blog',
+        author: 'Marcus',
+        date: '2026-06-10',
+        excerpt: 'Why genuine connection matters more than ever in the digital age...',
+        content: '<p>In a world of swipes and likes, we often forget what it truly means to connect with another human being. The digital age has given us unprecedented access to potential partners, but has it made us better at love?</p><p>I believe the key lies in authenticity. Strip away the filters, the carefully curated profiles, and the rehearsed opening lines. What remains is the raw, beautiful, terrifying truth of who we are.</p><p>This blog explores how to foster genuine connections in a digital world, drawing from my own experiences and those of people I\'ve met along the way.</p>',
+        likes: 32,
+        image: 'https://picsum.photos/seed/story2/800/400'
+    },
+    {
+        id: 'story-3',
+        title: 'Midnight Musings',
+        type: 'poem',
+        author: 'Luna',
+        date: '2026-06-08',
+        excerpt: 'A poem about love found in the quiet hours...',
+        content: '<p>In the velvet dark of midnight\'s grace<br>I found a smile on a stranger\'s face<br>Two souls adrift in city light<br>Colliding softly in the night</p><p>No words were spoken, none were needed<br>Two lonely hearts, at last unseeded<br>To grow a garden wild and free<br>From just a glance, you and me</p>',
+        likes: 89,
+        image: 'https://picsum.photos/seed/story3/800/400'
+    },
+    {
+        id: 'story-4',
+        title: 'Top 10 Date Ideas in Johannesburg',
+        type: 'article',
+        author: 'TravelDesk',
+        date: '2026-06-05',
+        excerpt: 'From rooftop cinemas to underground jazz bars...',
+        content: '<p>Johannesburg is a city of hidden gems when it comes to dating. Whether you\'re planning a first date or looking to spice up your relationship, here are ten unforgettable date ideas in the City of Gold.</p><p><strong>1. Rooftop Cinema at The Bioscope</strong> - Nothing says romance like watching a classic film under the stars.</p><p><strong>2. Art Walk in Maboneng</strong> - Explore galleries, street art, and pop-up exhibitions hand in hand.</p><p><strong>3. Sundowners at The Living Room</strong> - Sip cocktails with a panoramic view of the city skyline.</p><p>Stay tuned for the full list in this comprehensive guide.</p>',
+        likes: 156,
+        image: 'https://picsum.photos/seed/story4/800/400'
+    },
+    {
+        id: 'story-5',
+        title: 'A Beginner\'s Guide to Dating in SA',
+        type: 'ebook',
+        author: 'Koitus Team',
+        date: '2026-06-01',
+        excerpt: 'Everything you need to know about modern dating in South Africa...',
+        content: '<p>This comprehensive guide covers everything from creating the perfect profile to planning unforgettable dates. Written by our team of dating experts, this e-book is your essential companion for navigating the South African dating scene.</p><p>Chapters include: Understanding the Local Dating Culture, Crafting Your Perfect Profile, The Art of the First Message, Safety Tips for Online Dating, and much more.</p><p>Download the full e-book to transform your dating life today.</p>',
+        likes: 203,
+        image: 'https://picsum.photos/seed/story5/800/400'
+    },
+    {
+        id: 'story-6',
+        title: 'Why Confidence is Your Best Accessory',
+        type: 'puff',
+        author: 'StyleSage',
+        date: '2026-05-28',
+        excerpt: 'The one thing that makes any outfit look better...',
+        content: '<p>We\'ve all heard the saying, but let\'s be real — confidence truly is the most attractive quality a person can wear. It\'s not about being loud or dominant; it\'s about being comfortable in your own skin.</p><p>In this puff piece, we explore how self-assurance transforms the way others perceive you, and more importantly, how you perceive yourself. From body language tips to mindset shifts, we\'ve got you covered.</p><p>Because the most attractive thing you can wear is your smile — and the confidence behind it.</p>',
+        likes: 67,
+        image: 'https://picsum.photos/seed/story6/800/400'
+    }
+];
+
 const iceBreakers = [
     "Hey! I noticed you love [interest]. What's your favorite thing about it?",
     "That photo at [location] looks amazing! Where was it taken?",
@@ -1256,6 +1328,7 @@ function loadSampleData() {
     state.forumPosts = [...sampleForumPosts];
     state.providerForumPosts = [...sampleProviderForumPosts];
     state.products = [...sampleProducts];
+    state.stories = [...sampleStories];
     state.clubs = [...sampleClubs];
 
     // Load sample reports
@@ -2034,6 +2107,12 @@ function switchView(viewName) {
             break;
         case 'products':
             renderProducts();
+            break;
+        case 'games':
+            renderGames();
+            break;
+        case 'stories':
+            renderStories();
             break;
     }
 }
@@ -6531,6 +6610,181 @@ function contactSeller() {
     if (product) {
         showToast(`Opening chat with ${product.seller.name}... 💬`);
     }
+}
+
+// ==================== FUN & GAMES ====================
+function renderGames() {
+    var container = document.getElementById('games-container');
+    if (!container) return;
+    container.innerHTML = '\
+        <div class="games-grid">\
+            <div class="game-card" onclick="showToast(\'Truth or Dare coming soon!\')">\
+                <div class="game-icon"><i class="fas fa-smile-wink"></i></div>\
+                <h3>Truth or Dare</h3>\
+                <p>Play with matches and friends</p>\
+            </div>\
+            <div class="game-card" onclick="showToast(\'Icebreakers coming soon!\')">\
+                <div class="game-icon"><i class="fas fa-heart"></i></div>\
+                <h3>Icebreakers</h3>\
+                <p>Fun questions to break the ice</p>\
+            </div>\
+            <div class="game-card" onclick="showToast(\'Would You Rather coming soon!\')">\
+                <div class="game-icon"><i class="fas fa-question-circle"></i></div>\
+                <h3>Would You Rather</h3>\
+                <p>Compare answers with others</p>\
+            </div>\
+            <div class="game-card" onclick="showToast(\'Quiz Match coming soon!\')">\
+                <div class="game-icon"><i class="fas fa-brain"></i></div>\
+                <h3>Quiz Match</h3>\
+                <p>Test your compatibility</p>\
+            </div>\
+            <div class="game-card" onclick="showToast(\'Flirt Roulette coming soon!\')">\
+                <div class="game-icon"><i class="fas fa-dice"></i></div>\
+                <h3>Flirt Roulette</h3>\
+                <p>Random fun challenges</p>\
+            </div>\
+            <div class="game-card" onclick="showToast(\'Compatibility Test coming soon!\')">\
+                <div class="game-icon"><i class="fas fa-puzzle-piece"></i></div>\
+                <h3>Compatibility Test</h3>\
+                <p>See how well you match</p>\
+            </div>\
+        </div>\
+        <div class="games-tools-section">\
+            <h2>Tools</h2>\
+            <div class="tools-grid">\
+                <div class="tool-card" onclick="showToast(\'Bio Generator coming soon!\')">\
+                    <div class="tool-icon"><i class="fas fa-pen-fancy"></i></div>\
+                    <h3>Bio Generator</h3>\
+                    <p>AI-powered profile bios</p>\
+                </div>\
+                <div class="tool-card" onclick="showToast(\'Pickup Line Generator coming soon!\')">\
+                    <div class="tool-icon"><i class="fas fa-fire"></i></div>\
+                    <h3>Pickup Lines</h3>\
+                    <p>Clever openers for any vibe</p>\
+                </div>\
+                <div class="tool-card" onclick="showToast(\'Mood Matcher coming soon!\')">\
+                    <div class="tool-icon"><i class="fas fa-music"></i></div>\
+                    <h3>Mood Matcher</h3>\
+                    <p>Find connections by vibe</p>\
+                </div>\
+                <div class="tool-card" onclick="showToast(\'Compatibility Calculator coming soon!\')">\
+                    <div class="tool-icon"><i class="fas fa-calculator"></i></div>\
+                    <h3>Compatibility Calc</h3>\
+                    <p>Score your connection</p>\
+                </div>\
+            </div>\
+        </div>';
+}
+
+// ==================== STORIES ====================
+function renderStories() {
+    var container = document.getElementById('stories-container');
+    if (!container) return;
+    
+    var stories = state.stories || [];
+    
+    if (stories.length === 0) {
+        container.innerHTML = '\
+            <div class="stories-empty">\
+                <div class="empty-icon"><i class="fas fa-book-open"></i></div>\
+                <h3>No Stories Yet</h3>\
+                <p>Be the first to share a story, poem, or blog post!</p>\
+                <button class="btn btn-primary" onclick="showCreateStoryModal()">\
+                    <i class="fas fa-plus"></i> Create Story\
+                </button>\
+            </div>';
+        return;
+    }
+    
+    container.innerHTML = '\
+        <div class="stories-categories scroll-x">\
+            <button class="story-cat-btn active" onclick="filterStories(\'all\')">All</button>\
+            <button class="story-cat-btn" onclick="filterStories(\'ebook\')">E-Books</button>\
+            <button class="story-cat-btn" onclick="filterStories(\'story\')">Stories</button>\
+            <button class="story-cat-btn" onclick="filterStories(\'poem\')">Poems</button>\
+            <button class="story-cat-btn" onclick="filterStories(\'blog\')">Blog Posts</button>\
+            <button class="story-cat-btn" onclick="filterStories(\'article\')">Articles</button>\
+            <button class="story-cat-btn" onclick="filterStories(\'puff\')">Puff Pieces</button>\
+            <button class="story-cat-btn" onclick="filterStories(\'pdf\')">PDFs</button>\
+        </div>\
+        <div class="stories-grid" id="stories-grid">\
+            ' + stories.map(function(s) { return '\
+                <div class="story-card" onclick="openStory(\'' + s.id + '\')">\
+                    <div class="story-card-image">\
+                        <img src="' + (s.image || "https://picsum.photos/seed/" + s.id + "/400/300") + '" alt="' + s.title + '" loading="lazy">\
+                        <span class="story-type-badge">' + s.type + '</span>\
+                    </div>\
+                    <div class="story-card-body">\
+                        <h3>' + s.title + '</h3>\
+                        <p class="story-excerpt">' + (s.excerpt || s.content.substring(0, 120)) + '</p>\
+                        <div class="story-meta">\
+                            <span class="story-author"><i class="fas fa-user"></i> ' + s.author + '</span>\
+                            <span class="story-date">' + s.date + '</span>\
+                            <span class="story-likes"><i class="fas fa-heart"></i> ' + (s.likes || 0) + '</span>\
+                        </div>\
+                    </div>\
+                </div>\
+            '; }).join('') + '\
+        </div>';
+}
+
+function filterStories(category) {
+    state.storiesFilter = category;
+    document.querySelectorAll('.story-cat-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.textContent.toLowerCase() === category || 
+            (category === 'all' && btn.textContent === 'All'));
+    });
+    renderStories();
+}
+
+function openStory(storyId) {
+    var story = state.stories ? state.stories.find(function(s) { return s.id === storyId; }) : null;
+    if (!story) {
+        showToast('Story not found');
+        return;
+    }
+    state.selectedStory = story;
+    var container = document.getElementById('stories-container');
+    if (!container) return;
+    container.innerHTML = '\
+        <button class="btn btn-ghost" onclick="renderStories()" style="margin-bottom:var(--spacing-4)">\
+            <i class="fas fa-arrow-left"></i> Back\
+        </button>\
+        <div class="story-detail">\
+            <div class="story-detail-header">\
+                <span class="story-type-badge">' + story.type + '</span>\
+                <h1>' + story.title + '</h1>\
+                <div class="story-meta">\
+                    <span><i class="fas fa-user"></i> ' + story.author + '</span>\
+                    <span><i class="fas fa-calendar"></i> ' + story.date + '</span>\
+                    <span><i class="fas fa-heart"></i> ' + (story.likes || 0) + ' likes</span>\
+                </div>\
+            </div>\
+            <div class="story-detail-image">\
+                <img src="' + (story.image || "https://picsum.photos/seed/" + story.id + "/800/400") + '" alt="' + story.title + '">\
+            </div>\
+            <div class="story-detail-content">' + story.content + '</div>\
+            <div class="story-actions">\
+                <button class="btn btn-primary" onclick="likeStory(\'' + story.id + '\')">\
+                    <i class="fas fa-heart"></i> Like (' + (story.likes || 0) + ')\
+                </button>\
+                <button class="btn btn-ghost" onclick="showToast(\'Share coming soon!\')">\
+                    <i class="fas fa-share"></i> Share\
+                </button>\
+            </div>\
+        </div>';
+}
+
+function likeStory(storyId) {
+    var story = state.stories ? state.stories.find(function(s) { return s.id === storyId; }) : null;
+    if (story) {
+        story.likes = (story.likes || 0) + 1;
+        openStory(storyId);
+    }
+}
+
+function showCreateStoryModal() {
+    showToast('Story creation coming soon!');
 }
 
 // ==================== EMOJI SYSTEM FOR CHAT ====================

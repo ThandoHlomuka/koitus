@@ -172,6 +172,13 @@ ul, ol {
 .hidden { display: none !important; }
 .visible { display: block !important; }
 
+img {
+    object-fit: cover;
+}
+img[data-fallback] {
+    filter: brightness(0.9);
+}
+
 /* ==================== BUTTONS ==================== */
 .btn {
     display: inline-flex;

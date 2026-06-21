@@ -57,6 +57,15 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     logError('unhandled_promise', e.reason);
 });
+// Global image error handler - catches broken images and shows fallback
+document.addEventListener('error', function(e) {
+    if (e.target && e.target.tagName === 'IMG' && e.target.src && !e.target.hasAttribute('data-fallback')) {
+        e.target.setAttribute('data-fallback', '1');
+        e.target.src = 'https://i.pravatar.cc/200?u=error';
+        e.preventDefault();
+    }
+}, true);
+
 var _origConsoleError = console.error;
 console.error = function() {
     var args = Array.prototype.slice.call(arguments);
@@ -211,7 +220,7 @@ const sampleProfiles = [
         location: 'Cape Town, 5km away',
         bio: 'Adventure seeker ☀️ Love hiking, photography, and good coffee. Looking for someone to explore the world with!',
         interests: ['Hiking', 'Photography', 'Travel', 'Coffee'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%23f472b6" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Sarah',
         coords: { lat: -33.9249, lng: 18.4241 },
         online: true,
         distance: 1267,
@@ -231,7 +240,7 @@ const sampleProfiles = [
         location: 'Johannesburg, 3km away',
         bio: 'Tech entrepreneur 💻 Passionate about startups and innovation. Let\'s grab coffee and talk ideas!',
         interests: ['Tech', 'Startups', 'Gym', 'Music'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%236366f1" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👨%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Michael',
         coords: { lat: -26.1076, lng: 28.0567 },
         online: true,
         distance: 3,
@@ -251,7 +260,7 @@ const sampleProfiles = [
         location: 'Durban, 8km away',
         bio: 'Foodie 🍕 Yoga enthusiast 🧘‍♀️ Always planning my next trip. Swipe right if you love spontaneous adventures!',
         interests: ['Food', 'Yoga', 'Travel', 'Dancing'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%2322c55e" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Priya',
         coords: { lat: -29.8587, lng: 31.0218 },
         online: false,
         distance: 570,
@@ -271,7 +280,7 @@ const sampleProfiles = [
         location: 'Pretoria, 12km away',
         bio: 'Music producer 🎵 Love creating beats and discovering new sounds. Let\'s make some magic together!',
         interests: ['Music', 'Production', 'Gaming', 'Movies'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%23f59e0b" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👨%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=David',
         coords: { lat: -25.7479, lng: 28.2293 },
         online: true,
         distance: 52
@@ -287,7 +296,7 @@ const sampleProfiles = [
         location: 'Sandton, 2km away',
         bio: 'Fashion designer 👗 Art lover 🎨 Looking for someone who appreciates creativity and good conversation.',
         interests: ['Fashion', 'Art', 'Design', 'Wine'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%23ec4899" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Zanele',
         coords: { lat: -26.1076, lng: 28.0567 },
         online: true,
         distance: 2,
@@ -307,7 +316,7 @@ const sampleProfiles = [
         location: 'Centurion, 15km away',
         bio: 'Fitness coach 💪 Helping people become their best selves. Love outdoor activities and healthy living!',
         interests: ['Fitness', 'Nutrition', 'Running', 'Cycling'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%233b82f6" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👨%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=James',
         coords: { lat: -25.8603, lng: 28.1894 },
         online: false,
         distance: 28
@@ -323,7 +332,7 @@ const sampleProfiles = [
         location: 'Rosebank, 4km away',
         bio: 'Elegant companion for sophisticated events. Love art galleries, fine dining, and meaningful conversations.',
         interests: ['Art', 'Wine', 'Travel', 'Luxury'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%23ef4444" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Amara',
         coords: { lat: -26.1467, lng: 28.0436 },
         online: true,
         distance: 4,
@@ -343,7 +352,7 @@ const sampleProfiles = [
         location: 'Soweto, 18km away',
         bio: 'Professional dancer 💃 Performing arts is my passion. Let\'s dance the night away!',
         interests: ['Dancing', 'Music', 'Fitness', 'Art'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%23ec4899" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Thando',
         coords: { lat: -26.2309, lng: 27.9109 },
         online: false,
         distance: 18
@@ -360,7 +369,7 @@ const sampleProfiles = [
         location: 'Fourways, 20km away',
         bio: 'Private venue owner specializing in intimate events. Let me host for you! 🏛️',
         interests: ['Events', 'Wine', 'Travel', 'Music'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%2322c55e" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👨%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Marcus',
         coords: { lat: -26.0167, lng: 28.0067 },
         online: true,
         distance: 20
@@ -377,7 +386,7 @@ const sampleProfiles = [
         location: 'Brooklyn, 6km away',
         bio: 'Event promoter and lifestyle coach. Let\'s create something beautiful together! 📢',
         interests: ['Events', 'Marketing', 'Photography', 'Yoga'],
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%23f59e0b" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E',
+        image: 'https://i.pravatar.cc/400?u=Lisa',
         coords: { lat: -25.7553, lng: 28.2067 },
         online: false,
         distance: 45,
@@ -392,8 +401,8 @@ const sampleMatches = [
     { id: 1, name: 'Sarah', age: 25, image: sampleProfiles[0].image, lastMessage: 'Hey! I noticed you love hiking too! 🏔️', time: '2m ago', unread: true, online: true },
     { id: 2, name: 'Priya', age: 26, image: sampleProfiles[2].image, lastMessage: 'That sounds amazing! When are you free?', time: '1h ago', unread: true, online: true },
     { id: 3, name: 'Zanele', age: 24, image: sampleProfiles[4].image, lastMessage: 'Thanks! Your profile made me smile 😊', time: '3h ago', unread: false, online: false },
-    { id: 4, name: 'Thando', age: 27, image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%238b5cf6" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E', lastMessage: 'Let\'s grab coffee this weekend!', time: '1d ago', unread: false, online: false },
-    { id: 5, name: 'Lisa', age: 23, image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"%3E%3Crect fill="%2314b8a6" width="400" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="100" fill="white"%3E👩%3C/text%3E%3C/svg%3E', lastMessage: 'Haha, that\'s so funny! 😂', time: '2d ago', unread: false, online: true }
+    { id: 4, name: 'Thando', age: 27, image: 'https://i.pravatar.cc/200?u=Thando2', lastMessage: 'Let\'s grab coffee this weekend!', time: '1d ago', unread: false, online: false },
+    { id: 5, name: 'Lisa', age: 23, image: 'https://i.pravatar.cc/200?u=Lisa2', lastMessage: 'Haha, that\'s so funny! 😂', time: '2d ago', unread: false, online: true }
 ];
 
 const sampleNotifications = [
@@ -421,7 +430,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[0].image, sampleProfiles[2].image, sampleProfiles[4].image],
         attendeeCount: 87,
         isPrivate: false,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%236366f1" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎉%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img0/400/300',
         isHost: false,
         rsvp: false
     },
@@ -429,7 +438,7 @@ const sampleEvents = [
         id: 2,
         name: 'Networking Mixer for Professionals',
         type: 'networking',
-        host: { id: 102, name: 'Business Connect SA', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%2322c55e" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E💼%3C/text%3E%3C/svg%3E' },
+        host: { id: 102, name: 'Business Connect SA', image: 'https://picsum.photos/seed/NetworkingMixerforProfessionals/400/300' },
         date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '18:30',
         location: 'The Workspace, Rosebank',
@@ -440,7 +449,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[1].image, sampleProfiles[3].image],
         attendeeCount: 32,
         isPrivate: false,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%2322c55e" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🤝%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img2/400/300',
         isHost: false,
         rsvp: true
     },
@@ -448,7 +457,7 @@ const sampleEvents = [
         id: 3,
         name: 'Sunset Yoga & Wine',
         type: 'social',
-        host: { id: 103, name: 'Wellness Hub', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23ec4899" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🧘%3C/text%3E%3C/svg%3E' },
+        host: { id: 103, name: 'Wellness Hub', image: 'https://picsum.photos/seed/SunsetYogaWine/400/300' },
         date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '17:00',
         location: 'Botanical Gardens, Pretoria',
@@ -459,7 +468,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[5].image, sampleProfiles[7].image, sampleProfiles[8].image, sampleProfiles[9].image],
         attendeeCount: 24,
         isPrivate: false,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23ec4899" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🍷%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img4/400/300',
         isHost: false,
         rsvp: false
     },
@@ -467,7 +476,7 @@ const sampleEvents = [
         id: 4,
         name: 'Live Jazz Night',
         type: 'concert',
-        host: { id: 104, name: 'Jazz Corner', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23f59e0b" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🎷%3C/text%3E%3C/svg%3E' },
+        host: { id: 104, name: 'Jazz Corner', image: 'https://picsum.photos/seed/LiveJazzNight/400/300' },
         date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '20:00',
         location: 'Marabi Club, Maboneng',
@@ -478,7 +487,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[6].image],
         attendeeCount: 56,
         isPrivate: false,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23f59e0b" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎺%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img6/400/300',
         isHost: false,
         rsvp: false
     },
@@ -486,7 +495,7 @@ const sampleEvents = [
         id: 5,
         name: 'Photography Workshop: Urban Landscapes',
         type: 'workshop',
-        host: { id: 105, name: 'Creative Academy', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%238b5cf6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E📷%3C/text%3E%3C/svg%3E' },
+        host: { id: 105, name: 'Creative Academy', image: 'https://picsum.photos/seed/PhotographyWorkshopUrbanLandscapes/400/300' },
         date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '09:00',
         location: 'Braamfontein, Johannesburg',
@@ -497,7 +506,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[1].image, sampleProfiles[4].image],
         attendeeCount: 12,
         isPrivate: false,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%238b5cf6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E📸%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img8/400/300',
         isHost: false,
         rsvp: false
     },
@@ -505,7 +514,7 @@ const sampleEvents = [
         id: 6,
         name: 'Exclusive VIP Lounge Night',
         type: 'party',
-        host: { id: 106, name: 'Elite Events', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23ef4444" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👑%3C/text%3E%3C/svg%3E' },
+        host: { id: 106, name: 'Elite Events', image: 'https://picsum.photos/seed/ExclusiveVIPLoungeNight/400/300' },
         date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '21:00',
         location: 'Secret Location (Shared on RSVP)',
@@ -516,7 +525,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[3].image],
         attendeeCount: 28,
         isPrivate: true,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23ef4444" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🥂%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img10/400/300',
         isHost: false,
         rsvp: false
     },
@@ -524,7 +533,7 @@ const sampleEvents = [
         id: 7,
         name: 'Beach Cleanup & Braai',
         type: 'social',
-        host: { id: 107, name: 'Green SA', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%2314b8a6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🌍%3C/text%3E%3C/svg%3E' },
+        host: { id: 107, name: 'Green SA', image: 'https://picsum.photos/seed/BeachCleanupBraai/400/300' },
         date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '08:00',
         location: 'Bloubergstrand, Cape Town',
@@ -535,7 +544,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[0].image, sampleProfiles[2].image, sampleProfiles[5].image, sampleProfiles[7].image],
         attendeeCount: 78,
         isPrivate: false,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%2314b8a6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🏖️%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img12/400/300',
         isHost: false,
         rsvp: false,
         isPast: true
@@ -544,7 +553,7 @@ const sampleEvents = [
         id: 8,
         name: 'My Birthday Bash',
         type: 'party',
-        host: { id: 999, name: 'You', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🎂%3C/text%3E%3C/svg%3E' },
+        host: { id: 999, name: 'You', image: 'https://picsum.photos/seed/MyBirthdayBash/400/300' },
         date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '19:00',
         location: 'My Place, Fourways',
@@ -555,7 +564,7 @@ const sampleEvents = [
         attendees: [sampleProfiles[0].image],
         attendeeCount: 5,
         isPrivate: true,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%236366f1" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎂%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img14/400/300',
         isHost: true,
         rsvp: false
     }
@@ -586,7 +595,7 @@ const sampleActivityFeed = [
         title: 'New Event Created',
         text: '<strong>Thando Events</strong> created a new event: Summer Rooftop Party this Friday!',
         time: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%236366f1" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎉%3C/text%3E%3C/svg%3E'
+        image: 'https://picsum.photos/seed/img0/400/300'
     },
     {
         id: 3,
@@ -622,7 +631,7 @@ const sampleActivityFeed = [
         title: 'Live Stream Started',
         text: '<strong>Wellness Hub</strong> is now live: "Sunset Yoga Session" - Join now! 🧘',
         time: new Date(Date.now() - 30 * 60 * 1000),
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23ec4899" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🧘%3C/text%3E%3C/svg%3E'
+        image: 'https://picsum.photos/seed/SunsetYogaWine/400/300'
     },
     {
         id: 7,
@@ -640,7 +649,7 @@ const sampleActivityFeed = [
         title: 'Event Starting Soon',
         text: '<strong>Networking Mixer</strong> starts in 2 hours! Don\'t miss out 🤝',
         time: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%2322c55e" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🤝%3C/text%3E%3C/svg%3E'
+        image: 'https://picsum.photos/seed/img2/400/300'
     }
 ];
 
@@ -649,44 +658,44 @@ const sampleStreams = [
     {
         id: 1,
         title: 'Sunset Yoga Session',
-        streamer: { id: 103, name: 'Wellness Hub', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23ec4899" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🧘%3C/text%3E%3C/svg%3E' },
+        streamer: { id: 103, name: 'Wellness Hub', image: 'https://picsum.photos/seed/SunsetYogaWine/400/300' },
         viewers: 1243,
         likes: 856,
         category: 'Lifestyle',
         isLive: true,
-        thumbnail: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23ec4899" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🧘%3C/text%3E%3C/svg%3E'
+        thumbnail: 'https://picsum.photos/seed/WellnessHub/400/300'
     },
     {
         id: 2,
         title: 'DJ Set - House Music Vibes',
-        streamer: { id: 108, name: 'DJ Thabo', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%238b5cf6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🎧%3C/text%3E%3C/svg%3E' },
+        streamer: { id: 108, name: 'DJ Thabo', image: 'https://picsum.photos/seed/DJThabo/400/300' },
         viewers: 2156,
         likes: 1523,
         category: 'Music',
         isLive: true,
-        thumbnail: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%238b5cf6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎧%3C/text%3E%3C/svg%3E'
+        thumbnail: 'https://picsum.photos/seed/DJThabo/400/300'
     },
     {
         id: 3,
         title: 'Cooking Class: Traditional SA Cuisine',
-        streamer: { id: 109, name: 'Chef Zanele', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23f59e0b" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👨‍🍳%3C/text%3E%3C/svg%3E' },
+        streamer: { id: 109, name: 'Chef Zanele', image: 'https://picsum.photos/seed/ChefZanele/400/300' },
         viewers: 0,
         likes: 0,
         category: 'Food',
         isLive: false,
         scheduled: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-        thumbnail: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23f59e0b" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🍳%3C/text%3E%3C/svg%3E'
+        thumbnail: 'https://picsum.photos/seed/img19/400/300'
     },
     {
         id: 4,
         title: 'Q&A: Dating Advice & Tips',
-        streamer: { id: 110, name: 'Relationship Coach', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%2314b8a6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E💕%3C/text%3E%3C/svg%3E' },
+        streamer: { id: 110, name: 'Relationship Coach', image: 'https://picsum.photos/seed/RelationshipCoach/400/300' },
         viewers: 0,
         likes: 0,
         category: 'Lifestyle',
         isLive: false,
         scheduled: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        thumbnail: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%2314b8a6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E💕%3C/text%3E%3C/svg%3E'
+        thumbnail: 'https://picsum.photos/seed/img21/400/300'
     }
 ];
 
@@ -697,7 +706,7 @@ const sampleContent = [
         type: 'video',
         creator: { id: 1, name: 'Sarah', type: 'creator', image: sampleProfiles[0].image },
         caption: 'Amazing sunset hike at Lion\'s Head! 🌅 The view was absolutely worth the climb. #CapeTown #Hiking #Sunset',
-        media: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23f472b6" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎬%3C/text%3E%3C/svg%3E',
+        media: 'https://picsum.photos/seed/img22/400/300',
         likes: 234,
         views: 1523,
         comments: 45,
@@ -709,7 +718,7 @@ const sampleContent = [
         type: 'photo',
         creator: { id: 3, name: 'Priya', type: 'model', image: sampleProfiles[2].image },
         caption: 'New photoshoot vibes ✨ What do you think? #Photoshoot #Model #Fashion',
-        media: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23a78bfa" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E📸%3C/text%3E%3C/svg%3E',
+        media: 'https://picsum.photos/seed/Priya/400/300',
         likes: 567,
         views: 3421,
         comments: 89,
@@ -719,9 +728,9 @@ const sampleContent = [
     {
         id: 3,
         type: 'video',
-        creator: { id: 108, name: 'DJ Thabo', type: 'creator', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%238b5cf6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🎧%3C/text%3E%3C/svg%3E' },
+        creator: { id: 108, name: 'DJ Thabo', type: 'creator', image: 'https://picsum.photos/seed/DJThabo/400/300' },
         caption: 'Live set from last weekend\'s rooftop party! 🎵 The energy was insane! #DJ #HouseMusic #LiveSet',
-        media: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%238b5cf6" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎵%3C/text%3E%3C/svg%3E',
+        media: 'https://picsum.photos/seed/img24/400/300',
         likes: 892,
         views: 5634,
         comments: 156,
@@ -733,7 +742,7 @@ const sampleContent = [
         type: 'photo',
         creator: { id: 5, name: 'Zanele', type: 'creator', image: sampleProfiles[4].image },
         caption: 'Coffee and good vibes ☕ Starting the week right! #MondayMotivation #CoffeeLover',
-        media: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23f59e0b" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E☕%3C/text%3E%3C/svg%3E',
+        media: 'https://picsum.photos/seed/Zanele/400/300',
         likes: 345,
         views: 2134,
         comments: 67,
@@ -743,9 +752,9 @@ const sampleContent = [
     {
         id: 5,
         type: 'video',
-        creator: { id: 103, name: 'Wellness Hub', type: 'creator', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23ec4899" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🧘%3C/text%3E%3C/svg%3E' },
+        creator: { id: 103, name: 'Wellness Hub', type: 'creator', image: 'https://picsum.photos/seed/SunsetYogaWine/400/300' },
         caption: '5-minute morning stretch routine 🧘‍♀️ Start your day feeling energized! #Yoga #Wellness #MorningRoutine',
-        media: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23ec4899" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🧘%3C/text%3E%3C/svg%3E',
+        media: 'https://picsum.photos/seed/img26/400/300',
         likes: 1234,
         views: 8765,
         comments: 234,
@@ -757,7 +766,7 @@ const sampleContent = [
         type: 'photo',
         creator: { id: 2, name: 'Michael', type: 'hunter', image: sampleProfiles[1].image },
         caption: 'Business meeting with a view 🏙️ #Entrepreneur #Johannesburg #CityLife',
-        media: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%2322c55e" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🏙️%3C/text%3E%3C/svg%3E',
+        media: 'https://picsum.photos/seed/Michael/400/300',
         likes: 456,
         views: 2876,
         comments: 78,
@@ -861,7 +870,7 @@ const sampleForumPosts = [
         category: 'general',
         title: 'New to the platform - introduction!',
         content: 'Hi everyone! Just joined Koitus and excited to be part of this community. Looking forward to meeting new people and participating in discussions. Any tips for a newcomer?',
-        author: { id: 8, name: 'Jessica', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%2314b8a6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👩%3C/text%3E%3C/svg%3E' },
+        author: { id: 8, name: 'Jessica', image: 'https://picsum.photos/seed/Jessica/400/300' },
         votes: 12,
         replies: 8,
         views: 156,
@@ -875,7 +884,7 @@ const sampleForumPosts = [
         category: 'advice',
         title: 'How to handle rejection gracefully?',
         content: 'I\'ve been on a few dates through the app but haven\'t found a connection yet. How do you all handle rejection without taking it personally? Would appreciate some advice.',
-        author: { id: 9, name: 'David K.', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%233b82f6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👨%3C/text%3E%3C/svg%3E' },
+        author: { id: 9, name: 'David K.', image: 'https://picsum.photos/seed/DavidK/400/300' },
         votes: 45,
         replies: 23,
         views: 445,
@@ -920,7 +929,7 @@ const sampleProviderForumPosts = [
         category: 'legal',
         title: 'Important: New regulations for service providers in 2026',
         content: 'Just attended a seminar on the new regulations. Key changes: 1) Updated licensing requirements, 2) New tax thresholds, 3) Enhanced privacy policies required, 4) Mandatory insurance for certain services. Please ensure you\'re compliant!',
-        author: { id: 109, name: 'Advocate Mbeki', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236b7280" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👨‍⚖️%3C/text%3E%3C/svg%3E', type: 'provider' },
+        author: { id: 109, name: 'Advocate Mbeki', image: 'https://picsum.photos/seed/AdvocateMbeki/400/300', type: 'provider' },
         votes: 234,
         replies: 45,
         views: 2345,
@@ -962,7 +971,7 @@ const sampleProviderForumPosts = [
         category: 'success',
         title: 'Just hit my first R50k month! 🎉',
         content: 'Started on Koitus 8 months ago with zero clients. Just completed my best month ever! Key learnings: be professional, deliver quality, ask for reviews, and stay consistent. Thank you to this community for all the support and advice. You all inspired me!',
-        author: { id: 110, name: 'Nomsa M.', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%23ec4899" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👩‍🦱%3C/text%3E%3C/svg%3E', type: 'provider' },
+        author: { id: 110, name: 'Nomsa M.', image: 'https://picsum.photos/seed/NomsaM/400/300', type: 'provider' },
         votes: 445,
         replies: 89,
         views: 4567,
@@ -976,7 +985,7 @@ const sampleProviderForumPosts = [
         category: 'business',
         title: 'Looking for advice on expanding services',
         content: 'Currently offering photography services but considering adding video production. Has anyone successfully expanded their service offerings? What challenges should I expect? Investment costs? Client reception?',
-        author: { id: 111, name: 'Marcus T.', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%238b5cf6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👨‍🎤%3C/text%3E%3C/svg%3E', type: 'provider' },
+        author: { id: 111, name: 'Marcus T.', image: 'https://picsum.photos/seed/MarcusT/400/300', type: 'provider' },
         votes: 34,
         replies: 18,
         views: 345,
@@ -994,7 +1003,7 @@ const pendingApprovalPosts = [
         category: 'general',
         title: 'New to the platform - introduction!',
         content: 'Hi everyone! Just joined Koitus and excited to be part of this community. Looking forward to meeting new people and participating in discussions. Any tips for a newcomer?',
-        author: { id: 8, name: 'Jessica', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%2314b8a6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👩%3C/text%3E%3C/svg%3E' },
+        author: { id: 8, name: 'Jessica', image: 'https://picsum.photos/seed/Jessica/400/300' },
         votes: 12,
         replies: 8,
         views: 156,
@@ -1008,7 +1017,7 @@ const pendingApprovalPosts = [
         category: 'advice',
         title: 'How to handle rejection gracefully?',
         content: 'I\'ve been on a few dates through the app but haven\'t found a connection yet. How do you all handle rejection without taking it personally? Would appreciate some advice.',
-        author: { id: 9, name: 'David K.', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%233b82f6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👨%3C/text%3E%3C/svg%3E' },
+        author: { id: 9, name: 'David K.', image: 'https://picsum.photos/seed/DavidK/400/300' },
         votes: 45,
         replies: 23,
         views: 445,
@@ -1022,7 +1031,7 @@ const pendingApprovalPosts = [
         category: 'business',
         title: 'Looking for advice on expanding services',
         content: 'Currently offering photography services but considering adding video production. Has anyone successfully expanded their service offerings? What challenges should I expect? Investment costs? Client reception?',
-        author: { id: 111, name: 'Marcus T.', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%238b5cf6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👨‍🎤%3C/text%3E%3C/svg%3E', type: 'provider' },
+        author: { id: 111, name: 'Marcus T.', image: 'https://picsum.photos/seed/MarcusT/400/300', type: 'provider' },
         votes: 34,
         replies: 18,
         views: 345,
@@ -1043,7 +1052,7 @@ const sampleProducts = [
         originalPrice: 1200,
         category: 'lingerie',
         description: 'Elegant lace lingerie set in black. Premium quality, comfortable fit. Available in sizes S-XL.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23ef4444" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E👙%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img33/400/300'],
         rating: 4.8,
         reviews: 34,
         sold: 156,
@@ -1059,7 +1068,7 @@ const sampleProducts = [
         originalPrice: 3500,
         category: 'photography',
         description: '1-hour professional photo shoot with edited photos. Perfect for portfolios, social media, or personal use.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23f472b6" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E📸%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img34/400/300'],
         rating: 4.9,
         reviews: 67,
         sold: 234,
@@ -1075,7 +1084,7 @@ const sampleProducts = [
         originalPrice: 2000,
         category: 'dance',
         description: 'Learn a custom dance routine for your special event. 2 sessions included. Any style: Bollywood, Hip-hop, Contemporary.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%2322c55e" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E💃%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img35/400/300'],
         rating: 5.0,
         reviews: 45,
         sold: 89,
@@ -1091,7 +1100,7 @@ const sampleProducts = [
         originalPrice: 900,
         category: 'jewelry',
         description: 'Unique handmade jewelry pieces. Earrings, necklaces, and bracelets. Each piece is one-of-a-kind.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23ec4899" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E💎%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img36/400/300'],
         rating: 4.7,
         reviews: 56,
         sold: 312,
@@ -1107,7 +1116,7 @@ const sampleProducts = [
         originalPrice: 600,
         category: 'fitness',
         description: 'Personal training session with certified fitness coach. Customized workout plan included.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%233b82f6" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E💪%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img37/400/300'],
         rating: 4.6,
         reviews: 78,
         sold: 445,
@@ -1123,7 +1132,7 @@ const sampleProducts = [
         originalPrice: 1800,
         category: 'events',
         description: 'Professional event planning consultation. Perfect for parties, corporate events, or special occasions.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23f59e0b" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎉%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img38/400/300'],
         rating: 4.5,
         reviews: 23,
         sold: 67,
@@ -1139,7 +1148,7 @@ const sampleProducts = [
         originalPrice: 500,
         category: 'wellness',
         description: 'Premium massage oil set with essential oils. Creates a relaxing and intimate atmosphere.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%23ef4444" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🧴%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img39/400/300'],
         rating: 4.8,
         reviews: 89,
         sold: 567,
@@ -1150,12 +1159,12 @@ const sampleProducts = [
     {
         id: 8,
         name: 'DJ Mix - House Vibes',
-        seller: { id: 108, name: 'DJ Thabo', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%238b5cf6" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E🎧%3C/text%3E%3C/svg%3E' },
+        seller: { id: 108, name: 'DJ Thabo', image: 'https://picsum.photos/seed/DJThabo/400/300' },
         price: 150,
         originalPrice: 250,
         category: 'music',
         description: 'Exclusive 2-hour DJ mix featuring the best house music tracks. Digital download.',
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%238b5cf6" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎵%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img24/400/300'],
         rating: 4.9,
         reviews: 123,
         sold: 890,
@@ -1403,7 +1412,7 @@ const sampleClubs = [
         tags: ['networking', 'professionals', 'elite'],
         createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
         activityLevel: 'high',
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%236366f1" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E👔%3C/text%3E%3C/svg%3E'
+        image: 'https://picsum.photos/seed/img40/400/300'
     },
     {
         id: 2,
@@ -1418,7 +1427,7 @@ const sampleClubs = [
         tags: ['outdoor', 'adventure', 'sports'],
         createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
         activityLevel: 'very-high',
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%2322c55e" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🏔️%3C/text%3E%3C/svg%3E'
+        image: 'https://picsum.photos/seed/img41/400/300'
     },
     {
         id: 3,
@@ -1433,7 +1442,7 @@ const sampleClubs = [
         tags: ['luxury', 'lifestyle', 'exclusive'],
         createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
         activityLevel: 'medium',
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23f59e0b" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🥂%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img42/400/300',
         joinFee: 500
     },
     {
@@ -1449,7 +1458,7 @@ const sampleClubs = [
         tags: ['art', 'music', 'creative'],
         createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
         activityLevel: 'high',
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23ec4899" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎨%3C/text%3E%3C/svg%3E'
+        image: 'https://picsum.photos/seed/img43/400/300'
     },
     {
         id: 5,
@@ -1464,7 +1473,7 @@ const sampleClubs = [
         tags: ['fitness', 'health', 'wellness'],
         createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
         activityLevel: 'very-high',
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%233b82f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E💪%3C/text%3E%3C/svg%3E'
+        image: 'https://picsum.photos/seed/img44/400/300'
     }
 ];
 
@@ -1525,7 +1534,7 @@ function handleAdminLogin(event) {
             email: email,
             role: 'admin',
             isAdmin: true,
-            avatar: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle fill="%236366f1" cx="50" cy="50" r="50"/%3E%3Ctext x="50" y="55" text-anchor="middle" font-size="40" fill="white"%3E👨‍💼%3C/text%3E%3C/svg%3E'
+            avatar: 'https://i.pravatar.cc/400?u=Administrator'
         };
 
         state.isLoggedIn = true;
@@ -1588,7 +1597,7 @@ function handleLogin(event) {
             email: email,
             role: 'admin',
             isAdmin: true,
-            avatar: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle fill="%236366f1" cx="50" cy="50" r="50"/%3E%3Ctext x="50" y="55" text-anchor="middle" font-size="40" fill="white"%3E👨‍💼%3C/text%3E%3C/svg%3E'
+            avatar: 'https://i.pravatar.cc/400?u=Administrator'
         };
 
         state.isLoggedIn = true;
@@ -1628,7 +1637,7 @@ function handleLogin(event) {
         location: 'Johannesburg, South Africa',
         bio: 'Just joined Koitus! Excited to meet new people.',
         interests: ['Music', 'Travel', 'Food'],
-        avatar: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle fill="%236366f1" cx="50" cy="50" r="50"/%3E%3Ctext x="50" y="55" text-anchor="middle" font-size="40" fill="white"%3E👤%3C/text%3E%3C/svg%3E'
+        avatar: 'https://picsum.photos/seed/img46/400/300'
     };
 
     state.isLoggedIn = true;
@@ -1711,7 +1720,7 @@ function handleSignup(event) {
         location: 'Johannesburg, South Africa',
         bio: 'Just joined Koitus! Excited to meet new people.',
         interests: ['Music', 'Travel', 'Food'],
-        avatar: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle fill="%236366f1" cx="50" cy="50" r="50"/%3E%3Ctext x="50" y="55" text-anchor="middle" font-size="40" fill="white"%3E👤%3C/text%3E%3C/svg%3E',
+        avatar: 'https://picsum.photos/seed/img46/400/300',
         ...profileType
     };
 
@@ -4380,7 +4389,7 @@ function createEvent(event) {
         host: {
             id: state.currentUser?.id || 999,
             name: state.currentUser?.name || 'You',
-            image: state.currentUser?.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👤%3C/text%3E%3C/svg%3E'
+            image: state.currentUser?.avatar || 'https://picsum.photos/seed/img47/400/300'
         },
         date,
         time,
@@ -4392,7 +4401,7 @@ function createEvent(event) {
         attendees: [],
         attendeeCount: 0,
         isPrivate,
-        image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%236366f1" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🎉%3C/text%3E%3C/svg%3E',
+        image: 'https://picsum.photos/seed/img0/400/300',
         isHost: true,
         rsvp: false
     };
@@ -4540,7 +4549,7 @@ function toggleRSVP() {
         event.attendeeCount++;
         if (!event.attendees) event.attendees = [];
         // Add current user avatar (placeholder)
-        event.attendees.push('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👤%3C/text%3E%3C/svg%3E');
+        event.attendees.push('https://picsum.photos/seed/img47/400/300');
         showToast("You're going! See you there! 🎉");
     } else {
         event.attendeeCount--;
@@ -5403,7 +5412,7 @@ function submitComment() {
     }
     
     // Get current user or use default
-    const currentUser = state.currentUser || { name: 'You', image: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle fill=\'%236366f1\' cx=\'50\' cy=\'50\' r=\'50\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' font-size=\'40\' fill=\'white\'%3E👤%3C/text%3E%3C/svg%3E' };
+    const currentUser = state.currentUser || { name: 'You', image: 'https://i.pravatar.cc/200?u=You' };
     
     // Add comment
     if (!currentContentId) {
@@ -5417,7 +5426,7 @@ function submitComment() {
     const newComment = {
         id: Date.now(),
         author: currentUser.name || 'Anonymous',
-        avatar: currentUser.image || 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle fill=\'%236366f1\' cx=\'50\' cy=\'50\' r=\'50\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' font-size=\'40\' fill=\'white\'%3E👤%3C/text%3E%3C/svg%3E',
+        avatar: currentUser.image || 'https://i.pravatar.cc/200?u=You',
         text: commentText,
         time: new Date(),
         likes: 0
@@ -5900,7 +5909,7 @@ function submitReply(postId, forumType) {
         author: {
             id: state.currentUser?.id || 999,
             name: state.currentUser?.name || 'Anonymous',
-            image: state.currentUser?.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👤%3C/text%3E%3C/svg%3E'
+            image: state.currentUser?.avatar || 'https://picsum.photos/seed/img47/400/300'
         },
         date: new Date(),
         votes: 0
@@ -6050,11 +6059,11 @@ function createForumPost(event) {
         author: anonymous ? {
             id: 'anonymous',
             name: 'Anonymous User',
-            image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle fill="%236b7280" cx="50" cy="50" r="50"/%3E%3Ctext x="50" y="55" text-anchor="middle" font-size="40" fill="white"%3E👤%3C/text%3E%3C/svg%3E'
+            image: 'https://picsum.photos/seed/AnonymousUser/400/300'
         } : {
             id: state.currentUser?.id || 999,
             name: state.currentUser?.name || 'You',
-            image: state.currentUser?.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👤%3C/text%3E%3C/svg%3E'
+            image: state.currentUser?.avatar || 'https://picsum.photos/seed/img47/400/300'
         },
         votes: 0,
         replies: 0,
@@ -6401,9 +6410,9 @@ function addProduct(event) {
         seller: {
             id: state.currentUser.id,
             name: state.currentUser.name,
-            image: state.currentUser.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👤%3C/text%3E%3C/svg%3E'
+            image: state.currentUser.avatar || 'https://picsum.photos/seed/img47/400/300'
         },
-        images: ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%236366f1" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E📦%3C/text%3E%3C/svg%3E'],
+        images: ['https://picsum.photos/seed/img50/400/300'],
         rating: 0,
         reviews: 0,
         sold: 0,
@@ -6639,7 +6648,7 @@ function saveProfileChanges(e) {
         state.currentUser.bio = bio;
         state.currentUser.location = location;
         state.currentUser.interests = interests;
-        state.currentUser.avatar = state.currentUser.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👤%3C/text%3E%3C/svg%3E';
+        state.currentUser.avatar = state.currentUser.avatar || 'https://picsum.photos/seed/img47/400/300';
     }
 
     // Log activity
@@ -7149,7 +7158,7 @@ function createAdminUser(event) {
         accountType: accountType,
         bio: bio || 'Just joined Koitus!',
         interests: interests.length > 0 ? interests : ['Music', 'Travel'],
-        image: `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Ccircle fill="%236366f1" cx="200" cy="200" r="200"/%3E%3Ctext x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="120" fill="white"%3E👤%3C/text%3E%3C/svg%3E`,
+        image: 'https://i.pravatar.cc/400?u=AdminUser',
         date: new Date(),
         online: false,
         verified: true // Admin-created users are verified
@@ -8692,7 +8701,7 @@ function createClub(event) {
         createdAt: new Date(),
         activityLevel: 'new',
         joinFee: joinFee > 0 ? joinFee : undefined,
-        image: `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%236366f1" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="80" fill="white"%3E🏛️%3C/text%3E%3C/svg%3E`
+        image: 'https://picsum.photos/seed/club/400/300'
     };
 
     state.clubs.unshift(newClub);
@@ -9256,7 +9265,7 @@ function showBasicEditProfile() {
                     <form id="edit-profile-form" onsubmit="saveProfileChanges(event)">
                         <div class="profile-photo-upload">
                             <div class="current-photo" onclick="uploadProfilePhoto()">
-                                <img src="${profile.avatar || 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle fill=\'%236366f1\' cx=\'50\' cy=\'50\' r=\'50\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' font-size=\'40\' fill=\'white\'%3E👤%3C/text%3E%3C/svg%3E'}" alt="Profile Photo">
+                                <img src="${profile.avatar || 'https://i.pravatar.cc/200?u=You'}" alt="Profile Photo">
                                 <div class="upload-overlay">
                                     <i class="fas fa-camera"></i>
                                 </div>

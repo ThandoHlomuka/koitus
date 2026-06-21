@@ -159,6 +159,7 @@ const state = {
     userClubs: [],
     // Emoji picker
     emojiPickerOpen: false,
+    emojiPickerTimer: null,
     // AI Ice Breakers
     enableIcebreakers: true,
     // User profiles storage
@@ -6917,6 +6918,28 @@ function toggleChatEmojiPicker() {
     if (picker) {
         const isVisible = picker.style.display === 'block';
         picker.style.display = isVisible ? 'none' : 'block';
+        if (isVisible) {
+            clearEmojiPickerTimer();
+        } else {
+            startEmojiPickerTimer();
+        }
+    }
+}
+
+function startEmojiPickerTimer() {
+    clearEmojiPickerTimer();
+    state.emojiPickerTimer = setTimeout(function() {
+        var picker = document.getElementById('chat-emoji-picker');
+        if (picker && picker.style.display === 'block') {
+            picker.style.display = 'none';
+        }
+    }, 10000);
+}
+
+function clearEmojiPickerTimer() {
+    if (state.emojiPickerTimer) {
+        clearTimeout(state.emojiPickerTimer);
+        state.emojiPickerTimer = null;
     }
 }
 
@@ -6939,6 +6962,7 @@ function insertEmoji(emoji) {
         input.value += emoji;
         input.focus();
     }
+    clearEmojiPickerTimer();
     const picker = document.getElementById('chat-emoji-picker');
     if (picker) picker.style.display = 'none';
 }

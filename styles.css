@@ -3289,6 +3289,90 @@ select:disabled {
     color: var(--error);
 }
 
+/* ==================== DISCOVER FEED ==================== */
+.discover-feed {
+    margin-top: var(--spacing-8);
+    padding-top: var(--spacing-6);
+    border-top: 1px solid var(--border-light);
+}
+
+.discover-feed .section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.discover-feed .section-title i {
+    color: var(--primary);
+}
+
+.discover-feed-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-3);
+}
+
+.discover-feed-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    cursor: pointer;
+    transition: all var(--transition);
+    text-align: center;
+}
+
+.discover-feed-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-medium);
+}
+
+.discover-feed-card .feed-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin: 0 auto var(--spacing-2);
+    color: var(--white);
+}
+
+.discover-feed-card h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.discover-feed-card p {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+    .discover-feed-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-2);
+    }
+    .discover-feed-card {
+        padding: var(--spacing-3);
+    }
+    .discover-feed-card .feed-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+    }
+}
+
 /* ==================== USERS VIEW ==================== */
 .users-container {
     display: grid;
@@ -4092,6 +4176,11 @@ select:disabled {
     display: none;
 }
 
+/* Mobile Bottom Tab Bar (hidden on desktop) */
+.mobile-bottom-nav {
+    display: none;
+}
+
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 1024px) {
     .messages-layout {
@@ -4227,6 +4316,77 @@ select:disabled {
     
     .story-detail-image {
         height: 300px;
+    }
+
+    /* Mobile Bottom Nav */
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-light);
+        z-index: 100;
+        justify-content: space-around;
+        align-items: center;
+        padding: 6px 0 calc(env(safe-area-inset-bottom, 6px));
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+    }
+
+    .bottom-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 4px 10px;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.6rem;
+        font-weight: 500;
+        transition: color var(--transition);
+        border-radius: var(--radius-md);
+    }
+
+    .bottom-nav-item i {
+        font-size: 1.15rem;
+        transition: color var(--transition);
+    }
+
+    .bottom-nav-item.active {
+        color: var(--primary);
+    }
+
+    .bottom-nav-item.active i {
+        color: var(--primary);
+    }
+
+    .app-main {
+        padding-bottom: 80px;
+        padding-top: 0;
+    }
+
+    /* Ensure all views scroll properly on mobile */
+    .view {
+        min-height: calc(100vh - 140px);
+    }
+
+    /* Landing page mobile fixes */
+    .landing-nav {
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+    
+    .hero-content {
+        padding: var(--spacing-8) var(--spacing-4);
+        text-align: center;
+    }
+    
+    .hero-content h1 {
+        font-size: 2.2rem;
+    }
+    
+    .hero-content p {
+        font-size: 1rem;
     }
 }
 

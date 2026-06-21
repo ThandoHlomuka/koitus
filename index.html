@@ -1079,6 +1079,14 @@
                 <div class="users-container" id="users-container">
                     <!-- Populated by JS -->
                 </div>
+
+                <!-- Recent Activity Feed -->
+                <div class="discover-feed" id="discover-feed">
+                    <h2 class="section-title"><i class="fas fa-bolt"></i> Recent Activity</h2>
+                    <div id="discover-feed-container">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
             
             <!-- Matches View -->
@@ -2574,9 +2582,34 @@
                     <button class="btn btn-primary" onclick="showPostPersonalsModal()">
                         <i class="fas fa-plus"></i> Post Ad
                     </button>
+                    </div>
                 </div>
             </div>
         </main>
+
+        <!-- Mobile Bottom Tab Bar -->
+        <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+            <a href="#" class="bottom-nav-item active" data-view="discover" onclick="switchView('discover')">
+                <i class="fas fa-compass"></i>
+                <span>Discover</span>
+            </a>
+            <a href="#" class="bottom-nav-item" data-view="matches" onclick="switchView('matches')">
+                <i class="fas fa-heart"></i>
+                <span>Matches</span>
+            </a>
+            <a href="#" class="bottom-nav-item" data-view="messages" onclick="switchView('messages')">
+                <i class="fas fa-comment-dots"></i>
+                <span>Chat</span>
+            </a>
+            <a href="#" class="bottom-nav-item" data-view="streams" onclick="switchView('streams')">
+                <i class="fas fa-video"></i>
+                <span>Streams</span>
+            </a>
+            <a href="#" class="bottom-nav-item" data-view="profile" onclick="switchView('profile')">
+                <i class="fas fa-user"></i>
+                <span>Profile</span>
+            </a>
+        </nav>
     </div>
 
     <!-- Post Personals Modal -->

@@ -1669,6 +1669,7 @@ function loadSampleData() {
     }));
 
     renderUsers();
+    renderDiscoverFeed();
     renderMatches();
     renderConversations();
     renderNotifications();
@@ -2275,6 +2276,14 @@ function switchView(viewName) {
         }
     });
     
+    // Update mobile bottom nav items
+    document.querySelectorAll('.bottom-nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.view === viewName) {
+            item.classList.add('active');
+        }
+    });
+    
     // Update views
     document.querySelectorAll('.view').forEach(view => {
         view.classList.remove('active');
@@ -2289,6 +2298,7 @@ function switchView(viewName) {
     switch(viewName) {
         case 'discover':
             renderUsers();
+            renderDiscoverFeed();
             break;
         case 'matches':
             renderMatches();
@@ -2532,6 +2542,136 @@ function followProfile(profileId) {
         showToast('Unfollowed');
     }
     renderProfiles();
+}
+
+// ==================== DISCOVER FEED ====================
+function renderDiscoverFeed() {
+    var container = document.getElementById('discover-feed-container');
+    if (!container) return;
+
+    var items = [];
+
+    // Events
+    if (state.events && state.events.length > 0) {
+        var latestEvents = state.events.slice(0, 2);
+        latestEvents.forEach(function(e) {
+            items.push({
+                icon: 'calendar-alt',
+                color: '#8b5cf6',
+                title: e.title,
+                subtitle: e.date || 'Event',
+                onClick: 'switchView(\'events\')'
+            });
+        });
+    }
+
+    // Profiles
+    if (state.profiles && state.profiles.length > 0) {
+        var recent = state.profiles.slice(0, 2);
+        recent.forEach(function(p) {
+            items.push({
+                icon: 'user',
+                color: '#6366f1',
+                title: p.name + ', ' + p.age,
+                subtitle: p.location || 'New profile',
+                onClick: 'openUserProfile(' + p.id + ')'
+            });
+        });
+    }
+
+    // Clubs
+    if (state.clubs && state.clubs.length > 0) {
+        state.clubs.slice(0, 1).forEach(function(c) {
+            items.push({
+                icon: 'users',
+                color: '#22c55e',
+                title: c.name,
+                subtitle: (c.members ? c.members.length : 0) + ' members',
+                onClick: 'switchView(\'clubs\')'
+            });
+        });
+    }
+
+    // Streams
+    if (state.streams && state.streams.length > 0) {
+        state.streams.slice(0, 1).forEach(function(s) {
+            items.push({
+                icon: 'video',
+                color: '#ef4444',
+                title: s.title || s.name,
+                subtitle: (s.viewers || 0) + ' watching',
+                onClick: 'switchView(\'streams\')'
+            });
+        });
+    }
+
+    // Content
+    if (state.content && state.content.length > 0) {
+        state.content.slice(0, 1).forEach(function(c) {
+            items.push({
+                icon: 'photo-video',
+                color: '#ec4899',
+                title: c.title || 'New content',
+                subtitle: c.type || 'Content',
+                onClick: 'switchView(\'content\')'
+            });
+        });
+    }
+
+    // Stories
+    if (state.stories && state.stories.length > 0) {
+        state.stories.slice(0, 1).forEach(function(s) {
+            items.push({
+                icon: 'book-open',
+                color: '#f59e0b',
+                title: s.title || 'Story',
+                subtitle: s.author || 'New story',
+                onClick: 'switchView(\'stories\')'
+            });
+        });
+    }
+
+    // Personals
+    if (state.personals && state.personals.length > 0) {
+        state.personals.slice(0, 1).forEach(function(p) {
+            items.push({
+                icon: 'heart',
+                color: '#ef4444',
+                title: p.title || 'Personals ad',
+                subtitle: p.type || 'Classified',
+                onClick: 'switchView(\'personals\')'
+            });
+        });
+    }
+
+    // Products
+    if (state.products && state.products.length > 0) {
+        state.products.slice(0, 1).forEach(function(p) {
+            items.push({
+                icon: 'store',
+                color: '#10b981',
+                title: p.name || 'Product',
+                subtitle: 'R' + (p.price || 0),
+                onClick: 'openProductDetail(' + p.id + ')'
+            });
+        });
+    }
+
+    if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No recent activity yet</p></div>';
+        return;
+    }
+
+    container.innerHTML = '<div class="discover-feed-grid">' + items.map(function(item) {
+        return '\
+            <div class="discover-feed-card" onclick="' + item.onClick + '">\
+                <div class="feed-icon" style="background:' + item.color + '">\
+                    <i class="fas fa-' + item.icon + '"></i>\
+                </div>\
+                <h4>' + item.title + '</h4>\
+                <p>' + item.subtitle + '</p>\
+            </div>';
+    }).join('') + '</div>';
 }
 
 // ==================== USERS VIEW ====================
@@ -6390,6 +6530,8 @@ function switchForumType(type) {
 function hasProviderAccess() {
     // In real app, check user's subscription status
     // For demo, check if user is a provider or has purchased access
+    // Admin has access to everything
+    if (state.currentUser?.isAdmin || state.currentUser?.role === 'admin') return true;
     return state.currentUser?.accountType === 'provider' || state.currentUser?.hasProviderAccess;
 }
 
@@ -7146,11 +7288,12 @@ function renderStore() {
     renderStoreEarnings();
     renderStoreReviews();
     
-    // Show store nav item for vendors/providers
+    // Show store nav item for vendors/providers/admins
     var navStore = document.getElementById('nav-store');
     if (navStore) {
         var isVendor = state.currentUser.type === 'vendor' || state.currentUser.type === 'seller' || state.currentUser.accountType === 'provider';
-        navStore.style.display = isVendor ? 'flex' : 'none';
+        var isAdminUser = state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
+        navStore.style.display = (isVendor || isAdminUser) ? 'flex' : 'none';
     }
 }
 

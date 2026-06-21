@@ -5173,7 +5173,7 @@ function createTransactionItem(tx) {
     const date = new Date(tx.date).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
 
     return `
-        <div class="transaction-item">
+        <div class="transaction-item ${tx.type}-item">
             <div class="transaction-info">
                 <div class="transaction-icon ${tx.type}">
                     <i class="fas fa-${icons[tx.type] || 'circle'}"></i>

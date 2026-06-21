@@ -5542,11 +5542,12 @@ select:disabled {
     align-items: center;
     gap: var(--spacing-2);
     padding: var(--spacing-4);
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-lg);
     cursor: pointer;
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
 }
 
 .quick-action-btn:hover {
@@ -5554,15 +5555,26 @@ select:disabled {
     color: var(--white);
     border-color: var(--primary);
     transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
 }
 
 .quick-action-btn i {
     font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.quick-action-btn:hover i {
+    color: var(--white);
 }
 
 .quick-action-btn span {
     font-size: 0.75rem;
     font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.quick-action-btn:hover span {
+    color: var(--white);
 }
 
 .wallet-section {
@@ -5586,14 +5598,29 @@ select:disabled {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--spacing-3);
-    background: var(--bg-secondary);
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--bg-primary);
     border-radius: var(--radius-lg);
+    border-left: 4px solid var(--border-light);
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+}
+
+.transaction-item.deposit-item {
+    border-left-color: var(--success);
+}
+
+.transaction-item.purchase-item {
+    border-left-color: var(--error);
+}
+
+.transaction-item.refund-item {
+    border-left-color: var(--info);
 }
 
 .transaction-item:hover {
     background: var(--bg-tertiary);
+    transform: translateX(4px);
 }
 
 .transaction-info {
@@ -5608,14 +5635,24 @@ select:disabled {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-primary);
     border-radius: 50%;
     font-size: 1.25rem;
 }
 
-.transaction-icon.deposit { color: var(--success); }
-.transaction-icon.purchase { color: var(--error); }
-.transaction-icon.refund { color: var(--info); }
+.transaction-icon.deposit {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success);
+}
+
+.transaction-icon.purchase {
+    background: rgba(220, 20, 60, 0.15);
+    color: var(--error);
+}
+
+.transaction-icon.refund {
+    background: rgba(74, 144, 217, 0.15);
+    color: var(--info);
+}
 
 .transaction-details h4 {
     font-size: 0.875rem;
@@ -5631,11 +5668,20 @@ select:disabled {
 
 .transaction-amount {
     font-size: 0.95rem;
-    font-weight: 600;
+    font-weight: 700;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-full);
 }
 
-.transaction-amount.positive { color: var(--success); }
-.transaction-amount.negative { color: var(--error); }
+.transaction-amount.positive {
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.transaction-amount.negative {
+    color: var(--error);
+    background: rgba(220, 20, 60, 0.1);
+}
 
 .payment-methods-list {
     display: flex;
@@ -5648,10 +5694,17 @@ select:disabled {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--spacing-3);
-    background: var(--bg-secondary);
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--bg-primary);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+}
+
+.payment-method-item:hover {
+    border-color: var(--primary-light);
+    box-shadow: var(--shadow-md);
 }
 
 .payment-method-info {
@@ -5663,6 +5716,9 @@ select:disabled {
 .payment-method-icon {
     font-size: 2rem;
     color: var(--primary);
+    background: rgba(220, 20, 60, 0.1);
+    padding: var(--spacing-2);
+    border-radius: var(--radius-md);
 }
 
 .payment-method-details span {
@@ -5707,20 +5763,28 @@ select:disabled {
 
 .amount-btn {
     padding: var(--spacing-3);
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     border: 2px solid var(--border-light);
     border-radius: var(--radius);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
     cursor: pointer;
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
 }
 
-.amount-btn:hover,
+.amount-btn:hover {
+    border-color: var(--primary-light);
+    background: rgba(220, 20, 60, 0.05);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
 .amount-btn.selected {
     border-color: var(--success);
-    background: rgba(34, 197, 94, 0.1);
+    background: rgba(34, 197, 94, 0.12);
     color: var(--success);
+    box-shadow: 0 0 0 1px var(--success);
 }
 
 .deposit-info {
@@ -5728,8 +5792,9 @@ select:disabled {
     align-items: center;
     gap: var(--spacing-2);
     padding: var(--spacing-3);
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     border-radius: var(--radius);
+    border: 1px solid var(--border-light);
     margin: var(--spacing-4) 0;
     font-size: 0.875rem;
     color: var(--text-secondary);

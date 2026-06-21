@@ -203,8 +203,8 @@ const profileTypes = {
     dancer: { label: 'Exotic Dancer', icon: 'music', color: '#ec4899' },
     model: { label: 'Nude Model', icon: 'image', color: '#f59e0b' },
     escort: { label: 'Escort', icon: 'heart', color: '#ef4444' },
-    venue: { label: 'Venue Owner', icon: 'building', color: '#3b82f6' },
-    promoter: { label: 'Event Promoter', icon: 'bullhorn', color: '#f97316' },
+    promoter: { label: 'Promoter', icon: 'bullhorn', color: '#f97316' },
+    studio: { label: 'Studio', icon: 'building', color: '#3b82f6' },
     seller: { label: 'Seller', icon: 'store', color: '#10b981' },
 
     // Provider Additional Services
@@ -400,6 +400,27 @@ const sampleProfiles = [
         fans: 432,
         rating: 4.4,
         reviews: 67
+    },
+    {
+        id: 11,
+        name: 'Velvet Studio',
+        age: 0,
+        type: 'studio',
+        accountType: 'provider',
+        mainType: 'provider',
+        subType: 'studio',
+        additionalServices: ['equipment'],
+        location: 'Sandton, 3km away',
+        bio: 'Premium studio space for photography, film, and events. Fully equipped with professional lighting and backdrops.',
+        interests: ['Photography', 'Film', 'Events', 'Art'],
+        image: 'https://i.pravatar.cc/400?u=VelvetStudio',
+        coords: { lat: -26.1076, lng: 28.0567 },
+        online: true,
+        distance: 3,
+        likes: 1543,
+        fans: 678,
+        rating: 4.9,
+        reviews: 234
     }
 ];
 
@@ -6757,6 +6778,11 @@ function renderGames() {
                 <h3>Quiz Match</h3>\
                 <p>Test your compatibility</p>\
             </div>\
+            <div class="game-card" onclick="showFantasyRequestForm()">\
+                <div class="game-icon"><i class="fas fa-star"></i></div>\
+                <h3>Fantasy Requests</h3>\
+                <p>Submit your fantasy request to admins</p>\
+            </div>\
             <div class="game-card" onclick="showToast(\'Flirt Roulette coming soon!\')">\
                 <div class="game-icon"><i class="fas fa-dice"></i></div>\
                 <h3>Flirt Roulette</h3>\
@@ -6793,6 +6819,66 @@ function renderGames() {
                 </div>\
             </div>\
         </div>';
+}
+
+// ==================== FANTASY REQUESTS ====================
+function showFantasyRequestForm() {
+    var modal = document.getElementById('fantasy-request-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeFantasyRequestModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    var modal = document.getElementById('fantasy-request-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function submitFantasyRequest(e) {
+    e.preventDefault();
+    var type = document.getElementById('fantasy-type').value;
+    var title = document.getElementById('fantasy-title').value.trim();
+    var description = document.getElementById('fantasy-description').value.trim();
+    var details = document.getElementById('fantasy-details').value.trim();
+    
+    if (!type || !title || !description) {
+        showToast('Please fill in all required fields', 'warning');
+        return;
+    }
+    
+    var request = {
+        id: 'fr-' + Date.now(),
+        type: type,
+        title: title,
+        description: description,
+        details: details,
+        user: state.currentUser ? state.currentUser.name : 'Anonymous',
+        userId: state.currentUser ? state.currentUser.id : null,
+        date: new Date().toISOString(),
+        status: 'pending'
+    };
+    
+    if (!state.adminData.fantasyRequests) {
+        state.adminData.fantasyRequests = [];
+    }
+    state.adminData.fantasyRequests.unshift(request);
+    
+    // Also add to recharge requests for admin visibility
+    if (!state.adminData.rechargeRequests) state.adminData.rechargeRequests = [];
+    state.adminData.rechargeRequests.unshift({
+        id: 'fr-notif-' + Date.now(),
+        type: 'fantasy',
+        request: request,
+        date: new Date(),
+        status: 'pending'
+    });
+    
+    document.getElementById('fantasy-type').value = '';
+    document.getElementById('fantasy-title').value = '';
+    document.getElementById('fantasy-description').value = '';
+    document.getElementById('fantasy-details').value = '';
+    
+    closeFantasyRequestModal();
+    showToast('Your fantasy request has been sent to the admin team! ✨');
 }
 
 // ==================== STORIES ====================

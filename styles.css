@@ -3789,6 +3789,32 @@ select:disabled {
     padding: var(--spacing-6);
 }
 
+/* Fantasy Request Modal */
+.fantasy-modal-content {
+    max-width: 560px;
+}
+
+.fantasy-modal-content .modal-subtitle {
+    font-size: 0.9375rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--spacing-6);
+    line-height: 1.5;
+}
+
+.fantasy-modal-content .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-6);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--border-light);
+}
+
+.fantasy-modal-content textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
 .games-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

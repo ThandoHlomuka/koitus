@@ -943,6 +943,10 @@
                     <i class="fas fa-tags"></i>
                     <span>Pricing</span>
                 </a>
+                <a href="#" class="nav-item" data-view="personals" onclick="switchView('personals')">
+                    <i class="fas fa-heart"></i>
+                    <span>Personals</span>
+                </a>
                 <a href="#" class="nav-item" data-view="profile" onclick="switchView('profile')">
                     <i class="fas fa-user"></i>
                     <span>Profile</span>
@@ -2169,10 +2173,139 @@
                     <div class="pricing-loading">Loading plans...</div>
                 </div>
             </div>
+
+            <!-- Personals View -->
+            <div id="view-personals" class="view">
+                <div class="view-header">
+                    <h1>Personals</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-icon" onclick="togglePersonalsFilters()">
+                            <i class="fas fa-filter"></i>
+                        </button>
+                        <button class="btn btn-primary" onclick="showPostPersonalsModal()">
+                            <i class="fas fa-plus"></i> <span class="hide-mobile">Post Ad</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Personals Filters -->
+                <div id="personals-filters" class="personals-filters" style="display: none;">
+                    <div class="filter-group">
+                        <label>Type</label>
+                        <select id="personals-type-filter" onchange="renderPersonals()">
+                            <option value="all">All Types</option>
+                            <option value="dating">Dating / Relationship</option>
+                            <option value="friendship">Friendship</option>
+                            <option value="casual">Casual</option>
+                            <option value="activity">Activity Partner</option>
+                            <option value="travel">Travel Partner</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Location</label>
+                        <select id="personals-location-filter" onchange="renderPersonals()">
+                            <option value="all">All Locations</option>
+                            <option value="johannesburg">Johannesburg</option>
+                            <option value="cape town">Cape Town</option>
+                            <option value="durban">Durban</option>
+                            <option value="pretoria">Pretoria</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Sort By</label>
+                        <select id="personals-sort-filter" onchange="renderPersonals()">
+                            <option value="newest">Newest</option>
+                            <option value="popular">Most Responses</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Personals Tabs -->
+                <div class="personals-tabs">
+                    <button class="personals-tab active" data-tab="all" onclick="switchPersonalsTab('all')">
+                        <i class="fas fa-th"></i> All Ads
+                    </button>
+                    <button class="personals-tab" data-tab="dating" onclick="switchPersonalsTab('dating')">
+                        <i class="fas fa-heart"></i> Dating
+                    </button>
+                    <button class="personals-tab" data-tab="friendship" onclick="switchPersonalsTab('friendship')">
+                        <i class="fas fa-handshake"></i> Friendship
+                    </button>
+                    <button class="personals-tab" data-tab="casual" onclick="switchPersonalsTab('casual')">
+                        <i class="fas fa-smile-wink"></i> Casual
+                    </button>
+                </div>
+
+                <!-- Personals Grid -->
+                <div class="personals-grid" id="personals-grid">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="personals-empty-state" style="display: none;">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-heart-broken"></i>
+                    </div>
+                    <h3>No Ads Found</h3>
+                    <p>There are no personals ads matching your criteria. Be the first to post one!</p>
+                    <button class="btn btn-primary" onclick="showPostPersonalsModal()">
+                        <i class="fas fa-plus"></i> Post Ad
+                    </button>
+                </div>
+            </div>
         </main>
     </div>
 
-    <!-- Create Event Modal -->
+    <!-- Post Personals Modal -->
+    <div id="post-personals-modal" class="modal-overlay" style="display: none;" onclick="closePostPersonalsModal(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Post a Personal Ad</h2>
+                <button class="modal-close" onclick="closePostPersonalsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="post-personals-form" onsubmit="submitPersonalsAd(event)">
+                    <div class="form-group">
+                        <label>I am looking for *</label>
+                        <select id="personals-type" required>
+                            <option value="">Select type</option>
+                            <option value="dating">Dating / Relationship</option>
+                            <option value="friendship">Friendship / Activity Partner</option>
+                            <option value="casual">Casual / Friends with Benefits</option>
+                            <option value="travel">Travel Partner</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ad Title *</label>
+                        <input type="text" id="personals-title" required placeholder="e.g., Looking for a hiking buddy">
+                    </div>
+                    <div class="form-group">
+                        <label>Description *</label>
+                        <textarea id="personals-description" required rows="3" placeholder="Tell us about yourself and what you're looking for..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Location *</label>
+                        <input type="text" id="personals-location" required placeholder="e.g., Johannesburg">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Min Age</label>
+                            <input type="number" id="personals-age-min" placeholder="18" min="18" max="99">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Age</label>
+                            <input type="number" id="personals-age-max" placeholder="99" min="18" max="99">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-paper-plane"></i> Post Ad
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
     <div id="create-event-modal" class="modal-overlay" style="display: none;" onclick="closeCreateEventModal(event)">
         <div class="modal-content event-modal-content">
             <div class="modal-header">

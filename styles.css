@@ -4273,6 +4273,220 @@ select:disabled {
     }
 }
 
+/* ==================== PERSONALS ==================== */
+.personals-container {
+    padding: var(--spacing-6) 0;
+}
+
+.personals-tabs {
+    display: flex;
+    gap: var(--spacing-2);
+    padding: var(--spacing-4) 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.personals-tab {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.personals-tab:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.personals-tab.active {
+    background: var(--primary-gradient);
+    color: var(--white);
+    border-color: transparent;
+}
+
+.personals-filters {
+    display: none;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-4);
+}
+
+.personals-filters .filter-group {
+    flex: 1;
+    min-width: 140px;
+}
+
+.personals-filters .filter-group label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.personals-filters select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.personals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-4);
+}
+
+.personals-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all var(--transition);
+}
+
+.personals-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.personals-card-type {
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.personals-card-type.dating {
+    background: linear-gradient(135deg, rgba(220, 20, 60, 0.15), rgba(220, 20, 60, 0.05));
+    color: var(--primary);
+}
+
+.personals-card-type.friendship {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+    color: var(--success);
+}
+
+.personals-card-type.casual {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+    color: #f59e0b;
+}
+
+.personals-card-type.travel {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05));
+    color: #8b5cf6;
+}
+
+.personals-card-body {
+    padding: var(--spacing-4);
+}
+
+.personals-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
+}
+
+.personals-card-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.personals-card-user {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.personals-card-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.personals-card-age {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.personals-card-time {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.personals-card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 var(--spacing-2);
+    line-height: 1.3;
+}
+
+.personals-card-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0 0 var(--spacing-3);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.personals-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.personals-card-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.personals-card-meta i {
+    font-size: 0.75rem;
+}
+
+.personals-card-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--border-light);
+}
+
+@media (max-width: 768px) {
+    .personals-grid {
+        grid-template-columns: 1fr;
+    }
+    .personals-filters {
+        flex-direction: column;
+    }
+    .personals-filters .filter-group {
+        min-width: 100%;
+    }
+}
+
 /* ==================== MODERN ANIMATIONS ==================== */
 /* Fade & Slide */
 .fade-in {

@@ -163,7 +163,10 @@ const state = {
     // AI Ice Breakers
     enableIcebreakers: true,
     // User profiles storage
-    userProfiles: {}
+    userProfiles: {},
+    // Personals classifieds
+    personals: [],
+    personalsFilter: 'all'
 };
 
 // Simple UUID generator for frontend
@@ -1283,6 +1286,94 @@ const iceBreakers = [
     "What's something you're passionate about that most people don't know?"
 ];
 
+// ==================== PERSONALS SAMPLE DATA ====================
+const samplePersonals = [
+    {
+        id: 1,
+        title: 'Looking for a hiking buddy',
+        postedBy: { id: 1, name: 'Sarah', age: 25, image: sampleProfiles[0].image },
+        lookingFor: 'Friendship / Activity Partner',
+        description: 'Love exploring trails around Johannesburg and looking for someone who shares the same passion. Weekend hikes preferred!',
+        location: 'Johannesburg',
+        ageRange: '22-35',
+        type: 'friendship',
+        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        responses: 8
+    },
+    {
+        id: 2,
+        title: 'Searching for my soulmate',
+        postedBy: { id: 2, name: 'Michael', age: 28, image: sampleProfiles[1].image },
+        lookingFor: 'Dating / Relationship',
+        description: 'Tired of swiping. Looking for a genuine connection with someone who values honesty, humor, and good conversation.',
+        location: 'Cape Town',
+        ageRange: '24-32',
+        type: 'dating',
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        responses: 15
+    },
+    {
+        id: 3,
+        title: 'Need a gym partner (female)',
+        postedBy: { id: 3, name: 'Priya', age: 26, image: sampleProfiles[2].image },
+        lookingFor: 'Fitness Partner',
+        description: 'Looking for a consistent gym partner who takes fitness seriously. I go 5x a week, early mornings. Must be motivated!',
+        location: 'Durban',
+        ageRange: '22-30',
+        type: 'friendship',
+        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        responses: 6
+    },
+    {
+        id: 4,
+        title: 'Adventurous woman wanted!',
+        postedBy: { id: 6, name: 'James', age: 30, image: sampleProfiles[5].image },
+        lookingFor: 'Dating / Relationship',
+        description: 'Skydiving, road trips, camping under the stars. If you love adrenaline and adventure, we\'ll get along perfectly.',
+        location: 'Pretoria',
+        ageRange: '23-33',
+        type: 'dating',
+        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        responses: 12
+    },
+    {
+        id: 5,
+        title: 'Looking for language exchange',
+        postedBy: { id: 4, name: 'Thando', age: 27, image: sampleProfiles[3].image },
+        lookingFor: 'Language / Cultural Exchange',
+        description: 'Native Zulu speaker looking to improve my French. Happy to help with Zulu or Xhosa in return. Coffee dates welcome!',
+        location: 'Johannesburg',
+        ageRange: 'any',
+        type: 'friendship',
+        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        responses: 4
+    },
+    {
+        id: 6,
+        title: 'Cuddle buddy wanted',
+        postedBy: { id: 7, name: 'Amara', age: 29, image: sampleProfiles[6].image },
+        lookingFor: 'Casual / Friends with Benefits',
+        description: 'Looking for a respectful, clean, and drama-free cuddle buddy. No expectations beyond mutual comfort and relaxation.',
+        location: 'Cape Town',
+        ageRange: '25-35',
+        type: 'casual',
+        date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+        responses: 20
+    },
+    {
+        id: 7,
+        title: 'Travel companion for Europe trip',
+        postedBy: { id: 10, name: 'Lisa', age: 24, image: sampleProfiles[9].image },
+        lookingFor: 'Travel Partner',
+        description: 'Planning a 3-week Europe trip in December. Looking for a travel buddy to share costs and experiences. Flexible itinerary.',
+        location: 'Johannesburg',
+        ageRange: '22-30',
+        type: 'friendship',
+        date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+        responses: 10
+    }
+];
+
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
@@ -1354,6 +1445,7 @@ function loadSampleData() {
     state.products = [...sampleProducts];
     state.stories = [...sampleStories];
     state.clubs = [...sampleClubs];
+    state.personals = [...samplePersonals];
 
     // Load sample reports
     state.adminData.reports = [
@@ -2148,6 +2240,9 @@ function switchView(viewName) {
             break;
         case 'pricing':
             renderPricing();
+            break;
+        case 'personals':
+            renderPersonals();
             break;
     }
 }
@@ -7161,6 +7256,171 @@ function renderPricing() {
 
     html += '</div>';
     container.innerHTML = html;
+}
+
+// ==================== PERSONALS CLASSIFIEDS ====================
+function renderPersonals() {
+    var container = document.getElementById('personals-grid');
+    var emptyState = document.getElementById('personals-empty-state');
+    if (!container) return;
+
+    var filtered = [...state.personals];
+
+    // Filter by tab
+    if (state.personalsFilter !== 'all') {
+        filtered = filtered.filter(function(a) { return a.type === state.personalsFilter; });
+    }
+
+    // Filter by type dropdown
+    var typeFilter = document.getElementById('personals-type-filter');
+    if (typeFilter) {
+        var tv = typeFilter.value;
+        if (tv !== 'all') {
+            filtered = filtered.filter(function(a) { return a.type === tv; });
+        }
+    }
+
+    // Filter by location
+    var locFilter = document.getElementById('personals-location-filter');
+    if (locFilter) {
+        var lv = locFilter.value;
+        if (lv !== 'all') {
+            filtered = filtered.filter(function(a) { return a.location.toLowerCase() === lv; });
+        }
+    }
+
+    // Sort
+    var sortFilter = document.getElementById('personals-sort-filter');
+    if (sortFilter) {
+        var sv = sortFilter.value;
+        if (sv === 'popular') {
+            filtered.sort(function(a, b) { return b.responses - a.responses; });
+        } else {
+            filtered.sort(function(a, b) { return b.date - a.date; });
+        }
+    }
+
+    if (filtered.length === 0) {
+        container.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'block';
+    } else {
+        container.style.display = 'grid';
+        if (emptyState) emptyState.style.display = 'none';
+        container.innerHTML = filtered.map(function(ad) { return createPersonalsCard(ad); }).join('');
+    }
+}
+
+function createPersonalsCard(ad) {
+    var typeLabels = { dating: 'Dating', friendship: 'Friendship', casual: 'Casual', travel: 'Travel' };
+    var typeLabel = typeLabels[ad.type] || ad.type;
+    var timeAgo = getTimeAgo(ad.date);
+
+    return '\
+        <div class="personals-card">\
+            <div class="personals-card-type ' + ad.type + '">' + typeLabel + '</div>\
+            <div class="personals-card-body">\
+                <div class="personals-card-header">\
+                    <img src="' + ad.postedBy.image + '" alt="' + ad.postedBy.name + '" class="personals-card-avatar">\
+                    <div class="personals-card-user">\
+                        <span class="personals-card-name">' + ad.postedBy.name + '</span>\
+                        <span class="personals-card-age">' + ad.postedBy.age + ' yrs</span>\
+                    </div>\
+                    <span class="personals-card-time">' + timeAgo + '</span>\
+                </div>\
+                <h3 class="personals-card-title">' + ad.title + '</h3>\
+                <p class="personals-card-desc">' + ad.description + '</p>\
+                <div class="personals-card-meta">\
+                    <span><i class="fas fa-map-marker-alt"></i> ' + ad.location + '</span>\
+                    <span><i class="fas fa-arrows-alt-h"></i> ' + ad.ageRange + '</span>\
+                    <span><i class="fas fa-users"></i> ' + ad.responses + ' responses</span>\
+                </div>\
+                <div class="personals-card-actions">\
+                    <button class="btn btn-primary btn-sm" onclick="showToast(\'Response feature coming soon!\')">\
+                        <i class="fas fa-paper-plane"></i> Respond\
+                    </button>\
+                    <button class="btn btn-outline btn-sm" onclick="showToast(\'Saved!\')">\
+                        <i class="fas fa-bookmark"></i> Save\
+                    </button>\
+                </div>\
+            </div>\
+        </div>';
+}
+
+function getTimeAgo(date) {
+    var diff = Date.now() - date;
+    var days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return 'Today';
+    if (days === 1) return '1d ago';
+    return days + 'd ago';
+}
+
+function switchPersonalsTab(tab) {
+    state.personalsFilter = tab;
+    document.querySelectorAll('.personals-tab').forEach(function(t) {
+        t.classList.remove('active');
+        if (t.dataset.tab === tab) t.classList.add('active');
+    });
+    renderPersonals();
+}
+
+function togglePersonalsFilters() {
+    var filters = document.getElementById('personals-filters');
+    if (filters) {
+        filters.style.display = filters.style.display === 'none' ? 'flex' : 'none';
+    }
+}
+
+function showPostPersonalsModal() {
+    var modal = document.getElementById('post-personals-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closePostPersonalsModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('post-personals-modal');
+        if (modal) modal.style.display = 'none';
+    }
+}
+
+function submitPersonalsAd(event) {
+    event.preventDefault();
+    var type = document.getElementById('personals-type').value;
+    var title = document.getElementById('personals-title').value.trim();
+    var description = document.getElementById('personals-description').value.trim();
+    var location = document.getElementById('personals-location').value.trim();
+    var ageMin = document.getElementById('personals-age-min').value;
+    var ageMax = document.getElementById('personals-age-max').value;
+
+    if (!type || !title || !description || !location) {
+        showToast('Please fill in all required fields');
+        return;
+    }
+
+    var ageRange = (ageMin || '18') + '-' + (ageMax || '99');
+
+    var ad = {
+        id: Date.now(),
+        title: title,
+        postedBy: {
+            id: state.currentUser?.id || 99,
+            name: state.currentUser?.name || 'You',
+            age: state.currentUser?.age || 25,
+            image: state.currentUser?.image || 'https://picsum.photos/seed/default/100/100'
+        },
+        lookingFor: document.querySelector('#personals-type option[value="' + type + '"]')?.text || type,
+        description: description,
+        location: location,
+        ageRange: ageRange,
+        type: type === 'friendship' || type === 'activity' ? 'friendship' : type === 'travel' ? 'friendship' : type === 'dating' ? 'dating' : 'casual',
+        date: new Date(),
+        responses: 0
+    };
+
+    state.personals.unshift(ad);
+    closePostPersonalsModal();
+    document.getElementById('post-personals-form').reset();
+    renderPersonals();
+    showToast('Your ad has been posted! ✓');
 }
 
 // ==================== WALLET RECHARGE REQUEST ====================

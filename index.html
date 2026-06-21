@@ -52,6 +52,9 @@
                     <button class="btn btn-ghost" data-auth="admin" onclick="showAdminLogin()" title="Admin Login">
                         <i class="fas fa-shield-alt"></i> Admin
                     </button>
+                    <button class="btn btn-ghost" data-auth="provider" onclick="showProviderAccessModal()" title="Service Provider Portal">
+                        <i class="fas fa-briefcase"></i> Provider Portal
+                    </button>
                     <button class="btn btn-ghost" data-auth="login" onclick="showLogin()">Sign In</button>
                     <button class="btn btn-primary" data-auth="signup" onclick="showSignup()">Get Started</button>
                 </div>
@@ -540,7 +543,23 @@
                         <label for="signup-age">Age</label>
                         <input type="number" id="signup-age" required placeholder="25" min="18" max="100">
                     </div>
-                    
+
+                    <!-- Location -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="signup-country">Country</label>
+                            <select id="signup-country" onchange="onCountryChange('signup-country','signup-state','')">
+                                <option value="">Select Country</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-state">State/Province</label>
+                            <select id="signup-state">
+                                <option value="">N/A</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Account Type Selection -->
                     <div class="form-group">
                         <label>Account Type *</label>
@@ -972,6 +991,10 @@
                 <a href="#" class="nav-item" data-view="about" onclick="switchView('about')">
                     <i class="fas fa-info-circle" style="color:var(--primary)"></i>
                     <span>About</span>
+                </a>
+                <a href="#" class="nav-item" data-view="directory" onclick="switchView('directory')" id="nav-directory">
+                    <i class="fas fa-building" style="color:var(--success)"></i>
+                    <span>Directory</span>
                 </a>
                 <a href="#" class="nav-item" data-view="provider-portal" onclick="switchView('provider-portal')" id="nav-provider-portal" style="display:none;">
                     <i class="fas fa-tachometer-alt" style="color:var(--warning)"></i>
@@ -3343,6 +3366,24 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Directory View -->
+            <div id="view-directory" class="view">
+                <div class="view-header">
+                    <div class="view-header-left">
+                        <h1><i class="fas fa-building"></i> Business Directory</h1>
+                        <p class="view-subtitle">Discover adult entertainment businesses in your area</p>
+                    </div>
+                    <div class="view-header-actions">
+                        <button class="btn btn-primary" onclick="showSubmitBusinessModal()">
+                            <i class="fas fa-plus"></i> List Your Business
+                        </button>
+                    </div>
+                </div>
+                <div class="directory-content" id="directory-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
         </main>
 
         <!-- Mobile Bottom Tab Bar -->
@@ -4851,9 +4892,26 @@ Tips for a great post:
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
     <script src="config.js?v=1.0.0"></script>
+    <script src="location-data.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="supabase-db.js"></script>
     <script src="script.js?v=3.0.0"></script>
     <script>
+        // Try to load Supabase config from Vercel API
+        (function fetchSupabaseConfig() {
+            fetch('/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
+                if (cfg.configured) {
+                    localStorage.setItem('supabase_url', cfg.supabaseUrl);
+                    localStorage.setItem('supabase_anon_key', cfg.supabaseAnonKey);
+                    console.log('☁️ Supabase config loaded from Vercel env');
+                }
+            }).catch(function() {
+                console.log('☁️ No Vercel API config (running locally or static fallback)');
+            });
+        })();
+
         (function bootKoitus() {
             console.log('🔧 Koitus Bootstrapper running...');
 

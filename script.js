@@ -203,7 +203,16 @@ const state = {
     mediaRecorder: null,
     audioChunks: [],
     isRecording: false,
-    recordingStartTime: null
+    recordingStartTime: null,
+    // Business directory
+    directory: {
+        listings: [],
+        categories: ['Adult Club', 'Studio', 'Escort Agency', 'Webcam', 'Content Creator', 'Venue', 'Event', 'Other'],
+        country: '',
+        search: ''
+    },
+    // User region detected via IP
+    userRegion: null
 };
 
 // Simple UUID generator for frontend
@@ -1498,36 +1507,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
-    // Load user data from localStorage (persistent login)
-    loadUserData();
-
-    // Always show main app (landing page hidden by default)
     showMainApp();
-
-    // If admin is logged in, redirect to admin dashboard
-    if (state.currentUser?.isAdmin || state.currentUser?.role === 'admin') {
-        setTimeout(() => {
-            showAdminDashboard();
-            console.log('🛡️ Admin dashboard loaded from persistent session');
-        }, 500);
-    }
-
-    // Initialize range sliders
     initRangeSliders();
-
-    // Load initial data
-    loadSampleData();
-
-    // Initialize real-time connection
-    initRealtimeConnection();
-    
-    // Initialize emoji picker
     initChatEmojiPicker();
+    detectUserRegion();
+    initRealtimeConnection();
 
-    console.log('💬 Koitus App Initialized');
-    console.log('👤 User:', state.currentUser || 'Guest');
-    console.log('🔌 Real-time: Ready');
-    console.log('💾 Storage: Persistent login enabled');
+    // Boot via Supabase (loads from cloud or falls back to localStorage)
+    bootstrapSupabase().then(function() {
+        updateNavVisibility();
+        if (state.currentUser?.isAdmin || state.currentUser?.role === 'admin') {
+            setTimeout(function() {
+                showAdminDashboard();
+                console.log('🛡️ Admin dashboard loaded');
+            }, 500);
+        }
+        console.log('💬 Koitus App Initialized');
+        console.log('👤 User:', state.currentUser || 'Guest');
+    });
 }
 
 function initRangeSliders() {
@@ -1690,19 +1687,19 @@ function loadSampleData() {
         online: match.online
     }));
 
-    renderUsers();
-    renderDiscoverFeed();
-    renderMatches();
-    renderConversations();
-    renderNotifications();
-    renderEvents();
-    renderWallet();
-    renderActivityFeed();
-    renderStreams();
-    renderContent();
-    renderForum();
-    renderProducts();
-    renderClubs();
+    try { renderUsers(); } catch (e) { console.warn('renderUsers error:', e); }
+    try { renderDiscoverFeed(); } catch (e) { console.warn('renderDiscoverFeed error:', e); }
+    try { renderMatches(); } catch (e) { console.warn('renderMatches error:', e); }
+    try { renderConversations(); } catch (e) { console.warn('renderConversations error:', e); }
+    try { renderNotifications(); } catch (e) { console.warn('renderNotifications error:', e); }
+    try { renderEvents(); } catch (e) { console.warn('renderEvents error:', e); }
+    try { renderWallet(); } catch (e) { console.warn('renderWallet error:', e); }
+    try { renderActivityFeed(); } catch (e) { console.warn('renderActivityFeed error:', e); }
+    try { renderStreams(); } catch (e) { console.warn('renderStreams error:', e); }
+    try { renderContent(); } catch (e) { console.warn('renderContent error:', e); }
+    try { renderForum(); } catch (e) { console.warn('renderForum error:', e); }
+    try { renderProducts(); } catch (e) { console.warn('renderProducts error:', e); }
+    try { renderClubs(); } catch (e) { console.warn('renderClubs error:', e); }
 }
 
 // ==================== SAMPLE CLUB DATA ====================
@@ -1793,6 +1790,9 @@ function showLogin() {
 function showSignup() {
     document.getElementById('login-modal').classList.remove('active');
     document.getElementById('signup-modal').classList.add('active');
+    setTimeout(function() {
+        populateCountrySelect('signup-country', '');
+    }, 100);
 }
 
 function closeAuth() {
@@ -1826,79 +1826,81 @@ function closeAdminLogin() {
 function handleAdminLogin(event) {
     event.preventDefault();
 
-    const email = document.getElementById('admin-login-email').value;
-    const password = document.getElementById('admin-login-password').value;
+    var email = document.getElementById('admin-login-email').value;
+    var password = document.getElementById('admin-login-password').value;
 
     console.log('🔐 Admin login attempt:', { email, password: '***' });
 
-    // Check for admin login
-    if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-        console.log('✅ Admin credentials validated');
+    AuthDB.signIn(email, password).then(function(result) {
+        if (result.error) {
+            showNotification('Invalid admin credentials. Access denied.', 'error');
+            logActivity({
+                type: ActivityType.LOGIN,
+                level: ActivityLevel.WARNING,
+                action: 'Failed admin login attempt from ' + email,
+                details: { email: email, success: false }
+            });
+            return;
+        }
 
-        // Admin login successful
-        state.currentUser = {
-            id: 'admin',
-            name: 'Administrator',
-            email: email,
-            role: 'admin',
-            isAdmin: true,
-            avatar: 'https://i.pravatar.cc/400?u=Administrator'
-        };
-
-        state.isLoggedIn = true;
-        state.isAdmin = true;
-
-        // Log activity
-        logActivity({
-            type: ActivityType.LOGIN,
-            level: ActivityLevel.CRITICAL,
-            action: `Admin login from ${email}`,
-            details: { email: email, role: 'admin' }
+        ProfileDB.get(result.user.id).then(function(profile) {
+            if (profile && (profile.is_admin || profile.role === 'admin')) {
+                state.currentUser = profile;
+                state.isLoggedIn = true;
+                state.isAdmin = true;
+                saveUserData();
+                closeAdminLogin();
+                showMainApp();
+                logActivity({
+                    type: ActivityType.LOGIN,
+                    level: ActivityLevel.CRITICAL,
+                    action: 'Admin login from ' + email,
+                    details: { email: email, role: 'admin' }
+                });
+                setTimeout(function() {
+                    showAdminDashboard();
+                    showNotification('Welcome back, Administrator! 🛡️', 'success');
+                }, 500);
+            } else {
+                // Check legacy admin credentials
+                if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+                    state.currentUser = {
+                        id: 'admin',
+                        name: 'Administrator',
+                        email: email,
+                        role: 'admin',
+                        isAdmin: true,
+                        avatar: 'https://i.pravatar.cc/400?u=Administrator'
+                    };
+                    state.isLoggedIn = true;
+                    state.isAdmin = true;
+                    // Store admin in Supabase
+                    ProfileDB.upsert({ id: 'admin', email: email, name: 'Administrator', role: 'admin', is_admin: true });
+                    saveUserData();
+                    closeAdminLogin();
+                    showMainApp();
+                    setTimeout(function() {
+                        showAdminDashboard();
+                        showNotification('Welcome back, Administrator! 🛡️', 'success');
+                    }, 500);
+                } else {
+                    showNotification('Not an admin account.', 'error');
+                }
+            }
         });
-
-        // Save admin session
-        saveUserData();
-
-        closeAdminLogin();
-
-        console.log('🔄 Showing main app...');
-        // Show main app first to initialize UI
-        showMainApp();
-
-        // Immediately redirect to admin dashboard
-        console.log('⏳ Scheduling admin dashboard redirect...');
-        setTimeout(() => {
-            console.log('🔔 Calling showAdminDashboard...');
-            showAdminDashboard();
-            showNotification('Welcome back, Administrator! 🛡️', 'success');
-        }, 500);
-
-        return;
-    } else {
-        // Invalid credentials
-        showNotification('Invalid admin credentials. Access denied.', 'error');
-        logActivity({
-            type: ActivityType.LOGIN,
-            level: ActivityLevel.WARNING,
-            action: `Failed admin login attempt from ${email}`,
-            details: { email: email, success: false }
-        });
-    }
+    });
 }
 
 function handleLogin(event) {
     event.preventDefault();
 
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
+    var email = document.getElementById('login-email').value;
+    var password = document.getElementById('login-password').value;
 
     console.log('🔐 Login attempt:', { email, password: '***' });
 
-    // Check for admin login
+    // Check for admin login first
     if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-        console.log('✅ Admin credentials validated');
-        
-        // Admin login successful
         state.currentUser = {
             id: 'admin',
             name: 'Administrator',
@@ -1907,150 +1909,149 @@ function handleLogin(event) {
             isAdmin: true,
             avatar: 'https://i.pravatar.cc/400?u=Administrator'
         };
-
         state.isLoggedIn = true;
         state.isAdmin = true;
-
-        // Save admin session
+        ProfileDB.upsert({ id: 'admin', email: email, name: 'Administrator', role: 'admin', is_admin: true });
         saveUserData();
-
+        updateNavVisibility();
         closeAuth();
-
-        console.log('🔄 Showing main app...');
-        // Show main app first to initialize UI
         showMainApp();
-
-        // Register on server if socket already connected
-        if (state.socket && state.socket.connected) {
-            joinPlatform();
-        }
-
-        // Immediately redirect to admin dashboard
-        console.log('⏳ Scheduling admin dashboard redirect...');
-        setTimeout(() => {
-            console.log('🔔 Calling showAdminDashboard...');
+        if (state.socket && state.socket.connected) joinPlatform();
+        setTimeout(function() {
             showAdminDashboard();
             showNotification('Welcome back, Administrator! 🛡️', 'success');
         }, 500);
-
         return;
     }
 
-    // Regular user login
-    state.currentUser = {
-        id: 1,
-        name: 'You',
-        email: email,
-        age: 25,
-        location: 'Johannesburg, South Africa',
-        bio: 'Just joined Koitus! Excited to meet new people.',
-        interests: ['Music', 'Travel', 'Food'],
-        avatar: 'https://picsum.photos/seed/img46/400/300'
-    };
+    AuthDB.signIn(email, password).then(function(result) {
+        if (result.error) {
+            // Fallback: create local session for demo
+            state.currentUser = {
+                id: 'user_' + Date.now(),
+                name: email.split('@')[0],
+                email: email,
+                age: 25,
+                location: 'Johannesburg, South Africa',
+                bio: 'Just joined Koitus!',
+                interests: ['Music', 'Travel', 'Food'],
+                avatar: 'https://picsum.photos/seed/img46/400/300'
+            };
+            state.isLoggedIn = true;
+            saveUserData();
+            updateNavVisibility();
+            if (!state.userProfiles[state.currentUser.id]) {
+                state.userProfiles[state.currentUser.id] = getProfileTemplate();
+            }
+            closeAuth();
+            showMainApp();
+            showNotification('Welcome back! 👋', 'success');
+            if (state.socket && state.socket.connected) joinPlatform();
+            return;
+        }
 
-    state.isLoggedIn = true;
-
-    // Save user data persistently
-    saveUserData();
-
-    // Initialize user profile if not exists
-    if (!state.userProfiles[state.currentUser.id]) {
-        state.userProfiles[state.currentUser.id] = getProfileTemplate();
-    }
-
-    closeAuth();
-    showMainApp();
-    showNotification('Welcome back! 👋', 'success');
-    // Register on server if socket already connected
-    if (state.socket && state.socket.connected) {
-        joinPlatform();
-    }
+        // Logged in via Supabase
+        ProfileDB.get(result.user.id).then(function(profile) {
+            state.currentUser = profile || {
+                id: result.user.id,
+                email: email,
+                name: email.split('@')[0]
+            };
+            state.isLoggedIn = true;
+            saveUserData();
+            updateNavVisibility();
+            if (!state.userProfiles[state.currentUser.id]) {
+                state.userProfiles[state.currentUser.id] = getProfileTemplate();
+            }
+            closeAuth();
+            showMainApp();
+            showNotification('Welcome back! 👋', 'success');
+            if (state.socket && state.socket.connected) joinPlatform();
+        });
+    });
 }
-
 function handleSignup(event) {
     event.preventDefault();
 
-    const name = document.getElementById('signup-name').value;
-    const email = document.getElementById('signup-email').value;
-    const age = document.getElementById('signup-age').value;
-    const accountType = document.querySelector('input[name="account-type"]:checked').value;
+    var name = document.getElementById('signup-name').value;
+    var email = document.getElementById('signup-email').value;
+    var password = document.getElementById('signup-password')?.value || 'TempPass123!';
+    var age = document.getElementById('signup-age').value;
+    var accountType = document.querySelector('input[name="account-type"]:checked')?.value;
 
     // Get profile types based on account type
-    let profileType = {};
+    var profileData = { name: name, age: age };
 
     if (accountType === 'customer') {
-        const mainType = document.getElementById('customer-main-type').value;
+        var mainType = document.getElementById('customer-main-type').value;
         if (!mainType) {
             showNotification('Please select your main type', 'warning');
             return;
         }
-
-        // Get selected sub-types
-        const subTypes = [];
-        document.querySelectorAll('#customer-subs input:checked').forEach(cb => {
+        var subTypes = [];
+        document.querySelectorAll('#customer-subs input:checked').forEach(function(cb) {
             subTypes.push(cb.value);
         });
-
-        profileType = {
-            accountType: 'customer',
-            mainType: mainType,
-            subTypes: subTypes,
-            type: mainType // For backward compatibility
-        };
+        profileData.accountType = 'customer';
+        profileData.mainType = mainType;
+        profileData.subTypes = subTypes;
+        profileData.type = mainType;
     } else {
-        const subTypeRadio = document.querySelector('#provider-type-selector input[type="radio"]:checked');
-        const subType = subTypeRadio ? subTypeRadio.value : null;
+        var subTypeRadio = document.querySelector('#provider-type-selector input[type="radio"]:checked');
+        var subType = subTypeRadio ? subTypeRadio.value : null;
         if (!subType) {
             showNotification('Please select your service type', 'warning');
             return;
         }
-
-        // Get selected additional services
-        const additionalServices = [];
-        document.querySelectorAll('#provider-subs input:checked').forEach(cb => {
+        var additionalServices = [];
+        document.querySelectorAll('#provider-subs input:checked').forEach(function(cb) {
             additionalServices.push(cb.value);
         });
+        profileData.accountType = 'provider';
+        profileData.mainType = 'provider';
+        profileData.subType = subType;
+        profileData.additionalServices = additionalServices;
+        profileData.type = subType;
+    }
 
-        profileType = {
-            accountType: 'provider',
-            mainType: 'provider',
-            subType: subType,
-            additionalServices: additionalServices,
-            type: subType // For backward compatibility
+    var signupCountry = document.getElementById('signup-country')?.value || '';
+    var signupState = document.getElementById('signup-state')?.value || '';
+    var signupLocation = getLocationString(signupCountry, signupState) || 'Johannesburg, South Africa';
+    profileData.location = signupLocation;
+    profileData.country = signupCountry;
+    profileData.state = signupState;
+
+    AuthDB.signUp(email, password, profileData).then(function(result) {
+        if (result.error && result.error.message !== 'User already exists') {
+            showNotification('Signup error: ' + result.error.message, 'error');
+            return;
+        }
+
+        state.currentUser = {
+            id: result.user?.id || 'local_' + Date.now(),
+            name: name,
+            email: email,
+            age: age,
+            location: signupLocation,
+            country: signupCountry,
+            state: signupState,
+            bio: 'Just joined Koitus! Excited to meet new people.',
+            interests: ['Music', 'Travel', 'Food'],
+            avatar: 'https://picsum.photos/seed/img46/400/300',
+            ...profileData
         };
-    }
+        state.isLoggedIn = true;
+        saveUserData();
+        state.userProfiles[state.currentUser.id] = getProfileTemplate();
+        saveUserData();
 
-    // Simulate signup
-    state.currentUser = {
-        id: Date.now(),
-        name: name,
-        email: email,
-        age: age,
-        location: 'Johannesburg, South Africa',
-        bio: 'Just joined Koitus! Excited to meet new people.',
-        interests: ['Music', 'Travel', 'Food'],
-        avatar: 'https://picsum.photos/seed/img46/400/300',
-        ...profileType
-    };
-
-    state.isLoggedIn = true;
-    
-    // Save user data persistently
-    saveUserData();
-    
-    // Initialize user profile
-    state.userProfiles[state.currentUser.id] = getProfileTemplate();
-    saveUserData();
-
-    closeAuth();
-    showMainApp();
-    showNotification(`Welcome to Koitus! Your account has been created. 🎉`, 'success');
-    // Register on server if socket already connected
-    if (state.socket && state.socket.connected) {
-        joinPlatform();
-    }
-    // Show onboarding after a brief delay
-    setTimeout(showOnboarding, 800);
+        closeAuth();
+        showMainApp();
+        updateNavVisibility();
+        showNotification('Welcome to Koitus! Your account has been created. 🎉', 'success');
+        if (state.socket && state.socket.connected) joinPlatform();
+        setTimeout(showOnboarding, 800);
+    });
 }
 
 function selectAccountType(type) {
@@ -2342,70 +2343,77 @@ function switchView(viewName) {
     }
     
     // Refresh data based on view
-    switch(viewName) {
-        case 'discover':
-            renderUsers();
-            renderDiscoverFeed();
-            break;
-        case 'matches':
-            renderMatches();
-            break;
-        case 'messages':
-            renderConversations();
-            break;
-        case 'notifications':
-            renderNotifications();
-            break;
-        case 'map':
-            initMap();
-            break;
-        case 'profile':
-            renderProfile();
-            renderProfileGallery();
-            setTimeout(initProfileCharts, 100);
-            break;
-        case 'events':
-            renderEvents();
-            break;
-        case 'wallet':
-            renderWallet();
-            break;
-        case 'activity':
-            renderActivityFeed();
-            break;
-        case 'streams':
-            renderStreams();
-            break;
-        case 'content':
-            renderContent();
-            break;
-        case 'forum':
-            renderForum();
-            break;
-        case 'products':
-            renderProducts();
-            break;
-        case 'games':
-            renderGames();
-            break;
-        case 'stories':
-            renderStories();
-            break;
-        case 'pricing':
-            renderPricing();
-            break;
-        case 'personals':
-            renderPersonals();
-            break;
-        case 'profiles':
-            renderProfiles();
-            break;
-        case 'store':
-            renderStore();
-            break;
-        case 'provider-portal':
-            renderProviderPortal();
-            break;
+    try {
+        switch(viewName) {
+            case 'discover':
+                renderUsers();
+                renderDiscoverFeed();
+                break;
+            case 'matches':
+                renderMatches();
+                break;
+            case 'messages':
+                renderConversations();
+                break;
+            case 'notifications':
+                renderNotifications();
+                break;
+            case 'map':
+                initMap();
+                break;
+            case 'profile':
+                renderProfile();
+                renderProfileGallery();
+                setTimeout(initProfileCharts, 100);
+                break;
+            case 'events':
+                renderEvents();
+                break;
+            case 'wallet':
+                renderWallet();
+                break;
+            case 'activity':
+                renderActivityFeed();
+                break;
+            case 'streams':
+                renderStreams();
+                break;
+            case 'content':
+                renderContent();
+                break;
+            case 'forum':
+                renderForum();
+                break;
+            case 'products':
+                renderProducts();
+                break;
+            case 'games':
+                renderGames();
+                break;
+            case 'stories':
+                renderStories();
+                break;
+            case 'pricing':
+                renderPricing();
+                break;
+            case 'personals':
+                renderPersonals();
+                break;
+            case 'profiles':
+                renderProfiles();
+                break;
+            case 'store':
+                renderStore();
+                break;
+            case 'provider-portal':
+                renderProviderPortal();
+                break;
+            case 'directory':
+                renderDirectory();
+                break;
+        }
+    } catch (e) {
+        console.error('Error in switchView for', viewName, ':', e);
     }
 }
 
@@ -5366,17 +5374,23 @@ function createEvent(event) {
     };
 
     state.events.unshift(newEvent);
+    EventDB.create({
+        name: newEvent.name,
+        type: newEvent.type,
+        description: newEvent.description,
+        date: newEvent.date,
+        time: newEvent.time,
+        location: newEvent.location,
+        coords: newEvent.coords,
+        host_id: state.currentUser?.id || 'guest',
+        is_past: false,
+        is_host: true,
+        rsvp_count: 0
+    });
     
-    // Reset form
     document.getElementById('create-event-form').reset();
-    
-    // Close modal
     closeCreateEventModal();
-    
-    // Switch to my-events tab and refresh
     switchEventTab('my-events');
-    
-    // Show success message
     showToast('Event created successfully! 🎉');
 }
 
@@ -6363,6 +6377,14 @@ function startCamShow() {
     };
 
     state.streams.unshift(newStream);
+    StreamsDB.create({
+        title: newStream.title,
+        category: newStream.category,
+        streamer_id: state.currentUser?.id || 'guest',
+        is_live: true,
+        viewers: 0,
+        likes: 0
+    });
     renderStreams();
     showToast('Your cam show is now live! 🎥');
 }
@@ -7196,11 +7218,17 @@ function createForumPost(event) {
     } else {
         state.forumPosts.unshift(newPost);
     }
+    ForumDB.createPost({
+        category: newPost.category,
+        title: newPost.title,
+        content: newPost.content,
+        author_id: state.currentUser?.id || 'guest',
+        status: newPost.status || 'pending',
+        post_type: forumType
+    });
 
-    // Also add to pending approval list
     pendingApprovalPosts.push(newPost);
-
-    // Log activity
+    logActivity
     logActivity({
         type: ActivityType.FORUM_POST,
         action: `Created forum post: "${title.substring(0, 50)}..."`,
@@ -7439,18 +7467,26 @@ function renderStore() {
     renderStoreEarnings();
     renderStoreReviews();
     
-    // Show store nav item for vendors/providers/admins
+    // Update nav visibility
+    updateNavVisibility();
+}
+
+function updateNavVisibility() {
+    if (!state.currentUser) return;
+
+    var providerTypes = ['provider','creator','dancer','model','escort','promoter','studio','venue','club','vendor','seller','advertiser','webcammer'];
+    var userType = state.currentUser.type || state.currentUser.accountType || '';
+    var isProvider = providerTypes.indexOf(userType) > -1 || state.currentUser.accountType === 'provider';
+    var isAdminUser = state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
+    var hasStore = userType === 'vendor' || userType === 'seller' || userType === 'provider' || isAdminUser;
+
+    // Show/hide store nav item
     var navStore = document.getElementById('nav-store');
     if (navStore) {
-        var providerTypes = ['provider','creator','dancer','model','escort','promoter','studio','venue','club','vendor','seller','advertiser','webcammer'];
-        var userType = state.currentUser.type || state.currentUser.accountType || '';
-        var isProvider = providerTypes.indexOf(userType) > -1 || state.currentUser.accountType === 'provider';
-        var isAdminUser = state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
-        var hasStore = userType === 'vendor' || userType === 'seller' || userType === 'provider' || isAdminUser;
         navStore.style.display = hasStore ? 'flex' : 'none';
     }
 
-    // Show provider portal nav for providers/admins
+    // Show/hide provider portal nav item
     var navPortal = document.getElementById('nav-provider-portal');
     if (navPortal) {
         navPortal.style.display = (isProvider || isAdminUser) ? 'flex' : 'none';
@@ -7900,6 +7936,16 @@ function addProduct(event) {
 
     state.products.unshift(newProduct);
     state.store.products.unshift(newProduct);
+    ProductDB.create({
+        name: newProduct.name,
+        description: newProduct.description,
+        price: newProduct.price,
+        category: newProduct.category,
+        image: newProduct.images?.[0] || '',
+        seller_id: state.currentUser?.id || 'guest',
+        is_featured: newProduct.isFeatured || false,
+        status: 'active'
+    });
     renderProducts();
     renderStoreProducts();
     updateStoreStats();
@@ -8578,6 +8624,13 @@ function submitPersonalsAd(event) {
     };
 
     state.personals.unshift(ad);
+    PersonalsDB.create({
+        type: ad.type,
+        title: ad.title,
+        description: ad.description,
+        location: ad.location,
+        author_id: state.currentUser?.id || 'guest'
+    });
     closePostPersonalsModal();
     document.getElementById('post-personals-form').reset();
     renderPersonals();
@@ -10733,8 +10786,14 @@ function createClub(event) {
 
     state.clubs.unshift(newClub);
     state.userClubs.push(newClub.id);
-
-    // Log activity
+    ClubsDB.create({
+        name: newClub.name,
+        description: newClub.description,
+        category: newClub.category,
+        image: newClub.image,
+        member_count: 1
+    });
+    logActivity
     logActivity({
         type: ActivityType.CLUB_CREATE,
         action: `Created club: "${name}"`,
@@ -10905,15 +10964,15 @@ function saveUserData() {
     try {
         if (state.currentUser) {
             localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(state.currentUser));
+            // Also sync to Supabase if connected
+            var sb = getSupabase();
+            if (sb && state.currentUser.id && !state.currentUser.id.startsWith('local_')) {
+                ProfileDB.upsert(state.currentUser);
+            }
         }
         localStorage.setItem(STORAGE_KEYS.HAS_REGISTERED, 'true');
-        
-        // Save wallet
         localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(state.wallet));
-        
-        // Save user profiles
         localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(state.userProfiles));
-        
         console.log('💾 User data saved successfully');
     } catch (error) {
         console.error('Error saving user data:', error);
@@ -10960,22 +11019,18 @@ function loadUserData() {
 // Clear all cache and logout
 function clearCacheAndLogout() {
     try {
-        // Clear all Koitus-related localStorage
-        Object.values(STORAGE_KEYS).forEach(key => {
+        Object.values(STORAGE_KEYS).forEach(function(key) {
             localStorage.removeItem(key);
         });
-        
-        // Clear state
         state.currentUser = null;
         state.isLoggedIn = false;
+        state.isAdmin = false;
         state.currentChat = null;
         state.matches = [];
         state.conversations = [];
-        
-        // Clear wallet balance
         state.wallet.balance = 0;
         state.wallet.transactions = [];
-        
+        AuthDB.signOut();
         console.log('🗑️ Cache cleared and user logged out');
     } catch (error) {
         console.error('Error clearing cache:', error);
@@ -11322,9 +11377,40 @@ function showBasicEditProfile() {
                             </select>
                         </div>
                         
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit-country">Country</label>
+                                <select id="edit-country" onchange="onCountryChange('edit-country','edit-state', profile.state || '')">
+                                    <option value="">Select Country</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-state">State/Province</label>
+                                <select id="edit-state">
+                                    <option value="">N/A</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label for="edit-location">Location</label>
                             <input type="text" id="edit-location" placeholder="City, Country" value="${profile.location || ''}">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit-account-type">Account Type</label>
+                                <select id="edit-account-type" onchange="updateProfileTypeOptions()">
+                                    <option value="customer" ${(profile.accountType || 'customer') === 'customer' ? 'selected' : ''}>User</option>
+                                    <option value="provider" ${profile.accountType === 'provider' ? 'selected' : ''}>Service Provider</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-profile-type">Profile Type</label>
+                                <select id="edit-profile-type">
+                                    <option value="">Select Profile Type</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <div class="form-group">
@@ -11444,6 +11530,58 @@ function showBasicEditProfile() {
     if (existingModal) existingModal.remove();
     
     document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Initialize profile type dropdown
+    updateProfileTypeOptions();
+    var profileTypeSelect = document.getElementById('edit-profile-type');
+    if (profileTypeSelect && profile.profileType) {
+        profileTypeSelect.value = profile.profileType;
+    }
+
+    // Initialize country/state dropdowns
+    populateCountrySelect('edit-country', profile.country || '');
+    if (profile.country) {
+        populateStateSelect('edit-country', 'edit-state', profile.state || '');
+    }
+}
+
+function updateProfileTypeOptions() {
+    var accountType = document.getElementById('edit-account-type')?.value;
+    var profileTypeSelect = document.getElementById('edit-profile-type');
+    if (!profileTypeSelect) return;
+    
+    var customerTypes = [
+        { value: 'hunter', label: 'Hunter/Lion - Active pursuer' },
+        { value: 'freak', label: 'Freak - Adventurous' },
+        { value: 'lifestyler', label: 'Lifestyler - Lifestyle enthusiast' },
+        { value: 'voyeur', label: 'Voyeur - Prefers watching' },
+        { value: 'domintrix', label: 'Domintrix' },
+        { value: 'vixen', label: 'Vixen' },
+        { value: 'fetish-master', label: 'Fetish Master' },
+        { value: 'casual', label: 'Casual' },
+        { value: 'other', label: 'Other' }
+    ];
+    
+    var providerTypes = [
+        { value: 'creator', label: 'Creator' },
+        { value: 'model', label: 'Model' },
+        { value: 'dancer', label: 'Dancer' },
+        { value: 'escort', label: 'Escort' },
+        { value: 'promoter', label: 'Promoter' },
+        { value: 'studio', label: 'Studio' },
+        { value: 'venue', label: 'Venue' },
+        { value: 'club', label: 'Club' }
+    ];
+    
+    var types = accountType === 'provider' ? providerTypes : customerTypes;
+    var currentValue = profileTypeSelect.value;
+    
+    profileTypeSelect.innerHTML = '<option value="">Select Profile Type</option>' +
+        types.map(function(t) {
+            return '<option value="' + t.value + '">' + t.label + '</option>';
+        }).join('');
+    
+    if (currentValue) profileTypeSelect.value = currentValue;
 }
 
 function closeBasicEditProfile(event) {
@@ -11488,8 +11626,24 @@ function saveProfileChanges(e) {
             instagram: document.getElementById('edit-instagram').value,
             twitter: document.getElementById('edit-twitter')?.value || '',
             website: document.getElementById('edit-website').value
-        }
+        },
+        
+        // Account Type
+        accountType: document.getElementById('edit-account-type')?.value || 'customer',
+        profileType: document.getElementById('edit-profile-type')?.value || '',
+        type: document.getElementById('edit-profile-type')?.value || document.getElementById('edit-account-type')?.value || 'customer',
+        
+        // Country & State
+        country: document.getElementById('edit-country')?.value || '',
+        state: document.getElementById('edit-state')?.value || ''
     };
+    
+    // Auto-generate location string from country/state
+    var countryCode = profileData.country;
+    var stateName = profileData.state;
+    if (countryCode || stateName) {
+        profileData.location = getLocationString(countryCode, stateName);
+    }
     
     // Save comprehensive profile
     const success = saveComprehensiveProfile(profileData);
@@ -11501,6 +11655,7 @@ function saveProfileChanges(e) {
         
         // Update UI
         renderUsers();
+        updateNavVisibility();
     }
 }
 
@@ -13433,6 +13588,383 @@ function initProfileCharts() {
 
 // Call init on page load
 document.addEventListener('DOMContentLoaded', initParticles);
+
+// ==================== LOCATION SELECTOR HELPERS ====================
+
+function populateCountrySelect(selectId, selectedCode) {
+    var select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '<option value="">Select Country</option>';
+    locationData.countries.forEach(function(c) {
+        var code = c[0], name = c[1];
+        select.innerHTML += '<option value="' + code + '"' + (code === selectedCode ? ' selected' : '') + '>' + name + '</option>';
+    });
+}
+
+function populateStateSelect(countrySelectId, stateSelectId, selectedState) {
+    var countryCode = document.getElementById(countrySelectId)?.value;
+    var stateSelect = document.getElementById(stateSelectId);
+    if (!stateSelect) return;
+    var states = locationData.getStates(countryCode);
+    stateSelect.innerHTML = '<option value="">Select State/Province</option>';
+    if (states.length === 0) {
+        stateSelect.innerHTML = '<option value="">N/A</option>';
+        stateSelect.disabled = true;
+        return;
+    }
+    stateSelect.disabled = false;
+    states.forEach(function(s) {
+        stateSelect.innerHTML += '<option value="' + s + '"' + (s === selectedState ? ' selected' : '') + '>' + s + '</option>';
+    });
+}
+
+function onCountryChange(countrySelectId, stateSelectId, selectedState) {
+    populateStateSelect(countrySelectId, stateSelectId, selectedState);
+}
+
+function getLocationString(countryCode, state) {
+    var countryName = locationData.getCountryName(countryCode) || '';
+    if (state && state !== 'N/A') return state + ', ' + countryName;
+    return countryName || '';
+}
+
+// ==================== IP GEOLOCATION ====================
+
+function detectUserRegion() {
+    // Check if already detected
+    if (state.userRegion) return;
+    
+    fetch('https://ipapi.co/json/')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            state.userRegion = {
+                ip: data.ip,
+                country: data.country_code,
+                countryName: data.country_name,
+                state: data.region,
+                city: data.city,
+                lat: data.latitude,
+                lng: data.longitude
+            };
+            state.userLocation = { lat: data.latitude, lng: data.longitude };
+            console.log('🌍 Region detected:', state.userRegion.countryName, '-', state.userRegion.state);
+            // Update directory filter to show local listings
+            filterDirectory();
+        })
+        .catch(function() {
+            console.log('🌍 Region detection unavailable (offline or blocked)');
+        });
+}
+
+function getUserCountry() {
+    return state.userRegion?.country || state.currentUser?.country || '';
+}
+
+function getUserState() {
+    return state.userRegion?.state || state.currentUser?.state || '';
+}
+
+function isLocalListing(listing) {
+    var userCountry = getUserCountry();
+    if (!userCountry) return true; // Show all if no region data
+    return listing.country === userCountry;
+}
+
+// ==================== BUSINESS DIRECTORY ====================
+
+function renderDirectory() {
+    var container = document.getElementById('directory-content');
+    if (!container) return;
+
+    var categoryFilter = state.directory.category || 'all';
+    var countryFilter = state.directory.country || '';
+    var searchQuery = state.directory.search || '';
+    var listings = state.directory.listings;
+
+    // Show local listings first if region detected
+    var userCountry = getUserCountry();
+    if (userCountry && !countryFilter) {
+        countryFilter = userCountry;
+    }
+
+    var filtered = listings.filter(function(b) {
+        var matchCategory = categoryFilter === 'all' || b.category === categoryFilter;
+        var matchCountry = !countryFilter || b.country === countryFilter;
+        var matchSearch = !searchQuery || 
+            b.name.toLowerCase().indexOf(searchQuery.toLowerCase()) > -1 ||
+            b.description.toLowerCase().indexOf(searchQuery.toLowerCase()) > -1 ||
+            (b.location && b.location.toLowerCase().indexOf(searchQuery.toLowerCase()) > -1);
+        return matchCategory && matchCountry && matchSearch;
+    });
+
+    var html = '';
+
+    // Header with search and filter
+    html += '<div class="directory-header">';
+    html += '<div class="directory-search">';
+    html += '<input type="text" id="directory-search-input" placeholder="Search businesses..." value="' + (searchQuery) + '" oninput="filterDirectory()">';
+    html += '<select id="directory-category-filter" onchange="filterDirectory()">';
+    html += '<option value="all">All Categories</option>';
+    state.directory.categories.forEach(function(cat) {
+        html += '<option value="' + cat + '"' + (categoryFilter === cat ? ' selected' : '') + '>' + cat + '</option>';
+    });
+    html += '</select>';
+    html += '<select id="directory-country-filter" onchange="filterDirectory()">';
+    html += '<option value="">' + (userCountry ? 'Local Listings' : 'All Countries') + '</option>';
+    locationData.countries.forEach(function(c) {
+        html += '<option value="' + c[0] + '"' + (countryFilter === c[0] ? ' selected' : '') + '>' + c[1] + '</option>';
+    });
+    html += '</select>';
+    html += '</div>';
+    html += '<div class="directory-count">' + filtered.length + ' business' + (filtered.length !== 1 ? 'es' : '') + ' listed</div>';
+    html += '</div>';
+
+    if (filtered.length === 0) {
+        html += '<div class="directory-empty">';
+        html += '<i class="fas fa-store-slash"></i>';
+        html += '<h3>No businesses found</h3>';
+        html += '<p>Be the first to list your business in the directory!</p>';
+        html += '<button class="btn btn-primary" onclick="showSubmitBusinessModal()"><i class="fas fa-plus"></i> List Your Business</button>';
+        html += '</div>';
+    } else {
+        html += '<div class="directory-grid">';
+        filtered.forEach(function(biz) {
+            var bannerColors = ['#6366f1', '#DC143C', '#f59e0b', '#14b8a6', '#8b5cf6', '#ef4444', '#0ea5e9', '#10b981'];
+            var colorIndex = state.directory.listings.indexOf(biz) % bannerColors.length;
+            var bannerColor = bannerColors[colorIndex];
+
+            html += '<div class="directory-card">';
+            html += '<div class="directory-card-banner" style="background:linear-gradient(135deg,' + bannerColor + ',' + bannerColor + '88)">';
+            html += '<i class="fas fa-building"></i>';
+            html += '<span class="card-badge">' + biz.category + '</span>';
+            html += '</div>';
+            html += '<div class="directory-card-body">';
+            html += '<h3>' + biz.name + '</h3>';
+            html += '<div class="business-type">' + biz.category + '</div>';
+            html += '<div class="business-desc">' + biz.description + '</div>';
+            html += '<div class="business-contact">';
+            if (biz.location) html += '<span><i class="fas fa-map-marker-alt"></i> ' + biz.location + '</span>';
+            if (biz.phone) html += '<span><i class="fas fa-phone"></i> ' + biz.phone + '</span>';
+            if (biz.email) html += '<span><i class="fas fa-envelope"></i> ' + biz.email + '</span>';
+            if (biz.website) html += '<span><i class="fas fa-globe"></i> <a href="' + biz.website + '" target="_blank" rel="noopener">' + biz.website + '</a></span>';
+            html += '</div>';
+            html += '</div>';
+            html += '<div class="directory-card-footer">';
+            html += '<button class="btn btn-primary btn-sm" onclick="showToast(\'Contact information shown above 📞\')"><i class="fas fa-info-circle"></i> Contact</button>';
+            html += '<button class="btn btn-outline btn-sm" onclick="showToast(\'Report sent to moderators 🛡️\')"><i class="fas fa-flag"></i> Report</button>';
+            html += '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+function filterDirectory() {
+    var searchInput = document.getElementById('directory-search-input');
+    var categoryFilter = document.getElementById('directory-category-filter');
+    var countryFilter = document.getElementById('directory-country-filter');
+    if (searchInput) state.directory.search = searchInput.value;
+    if (categoryFilter) state.directory.category = categoryFilter.value;
+    if (countryFilter) state.directory.country = countryFilter.value;
+    renderDirectory();
+}
+
+function showSubmitBusinessModal() {
+    var overlay = document.getElementById('modal-overlay');
+    if (overlay) overlay.style.display = 'flex';
+
+    var modalHTML = '<div id="business-modal" class="modal-overlay" style="display:flex;" onclick="closeBusinessModal(event)">';
+    modalHTML += '<div class="modal-content business-form" onclick="event.stopPropagation()">';
+    modalHTML += '<div class="modal-header">';
+    modalHTML += '<h2><i class="fas fa-store"></i> List Your Business</h2>';
+    modalHTML += '<button class="modal-close" onclick="closeBusinessModal()"><i class="fas fa-times"></i></button>';
+    modalHTML += '</div>';
+    modalHTML += '<div class="modal-body">';
+
+    // Fee notice
+    modalHTML += '<div class="fee-notice">';
+    modalHTML += '<i class="fas fa-crown"></i>';
+    modalHTML += '<h3>Premium Listing - R199/month</h3>';
+    modalHTML += '<p>Get your business featured in our directory. One-time setup fee of R199, then R99/month.</p>';
+    modalHTML += '</div>';
+
+    modalHTML += '<form id="business-listing-form" onsubmit="submitBusinessListing(event)">';
+
+    // Business name
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-name">Business Name *</label>';
+    modalHTML += '<input type="text" id="biz-name" required placeholder="Your business name">';
+    modalHTML += '</div>';
+
+    // Category and country row
+    modalHTML += '<div class="form-row">';
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-category">Category *</label>';
+    modalHTML += '<select id="biz-category" required>';
+    state.directory.categories.forEach(function(cat) {
+        modalHTML += '<option value="' + cat + '">' + cat + '</option>';
+    });
+    modalHTML += '</select>';
+    modalHTML += '</div>';
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-country">Country *</label>';
+    modalHTML += '<select id="biz-country" required onchange="onCountryChange(\'biz-country\',\'biz-state\',\'\')">';
+    modalHTML += '<option value="">Select Country</option>';
+    modalHTML += '</select>';
+    modalHTML += '</div>';
+    modalHTML += '</div>';
+
+    // State/province
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-state">State/Province</label>';
+    modalHTML += '<select id="biz-state">';
+    modalHTML += '<option value="">N/A</option>';
+    modalHTML += '</select>';
+    modalHTML += '</div>';
+
+    // City/Area
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-location">City/Area *</label>';
+    modalHTML += '<input type="text" id="biz-location" required placeholder="City, Area">';
+    modalHTML += '</div>';
+
+    // Description
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-description">Description *</label>';
+    modalHTML += '<textarea id="biz-description" required rows="3" placeholder="Describe your business..."></textarea>';
+    modalHTML += '</div>';
+
+    // Contact row
+    modalHTML += '<div class="form-row">';
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-phone">Phone</label>';
+    modalHTML += '<input type="text" id="biz-phone" placeholder="+27 XX XXX XXXX">';
+    modalHTML += '</div>';
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-email">Email</label>';
+    modalHTML += '<input type="email" id="biz-email" placeholder="business@example.com">';
+    modalHTML += '</div>';
+    modalHTML += '</div>';
+
+    // Website
+    modalHTML += '<div class="form-group">';
+    modalHTML += '<label for="biz-website">Website</label>';
+    modalHTML += '<input type="url" id="biz-website" placeholder="https://yourbusiness.com">';
+    modalHTML += '</div>';
+
+    modalHTML += '<div class="modal-actions">';
+    modalHTML += '<button type="button" class="btn btn-ghost" onclick="closeBusinessModal()">Cancel</button>';
+    modalHTML += '<button type="submit" class="btn btn-primary"><i class="fas fa-credit-card"></i> Pay &amp; List - R199</button>';
+    modalHTML += '</div>';
+
+    modalHTML += '</form>';
+    modalHTML += '</div>';
+    modalHTML += '</div>';
+    modalHTML += '</div>';
+
+    // Remove existing modal
+    var existing = document.getElementById('business-modal');
+    if (existing) existing.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Populate country dropdown for business modal
+    var countrySelect = document.getElementById('biz-country');
+    if (countrySelect) {
+        locationData.countries.forEach(function(c) {
+            countrySelect.innerHTML += '<option value="' + c[0] + '">' + c[1] + '</option>';
+        });
+    }
+}
+
+function closeBusinessModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('business-modal');
+        if (modal) modal.remove();
+        var overlay = document.getElementById('modal-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+}
+
+function submitBusinessListing(event) {
+    event.preventDefault();
+
+    var name = document.getElementById('biz-name').value;
+    var category = document.getElementById('biz-category').value;
+    var countryCode = document.getElementById('biz-country')?.value || '';
+    var stateName = document.getElementById('biz-state')?.value || '';
+    var cityArea = document.getElementById('biz-location').value;
+    var description = document.getElementById('biz-description').value;
+    var phone = document.getElementById('biz-phone').value;
+    var email = document.getElementById('biz-email').value;
+    var website = document.getElementById('biz-website').value;
+
+    var locationParts = [];
+    if (cityArea) locationParts.push(cityArea);
+    if (stateName && stateName !== 'N/A') locationParts.push(stateName);
+    var countryName = locationData.getCountryName(countryCode);
+    if (countryName) locationParts.push(countryName);
+    var location = locationParts.join(', ') || 'Unknown';
+
+    var listing = {
+        id: uuidv4(),
+        name: name,
+        category: category,
+        location: location,
+        country: countryCode,
+        state: stateName,
+        city: cityArea,
+        description: description,
+        phone: phone,
+        email: email,
+        website: website,
+        owner_id: state.currentUser ? state.currentUser.id : 'guest',
+        status: 'active',
+        owner: state.currentUser ? state.currentUser.id : 'guest',
+        createdAt: new Date(),
+        featured: false
+    };
+
+    showToast('Processing payment of R199... 💳');
+    setTimeout(function() {
+        DirectoryDB.create(listing).then(function() {
+            closeBusinessModal();
+            renderDirectory();
+            showToast('Business listed successfully! Welcome to the directory 🎉');
+        });
+    }, 1500);
+}
+
+function saveDirectoryData() {
+    try {
+        localStorage.setItem('koitus_directory', JSON.stringify(state.directory.listings));
+    } catch (e) {
+        console.error('Error saving directory data:', e);
+    }
+}
+
+function loadDirectoryData() {
+    try {
+        var data = localStorage.getItem('koitus_directory');
+        if (data) {
+            state.directory.listings = JSON.parse(data);
+        }
+    } catch (e) {
+        console.error('Error loading directory data:', e);
+    }
+    // Also load from Supabase
+    DirectoryDB.getAll().then(function(listings) {
+        if (listings && listings.length > 0) {
+            state.directory.listings = listings;
+            renderDirectory();
+        }
+    });
+}
+
+// Load directory data on init
+loadDirectoryData();
 
 console.log('💬 Koitus - Connect. Match. Chat.');
 console.log('🚀 Ready to find your perfect connection!');

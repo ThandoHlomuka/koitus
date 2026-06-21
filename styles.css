@@ -12048,6 +12048,243 @@ select:disabled {
     }
 }
 
+/* ==================== DIRECTORY VIEW ==================== */
+#view-directory {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--spacing-6) var(--spacing-4);
+}
+
+.view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+.view-header-left h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.view-subtitle {
+    color: var(--text-secondary);
+    margin: var(--spacing-1) 0 0 0;
+    font-size: 0.875rem;
+}
+
+.directory-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+.directory-search {
+    display: flex;
+    gap: var(--spacing-3);
+    flex-wrap: wrap;
+    flex: 1;
+    max-width: 500px;
+}
+
+.directory-search input {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.625rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.directory-search select {
+    padding: 0.625rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.directory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-4);
+}
+
+.directory-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.directory-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.directory-card-banner {
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    position: relative;
+}
+
+.directory-card-banner .card-badge {
+    position: absolute;
+    top: var(--spacing-2);
+    right: var(--spacing-2);
+    background: var(--primary);
+    color: white;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.directory-card-body {
+    padding: var(--spacing-4);
+}
+
+.directory-card-body h3 {
+    margin: 0 0 var(--spacing-1);
+    font-size: 1.05rem;
+}
+
+.directory-card-body .business-type {
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.directory-card-body .business-desc {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: var(--spacing-2) 0;
+    line-height: 1.5;
+}
+
+.directory-card-body .business-contact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    margin: var(--spacing-3) 0;
+    font-size: 0.825rem;
+}
+
+.directory-card-body .business-contact span {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    color: var(--text-secondary);
+}
+
+.directory-card-footer {
+    display: flex;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-top: 1px solid var(--border);
+}
+
+.directory-card-footer .btn {
+    flex: 1;
+    font-size: 0.8rem;
+}
+
+.directory-empty {
+    text-align: center;
+    padding: var(--spacing-12) var(--spacing-4);
+    color: var(--text-secondary);
+}
+
+.directory-empty i {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-4);
+    opacity: 0.5;
+}
+
+.directory-empty h3 {
+    margin: 0 0 var(--spacing-2);
+    color: var(--text-primary);
+}
+
+/* Business form modal */
+.business-form {
+    max-width: 600px;
+}
+
+.business-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-4);
+}
+
+.business-form .form-group {
+    margin-bottom: var(--spacing-4);
+}
+
+.business-form label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: var(--spacing-2);
+    font-size: 0.875rem;
+}
+
+.business-form input,
+.business-form select,
+.business-form textarea {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.business-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.business-form .fee-notice {
+    background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    color: white;
+    padding: var(--spacing-4);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-4);
+    text-align: center;
+}
+
+.business-form .fee-notice i {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-2);
+}
+
+.business-form .fee-notice h3 {
+    margin: 0 0 var(--spacing-1);
+    font-size: 1.1rem;
+}
+
+.business-form .fee-notice p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 0.875rem;
+}
+
 /* ==================== ABOUT APP VIEW ==================== */
 #view-about {
     max-width: 900px;

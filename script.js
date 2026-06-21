@@ -1185,19 +1185,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initializeApp() {
     // Load user data from localStorage (persistent login)
-    const hasRegistered = loadUserData();
-    
-    // If user has registered before, show main app directly
-    if (hasRegistered) {
-        showMainApp();
-        
-        // If admin is logged in, redirect to admin dashboard
-        if (state.currentUser?.isAdmin || state.currentUser?.role === 'admin') {
-            setTimeout(() => {
-                showAdminDashboard();
-                console.log('🛡️ Admin dashboard loaded from persistent session');
-            }, 500);
-        }
+    loadUserData();
+
+    // Always show main app (landing page hidden by default)
+    showMainApp();
+
+    // If admin is logged in, redirect to admin dashboard
+    if (state.currentUser?.isAdmin || state.currentUser?.role === 'admin') {
+        setTimeout(() => {
+            showAdminDashboard();
+            console.log('🛡️ Admin dashboard loaded from persistent session');
+        }, 500);
     }
 
     // Initialize range sliders
@@ -1733,6 +1731,8 @@ function handleSignup(event) {
     if (state.socket && state.socket.connected) {
         joinPlatform();
     }
+    // Show onboarding after a brief delay
+    setTimeout(showOnboarding, 800);
 }
 
 function selectAccountType(type) {
@@ -1759,20 +1759,142 @@ function selectAccountType(type) {
     }
 }
 
-function logout() {
-    state.currentUser = null;
-    state.isLoggedIn = false;
-    localStorage.removeItem('koitus_user');
-    
-    document.getElementById('main-app').classList.remove('active');
-    document.getElementById('landing-page').classList.add('active');
-    
-    showNotification('Logged out successfully', 'info');
+// ==================== ONBOARDING SYSTEM ====================
+var onboardingStep = 1;
+
+function previewOnboardingPhoto(event) {
+    var file = event.target.files[0];
+    if (file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var preview = document.getElementById('onboarding-photo-preview');
+            var placeholder = document.getElementById('onboarding-photo-placeholder');
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function selectOnboardingRole(type) {
+    var radio = document.querySelector('input[name="onboarding-role"][value="' + type + '"]');
+    if (radio) radio.checked = true;
+}
+
+function togglePref(btn) {
+    btn.classList.toggle('active');
+    var group = btn.parentElement;
+    var everyone = group.querySelector('[data-pref="everyone"]');
+    if (btn.getAttribute('data-pref') === 'everyone') {
+        group.querySelectorAll('.toggle-btn').forEach(function(b) {
+            if (b !== btn) b.classList.remove('active');
+        });
+    } else {
+        if (everyone) everyone.classList.remove('active');
+    }
+}
+
+function showOnboarding() {
+    onboardingStep = 1;
+    document.getElementById('onboarding-modal').classList.add('active');
+    showOnboardingStep(1);
+}
+
+function showOnboardingStep(step) {
+    for (var i = 1; i <= 5; i++) {
+        var el = document.getElementById('onboarding-step-' + i);
+        if (el) el.style.display = i === step ? 'block' : 'none';
+    }
+    var fill = document.getElementById('onboarding-progress-fill');
+    if (fill) fill.style.width = (step * 20) + '%';
+    document.querySelectorAll('.progress-step').forEach(function(s) {
+        s.classList.toggle('active', parseInt(s.getAttribute('data-step')) <= step);
+    });
+}
+
+function onboardingNext() {
+    // Validate current step
+    if (onboardingStep === 3) {
+        var checked = document.querySelectorAll('#onboarding-interests input:checked');
+        if (checked.length < 3) {
+            showNotification('Please select at least 3 interests', 'warning');
+            return;
+        }
+    }
+    if (onboardingStep < 5) {
+        onboardingStep++;
+        showOnboardingStep(onboardingStep);
+    }
+}
+
+function onboardingPrev() {
+    if (onboardingStep > 1) {
+        onboardingStep--;
+        showOnboardingStep(onboardingStep);
+    }
+}
+
+function completeOnboarding() {
+    // Collect all onboarding data
+    var bio = document.getElementById('onboarding-bio') ? document.getElementById('onboarding-bio').value : '';
+    var ageMin = document.getElementById('onboarding-age-min') ? document.getElementById('onboarding-age-min').value : 18;
+    var ageMax = document.getElementById('onboarding-age-max') ? document.getElementById('onboarding-age-max').value : 50;
+    var distance = document.getElementById('onboarding-distance') ? document.getElementById('onboarding-distance').value : 25;
+    var photoPreview = document.getElementById('onboarding-photo-preview');
+    var roleRadio = document.querySelector('input[name="onboarding-role"]:checked');
+
+    var interests = [];
+    document.querySelectorAll('#onboarding-interests input:checked').forEach(function(cb) {
+        interests.push(cb.value);
+    });
+
+    var interestedIn = [];
+    document.querySelectorAll('[data-pref].active').forEach(function(btn) {
+        interestedIn.push(btn.getAttribute('data-pref'));
+    });
+
+    // Update current user with onboarding data
+    if (state.currentUser) {
+        state.currentUser.bio = bio || state.currentUser.bio;
+        state.currentUser.interests = interests.length > 0 ? interests : state.currentUser.interests;
+        if (photoPreview && photoPreview.src && photoPreview.style.display !== 'none') {
+            state.currentUser.avatar = photoPreview.src;
+        }
+        state.currentUser.preferences = {
+            ageMin: parseInt(ageMin),
+            ageMax: parseInt(ageMax),
+            distance: parseInt(distance),
+            interestedIn: interestedIn
+        };
+        state.currentUser.onboardingComplete = true;
+        saveUserData();
+    }
+
+    document.getElementById('onboarding-modal').classList.remove('active');
+    showMainApp();
+    showNotification('Profile setup complete! Start exploring! 🎉', 'success');
+}
+
+function scrollToFeatures() {
+    var features = document.getElementById('features');
+    if (features) features.scrollIntoView({ behavior: 'smooth' });
 }
 
 function showMainApp() {
     document.getElementById('landing-page').classList.remove('active');
     document.getElementById('main-app').classList.add('active');
+
+    // Toggle between guest auth and logged-in sidebar state
+    var guestAuth = document.getElementById('sidebar-guest-auth');
+    var sidebarFooter = document.querySelector('.sidebar-footer');
+    if (state.currentUser) {
+        if (guestAuth) guestAuth.style.display = 'none';
+        if (sidebarFooter) sidebarFooter.style.display = 'block';
+    } else {
+        if (guestAuth) guestAuth.style.display = 'block';
+        if (sidebarFooter) sidebarFooter.style.display = 'none';
+    }
 
     // Update profile info
     if (state.currentUser) {
@@ -2880,11 +3002,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-// ==================== LANDING PAGE ====================
-function scrollToFeatures() {
-    document.getElementById('features').scrollIntoView({ behavior: 'smooth' });
-}
 
 // ==================== NOTIFICATIONS ====================
 function showNotification(message, type = 'info') {
@@ -10322,8 +10439,7 @@ function showAdminPosts(status) {
     `).join('');
 }
 
-// Initialize currentClubFilter if not set
-if (typeof currentClubFilter === 'undefined') var currentClubFilter = 'all';
+// currentClubFilter already declared with let above
 
 // ==================== PARTICLE BACKGROUND SYSTEM ====================
 function initParticles() {

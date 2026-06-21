@@ -31,7 +31,7 @@
 </head>
 <body>
     <!-- ==================== LANDING PAGE ==================== -->
-    <div id="landing-page" class="page active">
+    <div id="landing-page" class="page">
         <!-- Hero Section -->
         <section class="landing-hero">
             <div class="landing-bg">
@@ -49,11 +49,11 @@
                     <span class="logo-text">Koitus</span>
                 </div>
                 <div class="nav-actions">
-                    <button class="btn btn-ghost" data-auth="admin" title="Admin Login">
+                    <button class="btn btn-ghost" data-auth="admin" onclick="showAdminLogin()" title="Admin Login">
                         <i class="fas fa-shield-alt"></i> Admin
                     </button>
-                    <button class="btn btn-ghost" data-auth="login">Sign In</button>
-                    <button class="btn btn-primary" data-auth="signup">Get Started</button>
+                    <button class="btn btn-ghost" data-auth="login" onclick="showLogin()">Sign In</button>
+                    <button class="btn btn-primary" data-auth="signup" onclick="showSignup()">Get Started</button>
                 </div>
             </nav>
             
@@ -71,7 +71,7 @@
                     Swipe, match, and chat with people who share your interests.
                 </p>
                 <div class="hero-cta">
-                    <button class="btn btn-primary btn-lg" data-auth="signup">
+                    <button class="btn btn-primary btn-lg" data-auth="signup" onclick="showSignup()">
                         <i class="fas fa-heart"></i> Start Matching Free
                     </button>
                     <button class="btn btn-outline btn-lg" onclick="scrollToFeatures()">
@@ -339,7 +339,7 @@
                 <div class="cta-content">
                     <h2>Ready to Find Your <span class="gradient-text">Person</span>?</h2>
                     <p>Join Koitus today and start connecting with amazing people near you.</p>
-                    <button class="btn btn-primary btn-lg" data-auth="signup">
+                    <button class="btn btn-primary btn-lg" data-auth="signup" onclick="showSignup()">
                         <i class="fas fa-heart"></i> Create Free Account
                     </button>
                 </div>
@@ -422,7 +422,7 @@
                     <p>Sign in to continue your connections</p>
                 </div>
 
-                <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+                <form id="login-form" class="auth-form">
                     <div class="form-group">
                         <label for="login-email">Email Address</label>
                         <input type="email" id="login-email" required placeholder="you@example.com">
@@ -482,7 +482,7 @@
                     <p>Access the admin dashboard</p>
                 </div>
 
-                <form id="admin-login-form" class="auth-form" onsubmit="handleAdminLogin(event)">
+                <form id="admin-login-form" class="auth-form">
                     <div class="form-group">
                         <label for="admin-login-email">Admin Email</label>
                         <input type="email" id="admin-login-email" required placeholder="admin@example.com">
@@ -523,7 +523,7 @@
                     <p>Join thousands of people finding connections</p>
                 </div>
                 
-                <form id="signup-form" class="auth-form" onsubmit="handleSignup(event)">
+                <form id="signup-form" class="auth-form">
                     <div class="form-group">
                         <label for="signup-name">Full Name</label>
                         <input type="text" id="signup-name" required placeholder="John Doe">
@@ -668,8 +668,166 @@
         </div>
     </div>
     
+    <!-- ==================== ONBOARDING MODAL ==================== -->
+    <div id="onboarding-modal" class="auth-modal">
+        <div class="auth-container" style="max-width:560px;">
+            <div class="auth-content">
+                <div class="auth-header">
+                    <div class="logo">
+                        <div class="logo-icon"><i class="fas fa-heart"></i></div>
+                        <span class="logo-text">Koitus</span>
+                    </div>
+                    <h2>Set Up Your Profile</h2>
+                    <p>Let's get you started in just a few steps</p>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="onboarding-progress">
+                    <div class="progress-bar" id="onboarding-progress-bar">
+                        <div class="progress-fill" id="onboarding-progress-fill" style="width:20%;"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <span class="progress-step active" data-step="1">1</span>
+                        <span class="progress-step" data-step="2">2</span>
+                        <span class="progress-step" data-step="3">3</span>
+                        <span class="progress-step" data-step="4">4</span>
+                        <span class="progress-step" data-step="5">5</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: Upload Photo -->
+                <div class="onboarding-step" id="onboarding-step-1">
+                    <div class="step-icon"><i class="fas fa-camera"></i></div>
+                    <h3>Add a Profile Photo</h3>
+                    <p>Upload a clear photo so people can see you</p>
+                    <div class="photo-upload-area" id="onboarding-photo-area" onclick="document.getElementById('onboarding-photo-input').click()">
+                        <div class="photo-upload-placeholder" id="onboarding-photo-placeholder">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Click to upload photo</span>
+                        </div>
+                        <img id="onboarding-photo-preview" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:12px;">
+                    </div>
+                    <input type="file" id="onboarding-photo-input" accept="image/*" style="display:none;" onchange="previewOnboardingPhoto(event)">
+                    <div class="step-actions">
+                        <button class="btn btn-primary" onclick="onboardingNext()">Continue</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Role Confirmation -->
+                <div class="onboarding-step" id="onboarding-step-2" style="display:none;">
+                    <div class="step-icon"><i class="fas fa-user-tag"></i></div>
+                    <h3>Confirm Your Role</h3>
+                    <p>Tell us how you want to use Koitus</p>
+                    <div class="onboarding-role-cards">
+                        <label class="onboarding-role-card" onclick="selectOnboardingRole('customer')">
+                            <input type="radio" name="onboarding-role" value="customer">
+                            <i class="fas fa-user"></i>
+                            <strong>Customer</strong>
+                            <small>Browse, match & connect with people</small>
+                        </label>
+                        <label class="onboarding-role-card" onclick="selectOnboardingRole('provider')">
+                            <input type="radio" name="onboarding-role" value="provider">
+                            <i class="fas fa-briefcase"></i>
+                            <strong>Service Provider</strong>
+                            <small>Offer services & grow your business</small>
+                        </label>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn btn-ghost" onclick="onboardingPrev()">Back</button>
+                        <button class="btn btn-primary" onclick="onboardingNext()">Continue</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Interests -->
+                <div class="onboarding-step" id="onboarding-step-3" style="display:none;">
+                    <div class="step-icon"><i class="fas fa-heart"></i></div>
+                    <h3>Pick Your Interests</h3>
+                    <p>Select at least 3 interests to help us find your perfect matches</p>
+                    <div class="interests-grid" id="onboarding-interests">
+                        <label class="interest-chip"><input type="checkbox" value="Music"><span>🎵 Music</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Travel"><span>✈️ Travel</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Food"><span>🍕 Food</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Fitness"><span>💪 Fitness</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Art"><span>🎨 Art</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Photography"><span>📷 Photography</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Gaming"><span>🎮 Gaming</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Reading"><span>📚 Reading</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Movies"><span>🎬 Movies</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Nature"><span>🌿 Nature</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Dancing"><span>💃 Dancing</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Tech"><span>💻 Tech</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Cooking"><span>👨‍🍳 Cooking</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Sports"><span>⚽ Sports</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Fashion"><span>👗 Fashion</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Pets"><span>🐾 Pets</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Yoga"><span>🧘 Yoga</span></label>
+                        <label class="interest-chip"><input type="checkbox" value="Writing"><span>✍️ Writing</span></label>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn btn-ghost" onclick="onboardingPrev()">Back</button>
+                        <button class="btn btn-primary" onclick="onboardingNext()">Continue</button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Bio -->
+                <div class="onboarding-step" id="onboarding-step-4" style="display:none;">
+                    <div class="step-icon"><i class="fas fa-pen"></i></div>
+                    <h3>Write Your Bio</h3>
+                    <p>Tell people a bit about yourself</p>
+                    <textarea id="onboarding-bio" class="onboarding-textarea" placeholder="Tell us about yourself... what makes you unique? What are you looking for?" maxlength="500" oninput="document.getElementById('onboarding-bio-count').textContent=this.value.length"></textarea>
+                    <div class="char-count"><span id="onboarding-bio-count">0</span>/500</div>
+                    <div class="step-actions">
+                        <button class="btn btn-ghost" onclick="onboardingPrev()">Back</button>
+                        <button class="btn btn-primary" onclick="onboardingNext()">Continue</button>
+                    </div>
+                </div>
+
+                <!-- Step 5: Preferences -->
+                <div class="onboarding-step" id="onboarding-step-5" style="display:none;">
+                    <div class="step-icon"><i class="fas fa-sliders-h"></i></div>
+                    <h3>Set Your Preferences</h3>
+                    <p>Customize your matching experience</p>
+                    <div class="preferences-form">
+                        <div class="form-group">
+                            <label>Interested In</label>
+                            <div class="toggle-group">
+                                <button class="toggle-btn active" data-pref="men" onclick="togglePref(this)">Men</button>
+                                <button class="toggle-btn active" data-pref="women" onclick="togglePref(this)">Women</button>
+                                <button class="toggle-btn" data-pref="everyone" onclick="togglePref(this)">Everyone</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Age Range</label>
+                            <div class="range-row">
+                                <input type="number" id="onboarding-age-min" value="18" min="18" max="99" class="range-input">
+                                <span>to</span>
+                                <input type="number" id="onboarding-age-max" value="50" min="18" max="99" class="range-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Maximum Distance</label>
+                            <select id="onboarding-distance" class="form-select">
+                                <option value="10">10 km</option>
+                                <option value="25" selected>25 km</option>
+                                <option value="50">50 km</option>
+                                <option value="100">100 km</option>
+                                <option value="999">Anywhere</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn btn-ghost" onclick="onboardingPrev()">Back</button>
+                        <button class="btn btn-primary btn-lg" onclick="completeOnboarding()">
+                            <i class="fas fa-check"></i> Complete Setup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ==================== MAIN APP ==================== -->
-    <div id="main-app" class="app-container">
+    <div id="main-app" class="app-container active">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
@@ -742,6 +900,22 @@
                 </a>
             </nav>
             
+            <!-- Guest auth section (shown when not logged in) -->
+            <div class="sidebar-guest-auth" id="sidebar-guest-auth" style="display:none;">
+                <div class="guest-prompt">
+                    <p>Sign in to connect and chat</p>
+                    <button class="btn btn-primary btn-block" onclick="showSignup()">
+                        <i class="fas fa-user-plus"></i> Get Started
+                    </button>
+                    <button class="btn btn-ghost btn-block" onclick="showLogin()">
+                        <i class="fas fa-sign-in-alt"></i> Sign In
+                    </button>
+                    <button class="btn btn-ghost btn-block" onclick="showAdminLogin()" style="font-size:0.8rem;opacity:0.6;">
+                        <i class="fas fa-shield-alt"></i> Admin
+                    </button>
+                </div>
+            </div>
+
             <div class="sidebar-footer">
                 <div class="user-mini">
                     <div class="user-avatar">
@@ -3111,7 +3285,7 @@ Tips for a great post:
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
     <script src="config.js?v=1.0.0"></script>
-    <script src="script.js?v=2.5.0"></script>
+    <script src="script.js?v=3.0.0"></script>
     <script>
         (function bootKoitus() {
             console.log('🔧 Koitus Bootstrapper running...');

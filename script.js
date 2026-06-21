@@ -1763,9 +1763,10 @@ function handleSignup(event) {
             type: mainType // For backward compatibility
         };
     } else {
-        const subType = document.getElementById('provider-sub-type').value;
+        const subTypeRadio = document.querySelector('#provider-type-selector input[type="radio"]:checked');
+        const subType = subTypeRadio ? subTypeRadio.value : null;
         if (!subType) {
-            showNotification('Please select your service category', 'warning');
+            showNotification('Please select your service type', 'warning');
             return;
         }
 
@@ -1832,13 +1833,20 @@ function selectAccountType(type) {
         customerSection.style.display = 'block';
         providerSection.style.display = 'none';
         document.getElementById('customer-main-type').required = true;
-        document.getElementById('provider-sub-type').required = false;
+        document.querySelectorAll('#provider-type-selector input').forEach(el => el.required = false);
     } else {
         customerSection.style.display = 'none';
         providerSection.style.display = 'block';
         document.getElementById('customer-main-type').required = false;
-        document.getElementById('provider-sub-type').required = true;
+        document.querySelectorAll('#provider-type-selector input').forEach(el => el.required = true);
     }
+}
+
+function selectProviderType(el, type) {
+    document.querySelectorAll('.service-type-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    const radio = el.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
 }
 
 // ==================== ONBOARDING SYSTEM ====================

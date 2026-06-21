@@ -601,16 +601,41 @@
                     <!-- Service Provider Types -->
                     <div id="provider-types" class="profile-types-section" style="display: none;">
                         <div class="form-group">
-                            <label>Service Category *</label>
-                            <select id="provider-sub-type" required>
-                                <option value="">Select your service category...</option>
-                                <option value="creator">📸 Content Creator - Digital content & media</option>
-                                <option value="escort">💕 Escort - Companionship services</option>
-                                <option value="model">🎨 Nude Model - Art & photography</option>
-                                <option value="dancer">💃 Exotic Dancer - Performance arts</option>
-                                <option value="venue">🏛️ Venue Owner - Space rental</option>
-                                <option value="promoter">📢 Event Promoter - Marketing & events</option>
-                            </select>
+                            <label>Service Type *</label>
+                            <div class="service-type-grid" id="provider-type-selector">
+                                <label class="service-type-card" onclick="selectProviderType(this, 'creator')">
+                                    <input type="radio" name="provider-sub-type" value="creator" required hidden>
+                                    <div class="service-type-content">
+                                        <div class="service-type-icon"><i class="fas fa-camera"></i></div>
+                                        <div class="service-type-label">Content Creator</div>
+                                        <div class="service-type-desc">Digital content & media</div>
+                                    </div>
+                                </label>
+                                <label class="service-type-card" onclick="selectProviderType(this, 'model')">
+                                    <input type="radio" name="provider-sub-type" value="model" required hidden>
+                                    <div class="service-type-content">
+                                        <div class="service-type-icon"><i class="fas fa-image"></i></div>
+                                        <div class="service-type-label">Model</div>
+                                        <div class="service-type-desc">Art & photography</div>
+                                    </div>
+                                </label>
+                                <label class="service-type-card" onclick="selectProviderType(this, 'dancer')">
+                                    <input type="radio" name="provider-sub-type" value="dancer" required hidden>
+                                    <div class="service-type-content">
+                                        <div class="service-type-icon"><i class="fas fa-music"></i></div>
+                                        <div class="service-type-label">Exotic Dancer</div>
+                                        <div class="service-type-desc">Performance arts</div>
+                                    </div>
+                                </label>
+                                <label class="service-type-card" onclick="selectProviderType(this, 'escort')">
+                                    <input type="radio" name="provider-sub-type" value="escort" required hidden>
+                                    <div class="service-type-content">
+                                        <div class="service-type-icon"><i class="fas fa-heart"></i></div>
+                                        <div class="service-type-label">Escort</div>
+                                        <div class="service-type-desc">Companionship services</div>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Additional Services (Optional)</label>
@@ -991,14 +1016,12 @@
                     </div>
                     <div class="filter-group">
                         <label>Profile Type</label>
-                        <div class="toggle-group" id="type-filters">
+                        <div class="toggle-group scroll-x" id="type-filters">
                             <button class="toggle-btn active" data-type="all">All</button>
-                            <button class="toggle-btn" data-type="general">General</button>
-                            <button class="toggle-btn" data-type="creator">Creators</button>
-                            <button class="toggle-btn" data-type="dancer">Dancers</button>
+                            <button class="toggle-btn" data-type="creator">Content Creators</button>
                             <button class="toggle-btn" data-type="model">Models</button>
+                            <button class="toggle-btn" data-type="dancer">Dancers</button>
                             <button class="toggle-btn" data-type="escort">Escorts</button>
-                            <button class="toggle-btn" data-type="chef">Chefs</button>
                         </div>
                     </div>
                     <div class="filter-group">

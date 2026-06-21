@@ -895,6 +895,11 @@
                     <span>Messages</span>
                     <span class="nav-badge unread" id="messages-count">5</span>
                 </a>
+                <a href="#" class="nav-item" data-view="profiles" onclick="switchView('profiles')">
+                    <i class="fas fa-address-book"></i>
+                    <span>Profiles</span>
+                    <span class="nav-badge" id="profiles-new-count" style="display:none;">0</span>
+                </a>
                 <a href="#" class="nav-item" data-view="activity" onclick="switchView('activity')">
                     <i class="fas fa-newspaper"></i>
                     <span>Activity</span>
@@ -924,6 +929,11 @@
                     <i class="fas fa-store"></i>
                     <span>Products</span>
                     <span class="nav-badge" id="products-count">8</span>
+                </a>
+                <a href="#" class="nav-item" data-view="store" onclick="switchView('store')" id="nav-store" style="display:none;">
+                    <i class="fas fa-store-alt"></i>
+                    <span>My Store</span>
+                    <span class="nav-badge" id="store-orders-count">0</span>
                 </a>
                 <a href="#" class="nav-item" data-view="clubs" onclick="switchView('clubs')">
                     <i class="fas fa-users"></i>
@@ -1210,6 +1220,95 @@
                 </div>
             </div>
 
+            <!-- Profiles View -->
+            <div id="view-profiles" class="view">
+                <div class="view-header">
+                    <h1>Discover Profiles</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-icon" onclick="toggleProfilesFilters()">
+                            <i class="fas fa-filter"></i>
+                        </button>
+                        <button class="btn btn-icon" onclick="switchProfilesView()" id="profiles-view-toggle">
+                            <i class="fas fa-list" id="profiles-view-icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Profiles Filters -->
+                <div id="profiles-filters" class="profiles-filters" style="display: none;">
+                    <div class="filter-group">
+                        <label>Account Type</label>
+                        <select id="profiles-account-filter" onchange="renderProfiles()">
+                            <option value="all">All</option>
+                            <option value="customer">Users</option>
+                            <option value="provider">Service Providers</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Profile Type</label>
+                        <select id="profiles-type-filter" onchange="renderProfiles()">
+                            <option value="all">All Types</option>
+                            <option value="hunter">Hunter/Lion</option>
+                            <option value="freak">Freak</option>
+                            <option value="lifestyler">Lifestyler</option>
+                            <option value="voyeur">Voyeur</option>
+                            <option value="creator">Content Creator</option>
+                            <option value="model">Nude Model</option>
+                            <option value="dancer">Exotic Dancer</option>
+                            <option value="escort">Escort</option>
+                            <option value="promoter">Promoter</option>
+                            <option value="studio">Studio</option>
+                            <option value="venue">Venue Owner</option>
+                            <option value="club">Club Owner</option>
+                            <option value="vendor">Vendor</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="profiles-status-filter" onchange="renderProfiles()">
+                            <option value="all">All</option>
+                            <option value="online">Online</option>
+                            <option value="offline">Offline</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Sort By</label>
+                        <select id="profiles-sort-filter" onchange="renderProfiles()">
+                            <option value="distance">Nearest</option>
+                            <option value="likes">Most Liked</option>
+                            <option value="rating">Highest Rated</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Profiles Tabs -->
+                <div class="profiles-tabs">
+                    <button class="profiles-tab active" data-tab="all" onclick="switchProfilesTab('all')">
+                        <i class="fas fa-th"></i> All
+                    </button>
+                    <button class="profiles-tab" data-tab="online" onclick="switchProfilesTab('online')">
+                        <i class="fas fa-circle" style="color:var(--success)"></i> Online
+                    </button>
+                    <button class="profiles-tab" data-tab="favourites" onclick="switchProfilesTab('favourites')">
+                        <i class="fas fa-heart"></i> Favourites
+                    </button>
+                </div>
+
+                <!-- Profiles Grid -->
+                <div class="profiles-grid" id="profiles-container">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="profiles-empty-state" style="display: none;">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-users-slash"></i>
+                    </div>
+                    <h3>No Profiles Found</h3>
+                    <p>There are no profiles matching your criteria. Try adjusting your filters!</p>
+                </div>
+            </div>
+
             <!-- Events View -->
             <div id="view-events" class="view">
                 <div class="view-header">
@@ -1419,7 +1518,30 @@
                             <i class="fas fa-broadcast-tower"></i>
                             <span>Go Live</span>
                         </button>
+                        <button class="btn btn-outline" onclick="showCamHostModal()" id="start-cam-btn">
+                            <i class="fas fa-video"></i>
+                            <span>Cam Show</span>
+                        </button>
                     </div>
+                </div>
+
+                <!-- Streams Tabs -->
+                <div class="streams-tabs">
+                    <button class="streams-tab active" data-tab="all" onclick="switchStreamsTab('all')">
+                        <i class="fas fa-th"></i> All
+                    </button>
+                    <button class="streams-tab" data-tab="webcam" onclick="switchStreamsTab('webcam')">
+                        <i class="fas fa-eye"></i> Webcams
+                    </button>
+                    <button class="streams-tab" data-tab="lifestyle" onclick="switchStreamsTab('lifestyle')">
+                        <i class="fas fa-spa"></i> Lifestyle
+                    </button>
+                    <button class="streams-tab" data-tab="music" onclick="switchStreamsTab('music')">
+                        <i class="fas fa-music"></i> Music
+                    </button>
+                    <button class="streams-tab" data-tab="food" onclick="switchStreamsTab('food')">
+                        <i class="fas fa-utensils"></i> Food
+                    </button>
                 </div>
 
                 <!-- Featured Stream -->
@@ -1454,6 +1576,14 @@
                 <div class="streams-section">
                     <h2>Live Now</h2>
                     <div class="streams-grid" id="live-streams-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Webcamming Section -->
+                <div class="streams-section webcam-section" id="webcam-section">
+                    <h2><i class="fas fa-eye" style="color:var(--primary)"></i> Adult Webcams <span class="adult-badge">18+</span></h2>
+                    <div class="webcam-grid" id="webcam-grid">
                         <!-- Populated by JS -->
                     </div>
                 </div>
@@ -1551,11 +1681,71 @@
                                             <button class="btn btn-sm btn-primary" onclick="submitComment()">
                                                 <i class="fas fa-paper-plane"></i> Post Comment
                                             </button>
-                                        </div>
-                                    </div>
+                            </div>
+                        </div>
+
+                        <div class="profile-section">
+                            <h3><i class="fas fa-chart-bar"></i> Community Stats</h3>
+                            <div class="community-stats-grid" id="community-stats">
+                                <div class="community-stat-item">
+                                    <div class="community-stat-value">0</div>
+                                    <div class="community-stat-label">Forum Posts</div>
+                                </div>
+                                <div class="community-stat-item">
+                                    <div class="community-stat-value">0</div>
+                                    <div class="community-stat-label">Replies</div>
+                                </div>
+                                <div class="community-stat-item">
+                                    <div class="community-stat-value">0</div>
+                                    <div class="community-stat-label">Events Attended</div>
+                                </div>
+                                <div class="community-stat-item">
+                                    <div class="community-stat-value">0</div>
+                                    <div class="community-stat-label">Clubs Joined</div>
+                                </div>
+                                <div class="community-stat-item">
+                                    <div class="community-stat-value">0</div>
+                                    <div class="community-stat-label">Personals Ads</div>
+                                </div>
+                                <div class="community-stat-item">
+                                    <div class="community-stat-value">0</div>
+                                    <div class="community-stat-label">Products Sold</div>
                                 </div>
                             </div>
                         </div>
+
+                        <div class="profile-section">
+                            <h3><i class="fas fa-heart"></i> Profile Likes</h3>
+                            <div id="profile-likes-info" class="profile-likes-info">
+                                <div class="profile-likes-stats">
+                                    <div class="likes-stat">
+                                        <span class="likes-stat-value" id="likes-received">0</span>
+                                        <span class="likes-stat-label">Likes Received</span>
+                                    </div>
+                                    <div class="likes-stat">
+                                        <span class="likes-stat-value" id="likes-given">0</span>
+                                        <span class="likes-stat-label">Likes Given</span>
+                                    </div>
+                                    <div class="likes-stat">
+                                        <span class="likes-stat-value" id="mutual-likes">0</span>
+                                        <span class="likes-stat-label">Mutual</span>
+                                    </div>
+                                </div>
+                                <div class="profile-likers" id="profile-likers">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="profile-section">
+                            <h3><i class="fas fa-star"></i> Achievements</h3>
+                            <div class="achievements-grid" id="achievements-grid">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
                     </div>
                 </div>
             </div>
@@ -1768,6 +1958,139 @@
                     <button class="btn btn-primary" onclick="showAddProductModal()">
                         <i class="fas fa-plus"></i> Add Product
                     </button>
+                </div>
+            </div>
+
+            <!-- Store Management View (Vendors) -->
+            <div id="view-store" class="view">
+                <div class="view-header">
+                    <h1><i class="fas fa-store-alt"></i> My Store</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="showAddProductModal()">
+                            <i class="fas fa-plus"></i> Add Product
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Store Dashboard Stats -->
+                <div class="store-stats">
+                    <div class="store-stat">
+                        <div class="store-stat-icon" style="background:rgba(34,197,94,0.15)">
+                            <i class="fas fa-box" style="color:var(--success)"></i>
+                        </div>
+                        <div class="store-stat-info">
+                            <span class="store-stat-value" id="store-total-products">0</span>
+                            <span class="store-stat-label">Total Products</span>
+                        </div>
+                    </div>
+                    <div class="store-stat">
+                        <div class="store-stat-icon" style="background:rgba(59,130,246,0.15)">
+                            <i class="fas fa-shopping-cart" style="color:#3b82f6"></i>
+                        </div>
+                        <div class="store-stat-info">
+                            <span class="store-stat-value" id="store-total-orders">0</span>
+                            <span class="store-stat-label">Orders</span>
+                        </div>
+                    </div>
+                    <div class="store-stat">
+                        <div class="store-stat-icon" style="background:rgba(245,158,11,0.15)">
+                            <i class="fas fa-credit-card" style="color:#f59e0b"></i>
+                        </div>
+                        <div class="store-stat-info">
+                            <span class="store-stat-value" id="store-total-earnings">R0</span>
+                            <span class="store-stat-label">Earnings</span>
+                        </div>
+                    </div>
+                    <div class="store-stat">
+                        <div class="store-stat-icon" style="background:rgba(139,92,246,0.15)">
+                            <i class="fas fa-star" style="color:#8b5cf6"></i>
+                        </div>
+                        <div class="store-stat-info">
+                            <span class="store-stat-value" id="store-avg-rating">0.0</span>
+                            <span class="store-stat-label">Avg Rating</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Store Tabs -->
+                <div class="store-tabs">
+                    <button class="store-tab active" data-tab="products" onclick="switchStoreTab('products')">
+                        <i class="fas fa-box"></i> Products
+                    </button>
+                    <button class="store-tab" data-tab="orders" onclick="switchStoreTab('orders')">
+                        <i class="fas fa-truck"></i> Orders
+                    </button>
+                    <button class="store-tab" data-tab="earnings" onclick="switchStoreTab('earnings')">
+                        <i class="fas fa-chart-line"></i> Earnings
+                    </button>
+                    <button class="store-tab" data-tab="reviews" onclick="switchStoreTab('reviews')">
+                        <i class="fas fa-comments"></i> Reviews
+                    </button>
+                </div>
+
+                <!-- Store Products Tab -->
+                <div class="store-tab-content" id="store-products">
+                    <div class="store-products-header">
+                        <div class="store-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search your products..." id="store-search" oninput="searchStoreProducts()">
+                        </div>
+                        <select id="store-product-filter" onchange="renderStoreProducts()">
+                            <option value="all">All</option>
+                            <option value="active">Active</option>
+                            <option value="draft">Draft</option>
+                            <option value="out-of-stock">Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="store-products-list" id="store-products-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Store Orders Tab -->
+                <div class="store-tab-content" id="store-orders" style="display:none;">
+                    <div class="store-orders-filters">
+                        <button class="order-filter-btn active" data-filter="all" onclick="filterStoreOrders('all')">All</button>
+                        <button class="order-filter-btn" data-filter="pending" onclick="filterStoreOrders('pending')">Pending</button>
+                        <button class="order-filter-btn" data-filter="shipped" onclick="filterStoreOrders('shipped')">Shipped</button>
+                        <button class="order-filter-btn" data-filter="delivered" onclick="filterStoreOrders('delivered')">Delivered</button>
+                        <button class="order-filter-btn" data-filter="cancelled" onclick="filterStoreOrders('cancelled')">Cancelled</button>
+                    </div>
+                    <div class="store-orders-list" id="store-orders-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Store Earnings Tab -->
+                <div class="store-tab-content" id="store-earnings" style="display:none;">
+                    <div class="earnings-summary">
+                        <div class="earnings-card">
+                            <span class="earnings-label">Today</span>
+                            <span class="earnings-value" id="earnings-today">R0</span>
+                        </div>
+                        <div class="earnings-card">
+                            <span class="earnings-label">This Week</span>
+                            <span class="earnings-value" id="earnings-week">R0</span>
+                        </div>
+                        <div class="earnings-card">
+                            <span class="earnings-label">This Month</span>
+                            <span class="earnings-value" id="earnings-month">R0</span>
+                        </div>
+                        <div class="earnings-card">
+                            <span class="earnings-label">Total</span>
+                            <span class="earnings-value" id="earnings-total">R0</span>
+                        </div>
+                    </div>
+                    <div class="earnings-transactions" id="earnings-transactions">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Store Reviews Tab -->
+                <div class="store-tab-content" id="store-reviews" style="display:none;">
+                    <div class="store-reviews-list" id="store-reviews-list">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -3576,6 +3899,81 @@ Tips for a great post:
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cam Host Modal -->
+    <div id="cam-host-modal" class="modal-overlay" style="display: none;" onclick="closeCamHostModal(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-video"></i> Start Cam Show</h2>
+                <button class="modal-close" onclick="closeCamHostModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="cam-host-form">
+                    <div class="cam-host-avatar">
+                        <img src="https://i.pravatar.cc/200?u=cam" alt="">
+                        <span class="cam-host-badge">LIVE</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Show Title *</label>
+                        <input type="text" id="cam-show-title" placeholder="e.g., Private Dance Session" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Show Type *</label>
+                        <select id="cam-show-type">
+                            <option value="private">Private Show (1-on-1)</option>
+                            <option value="group">Group Show</option>
+                            <option value="open">Open / Public</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Price per Minute (R)</label>
+                            <input type="number" id="cam-price" value="15" min="5" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Age Verified</label>
+                            <select id="cam-age-verified">
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="cam-description" rows="2" placeholder="Describe your show..."></textarea>
+                    </div>
+                    <div class="cam-host-note">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>All cam performers must be 18+. Content is subject to community guidelines.</span>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="startCamShow()">
+                        <i class="fas fa-broadcast-tower"></i> Go Live
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Age Verification Modal -->
+    <div id="age-verify-modal" class="modal-overlay" style="display: none;" onclick="closeAgeVerifyModal(event)">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-body">
+                <div style="font-size: 4rem; margin-bottom: var(--spacing-4);">🔞</div>
+                <h2 style="margin-bottom: var(--spacing-2);">Age Verification</h2>
+                <p style="color: var(--text-secondary); margin-bottom: var(--spacing-6);">
+                    This content is for adults 18 and over. Please confirm your age to continue.
+                </p>
+                <button class="btn btn-primary btn-block" onclick="confirmAdult()">
+                    <i class="fas fa-check"></i> I am 18 or older
+                </button>
+                <button class="btn btn-ghost btn-block" onclick="closeAgeVerifyModal()" style="margin-top: var(--spacing-2);">
+                    Go Back
+                </button>
             </div>
         </div>
     </div>

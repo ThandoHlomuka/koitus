@@ -166,7 +166,24 @@ const state = {
     userProfiles: {},
     // Personals classifieds
     personals: [],
-    personalsFilter: 'all'
+    personalsFilter: 'all',
+    // Streams tab filter
+    streamsTab: 'all',
+    // Profiles browser
+    profilesTab: 'all',
+    profilesView: 'grid',
+    profileLikes: {},
+    profileFavourites: [],
+    profileFollowers: {},
+    // Store management
+    store: {
+        products: [],
+        orders: [],
+        earnings: [],
+        reviews: [],
+        tab: 'products',
+        orderFilter: 'all'
+    }
 };
 
 // Simple UUID generator for frontend
@@ -208,12 +225,18 @@ const profileTypes = {
     escort: { label: 'Escort', icon: 'heart', color: '#ef4444' },
     promoter: { label: 'Promoter', icon: 'bullhorn', color: '#f97316' },
     studio: { label: 'Studio', icon: 'building', color: '#3b82f6' },
+    venue: { label: 'Venue Owner', icon: 'map-pin', color: '#14b8a6' },
+    club: { label: 'Club Owner', icon: 'door-open', color: '#a855f7' },
+    vendor: { label: 'Vendor', icon: 'store-alt', color: '#22c55e' },
     seller: { label: 'Seller', icon: 'store', color: '#10b981' },
 
     // Provider Additional Services
     consulting: { label: 'Consulting', icon: 'comments', color: '#14b8a6' },
     training: { label: 'Training', icon: 'chalkboard-teacher', color: '#22c55e' },
-    equipment: { label: 'Equipment', icon: 'camera-retro', color: '#6b7280' }
+    equipment: { label: 'Equipment', icon: 'camera-retro', color: '#6b7280' },
+
+    // Fallback
+    general: { label: 'General', icon: 'user', color: '#6366f1' }
 };
 
 // ==================== SAMPLE DATA ====================
@@ -693,6 +716,7 @@ const sampleStreams = [
         likes: 856,
         category: 'Lifestyle',
         isLive: true,
+        isAdult: false,
         thumbnail: 'https://picsum.photos/seed/WellnessHub/400/300'
     },
     {
@@ -703,6 +727,7 @@ const sampleStreams = [
         likes: 1523,
         category: 'Music',
         isLive: true,
+        isAdult: false,
         thumbnail: 'https://picsum.photos/seed/DJThabo/400/300'
     },
     {
@@ -713,6 +738,7 @@ const sampleStreams = [
         likes: 0,
         category: 'Food',
         isLive: false,
+        isAdult: false,
         scheduled: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
         thumbnail: 'https://picsum.photos/seed/img19/400/300'
     },
@@ -724,8 +750,78 @@ const sampleStreams = [
         likes: 0,
         category: 'Lifestyle',
         isLive: false,
+        isAdult: false,
         scheduled: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         thumbnail: 'https://picsum.photos/seed/img21/400/300'
+    },
+    // Webcamming streams
+    {
+        id: 5,
+        title: 'Private Dance Session 🔥',
+        streamer: { id: 201, name: 'Roxy', image: 'https://picsum.photos/seed/RoxyCam/400/300' },
+        viewers: 3456,
+        likes: 2100,
+        category: 'Webcam',
+        isLive: true,
+        isAdult: true,
+        pricePerMin: 15,
+        ageVerified: true,
+        thumbnail: 'https://picsum.photos/seed/RoxyCam/400/300'
+    },
+    {
+        id: 6,
+        title: 'Late Night Fun 😈',
+        streamer: { id: 202, name: 'Diamond', image: 'https://picsum.photos/seed/DiamondCam/400/300' },
+        viewers: 5231,
+        likes: 3400,
+        category: 'Webcam',
+        isLive: true,
+        isAdult: true,
+        pricePerMin: 20,
+        ageVerified: true,
+        thumbnail: 'https://picsum.photos/seed/DiamondCam/400/300'
+    },
+    {
+        id: 7,
+        title: 'Roleplay & Fantasy',
+        streamer: { id: 203, name: 'Mystique', image: 'https://picsum.photos/seed/MystiqueCam/400/300' },
+        viewers: 1876,
+        likes: 980,
+        category: 'Webcam',
+        isLive: true,
+        isAdult: true,
+        pricePerMin: 25,
+        ageVerified: true,
+        isGroupShow: true,
+        groupPrice: 10,
+        thumbnail: 'https://picsum.photos/seed/MystiqueCam/400/300'
+    },
+    {
+        id: 8,
+        title: 'Couples Cam Show',
+        streamer: { id: 204, name: 'Luna & Max', image: 'https://picsum.photos/seed/CoupleCam/400/300' },
+        viewers: 4210,
+        likes: 2800,
+        category: 'Webcam',
+        isLive: true,
+        isAdult: true,
+        pricePerMin: 30,
+        ageVerified: true,
+        isCouple: true,
+        thumbnail: 'https://picsum.photos/seed/CoupleCam/400/300'
+    },
+    {
+        id: 9,
+        title: 'Massage & Relaxation',
+        streamer: { id: 205, name: 'SensualSage', image: 'https://picsum.photos/seed/SensualSage/400/300' },
+        viewers: 0,
+        likes: 0,
+        category: 'Webcam',
+        isLive: false,
+        isAdult: true,
+        ageVerified: true,
+        scheduled: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+        thumbnail: 'https://picsum.photos/seed/SensualSage/400/300'
     }
 ];
 
@@ -2244,7 +2340,198 @@ function switchView(viewName) {
         case 'personals':
             renderPersonals();
             break;
+        case 'profiles':
+            renderProfiles();
+            break;
+        case 'store':
+            renderStore();
+            break;
     }
+}
+
+// ==================== PROFILES VIEW ====================
+function renderProfiles() {
+    var container = document.getElementById('profiles-container');
+    var emptyState = document.getElementById('profiles-empty-state');
+    if (!container) return;
+
+    var tab = state.profilesTab || 'all';
+    var view = state.profilesView || 'grid';
+
+    var filtered = [...state.profiles];
+
+    if (tab === 'online') {
+        filtered = filtered.filter(function(p) { return p.online; });
+    } else if (tab === 'favourites') {
+        var favIds = state.profileFavourites || [];
+        filtered = filtered.filter(function(p) { return favIds.indexOf(p.id) !== -1; });
+    }
+
+    var accFilter = document.getElementById('profiles-account-filter');
+    if (accFilter && accFilter.value !== 'all') {
+        filtered = filtered.filter(function(p) { return p.accountType === accFilter.value; });
+    }
+
+    var typeFilter = document.getElementById('profiles-type-filter');
+    if (typeFilter && typeFilter.value !== 'all') {
+        filtered = filtered.filter(function(p) { return p.type === typeFilter.value; });
+    }
+
+    var statusFilter = document.getElementById('profiles-status-filter');
+    if (statusFilter && statusFilter.value !== 'all') {
+        var isOnline = statusFilter.value === 'online';
+        filtered = filtered.filter(function(p) { return p.online === isOnline; });
+    }
+
+    var sortFilter = document.getElementById('profiles-sort-filter');
+    if (sortFilter) {
+        var sv = sortFilter.value;
+        if (sv === 'likes') {
+            filtered.sort(function(a, b) { return (b.likes || 0) - (a.likes || 0); });
+        } else if (sv === 'rating') {
+            filtered.sort(function(a, b) { return (b.rating || 0) - (a.rating || 0); });
+        } else {
+            filtered.sort(function(a, b) { return (a.distance || 999) - (b.distance || 999); });
+        }
+    }
+
+    if (filtered.length === 0) {
+        container.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'block';
+        return;
+    }
+
+    container.style.display = view === 'grid' ? 'grid' : 'flex';
+    if (emptyState) emptyState.style.display = 'none';
+    container.className = view === 'grid' ? 'profiles-grid' : 'profiles-list';
+    container.innerHTML = filtered.map(function(p) { return createProfileCard(p, view); }).join('');
+}
+
+function createProfileCard(profile, view) {
+    var typeConfig = profileTypes[profile.type] || profileTypes.general;
+    var isLiked = state.profileLikes && state.profileLikes[profile.id];
+    var isFav = state.profileFavourites && state.profileFavourites.indexOf(profile.id) !== -1;
+    var followerCount = state.profileFollowers && state.profileFollowers[profile.id] ? state.profileFollowers[profile.id].length : Math.floor(Math.random() * 50) + 1;
+
+    if (view === 'list') {
+        return '\
+            <div class="profile-list-card" onclick="openUserProfile(' + profile.id + ')">\
+                <div class="profile-list-avatar">\
+                    <img src="' + profile.image + '" alt="' + profile.name + '">\
+                    <span class="status-dot ' + (profile.online ? 'online' : 'offline') + '"></span>\
+                </div>\
+                <div class="profile-list-info">\
+                    <h4>' + profile.name + ', ' + profile.age + '</h4>\
+                    <div class="profile-list-meta">\
+                        <span class="profile-type-badge" style="background:' + typeConfig.color + '">\
+                            <i class="fas fa-' + typeConfig.icon + '"></i> ' + typeConfig.label + '\
+                        </span>\
+                        <span><i class="fas fa-map-marker-alt"></i> ' + (profile.distance || 'N/A') + 'km</span>\
+                    </div>\
+                </div>\
+                <div class="profile-list-stats">\
+                    <span><i class="fas fa-heart"></i> ' + (profile.likes || 0) + '</span>\
+                    <span><i class="fas fa-users"></i> ' + followerCount + '</span>\
+                </div>\
+                <div class="profile-list-actions">\
+                    <button class="btn btn-icon btn-sm" onclick="event.stopPropagation();toggleProfileLike(' + profile.id + ')" ' + (isLiked ? 'style="color:var(--primary)"' : '') + '>\
+                        <i class="fas fa-heart"></i>\
+                    </button>\
+                    <button class="btn btn-icon btn-sm" onclick="event.stopPropagation();toggleProfileFav(' + profile.id + ')" ' + (isFav ? 'style="color:#f59e0b"' : '') + '>\
+                        <i class="fas fa-star"></i>\
+                    </button>\
+                    <button class="btn btn-icon btn-sm" onclick="event.stopPropagation();followProfile(' + profile.id + ')">\
+                        <i class="fas fa-user-plus"></i>\
+                    </button>\
+                </div>\
+            </div>';
+    }
+
+    return '\
+        <div class="profile-card" onclick="openUserProfile(' + profile.id + ')">\
+            <div class="profile-card-image">\
+                <img src="' + profile.image + '" alt="' + profile.name + '">\
+                <span class="profile-card-status ' + (profile.online ? 'online' : 'offline') + '"></span>\
+                <div class="profile-card-type" style="background:' + typeConfig.color + '">\
+                    <i class="fas fa-' + typeConfig.icon + '"></i> ' + typeConfig.label + '\
+                </div>\
+            </div>\
+            <div class="profile-card-body">\
+                <h4>' + profile.name + ', ' + profile.age + '</h4>\
+                <p class="profile-card-location"><i class="fas fa-map-marker-alt"></i> ' + (profile.distance || 'N/A') + 'km</p>\
+                <div class="profile-card-stats">\
+                    <span><i class="fas fa-heart"></i> ' + (profile.likes || 0) + '</span>\
+                    <span><i class="fas fa-star"></i> ' + (profile.rating || '0.0') + '</span>\
+                    <span><i class="fas fa-users"></i> ' + followerCount + '</span>\
+                </div>\
+                <div class="profile-card-actions">\
+                    <button class="btn btn-sm ' + (isLiked ? 'btn-primary' : 'btn-outline') + '" onclick="event.stopPropagation();toggleProfileLike(' + profile.id + ')">\
+                        <i class="fas fa-heart"></i> ' + (isLiked ? 'Liked' : 'Like') + '\
+                    </button>\
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();followProfile(' + profile.id + ')">\
+                        <i class="fas fa-user-plus"></i> Follow\
+                    </button>\
+                </div>\
+            </div>\
+        </div>';
+}
+
+function switchProfilesTab(tab) {
+    state.profilesTab = tab;
+    document.querySelectorAll('.profiles-tab').forEach(function(t) {
+        t.classList.remove('active');
+        if (t.dataset.tab === tab) t.classList.add('active');
+    });
+    renderProfiles();
+}
+
+function toggleProfilesFilters() {
+    var filters = document.getElementById('profiles-filters');
+    if (filters) filters.style.display = filters.style.display === 'none' ? 'flex' : 'none';
+}
+
+function switchProfilesView() {
+    state.profilesView = state.profilesView === 'grid' ? 'list' : 'grid';
+    var icon = document.getElementById('profiles-view-icon');
+    if (icon) icon.className = state.profilesView === 'grid' ? 'fas fa-list' : 'fas fa-th';
+    renderProfiles();
+}
+
+function toggleProfileLike(profileId) {
+    if (!state.profileLikes) state.profileLikes = {};
+    state.profileLikes[profileId] = !state.profileLikes[profileId];
+    var profile = state.profiles.find(function(p) { return p.id === profileId; });
+    if (profile) profile.likes = (profile.likes || 0) + (state.profileLikes[profileId] ? 1 : -1);
+    renderProfiles();
+    showToast(state.profileLikes[profileId] ? 'Profile liked! ❤️' : 'Like removed');
+}
+
+function toggleProfileFav(profileId) {
+    if (!state.profileFavourites) state.profileFavourites = [];
+    var idx = state.profileFavourites.indexOf(profileId);
+    if (idx === -1) {
+        state.profileFavourites.push(profileId);
+        showToast('Added to favourites ⭐');
+    } else {
+        state.profileFavourites.splice(idx, 1);
+        showToast('Removed from favourites');
+    }
+    renderProfiles();
+}
+
+function followProfile(profileId) {
+    if (!state.profileFollowers) state.profileFollowers = {};
+    if (!state.profileFollowers[profileId]) state.profileFollowers[profileId] = [];
+    var userId = state.currentUser ? state.currentUser.id : 'guest';
+    var idx = state.profileFollowers[profileId].indexOf(userId);
+    if (idx === -1) {
+        state.profileFollowers[profileId].push(userId);
+        showToast('Following this profile! 👍');
+    } else {
+        state.profileFollowers[profileId].splice(idx, 1);
+        showToast('Unfollowed');
+    }
+    renderProfiles();
 }
 
 // ==================== USERS VIEW ====================
@@ -2347,90 +2634,7 @@ function createUserListCard(user) {
     `;
 }
 
-function openUserProfile(userId) {
-    const user = state.profiles.find(p => p.id === userId);
-    if (!user) return;
 
-    state.selectedProfile = user;
-    const isProvider = user.accountType === 'provider';
-
-    // Populate popup (reuse map popup or create new one)
-    const popup = document.getElementById('map-profile-popup');
-    if (popup) {
-        document.getElementById('popup-image').src = user.image;
-        document.getElementById('popup-name').textContent = `${user.name}, ${user.age}`;
-        document.getElementById('popup-location').textContent = user.location;
-        document.getElementById('popup-bio').textContent = user.bio;
-        document.getElementById('popup-type').textContent = profileTypes[user.type]?.label || 'General';
-        document.getElementById('popup-type').style.background = profileTypes[user.type]?.color || '#6366f1';
-        document.getElementById('popup-age').textContent = user.age;
-        document.getElementById('popup-distance').textContent = `${user.distance}km`;
-
-        const interestsHtml = user.interests
-            .map(interest => `<span class="interest-tag">${interest}</span>`)
-            .join('');
-        document.getElementById('popup-interests').innerHTML = interestsHtml;
-
-        // Show provider stats if applicable
-        const providerStatsEl = document.getElementById('popup-provider-stats');
-        if (providerStatsEl) {
-            if (isProvider) {
-                providerStatsEl.style.display = 'block';
-                providerStatsEl.innerHTML = `
-                    <div class="profile-stats-section">
-                        <div class="profile-stat-box">
-                            <span class="profile-stat-number">${user.likes || 0}</span>
-                            <span class="profile-stat-label">Likes</span>
-                        </div>
-                        <div class="profile-stat-box">
-                            <span class="profile-stat-number">${user.fans || 0}</span>
-                            <span class="profile-stat-label">Fans</span>
-                        </div>
-                        <div class="profile-stat-box">
-                            <span class="profile-stat-number">${user.rating || 0}</span>
-                            <span class="profile-stat-label">Rating</span>
-                        </div>
-                    </div>
-                    <div class="profile-rating-section">
-                        <div class="profile-rating-header">
-                            <span class="profile-rating-big">${user.rating || 0}</span>
-                            <div>
-                                <div class="profile-rating-stars">
-                                    ${generateStars(user.rating || 0)}
-                                </div>
-                                <span class="profile-rating-count">${user.reviews || 0} reviews</span>
-                            </div>
-                        </div>
-                        <div class="provider-actions">
-                            <button class="provider-action-btn" onclick="likeProfile(${user.id})">
-                                <i class="fas fa-heart"></i>
-                                <span class="count">${user.likes || 0}</span>
-                                <span>Like</span>
-                            </button>
-                            <button class="provider-action-btn" onclick="fanProfile(${user.id})">
-                                <i class="fas fa-users"></i>
-                                <span class="count">${user.fans || 0}</span>
-                                <span>Fan</span>
-                            </button>
-                            <button class="provider-action-btn" onclick="rateProfile(${user.id})">
-                                <i class="fas fa-star"></i>
-                                <span>Rate</span>
-                            </button>
-                            <button class="provider-action-btn" onclick="reviewProfile(${user.id})">
-                                <i class="fas fa-comment"></i>
-                                <span>Review</span>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } else {
-                providerStatsEl.style.display = 'none';
-            }
-        }
-
-        popup.style.display = 'block';
-    }
-}
 
 function generateStars(rating) {
     const fullStars = Math.floor(rating);
@@ -3305,15 +3509,87 @@ function updateNotificationCounts() {
 function renderProfile() {
     if (!state.currentUser) return;
     
-    document.getElementById('my-profile-name').textContent = `${state.currentUser.name}, ${state.currentUser.age}`;
+    document.getElementById('my-profile-name').textContent = state.currentUser.name + ', ' + state.currentUser.age;
     document.getElementById('my-profile-bio').textContent = state.currentUser.bio;
     
     const interestsContainer = document.getElementById('my-profile-interests');
     if (interestsContainer) {
         interestsContainer.innerHTML = state.currentUser.interests
-            .map(interest => `<span class="interest-tag">${interest}</span>`)
+            .map(interest => '<span class="interest-tag">' + interest + '</span>')
             .join('');
     }
+    
+    // Community Stats
+    var userId = state.currentUser.id;
+    var forumPosts = state.forumPosts.filter(function(p) { return p.author.id === userId; }).length;
+    var forumReplies = Object.values(state.forumReplies || {}).flat().filter(function(r) { return r.author && r.author.id === userId; }).length;
+    var eventsAttended = Math.min(state.events.length, Math.floor(Math.random() * 5) + 1);
+    var clubsJoined = state.clubs.filter(function(c) { return c.members && c.members.includes(state.currentUser.image); }).length;
+    var personalsCount = state.personals.filter(function(a) { return a.postedBy.id === userId; }).length;
+    var productsSold = Math.floor(Math.random() * 10) + 1;
+    
+    var statsHtml = '\
+        <div class="community-stat-item"><div class="community-stat-value">' + forumPosts + '</div><div class="community-stat-label">Forum Posts</div></div>\
+        <div class="community-stat-item"><div class="community-stat-value">' + forumReplies + '</div><div class="community-stat-label">Replies</div></div>\
+        <div class="community-stat-item"><div class="community-stat-value">' + eventsAttended + '</div><div class="community-stat-label">Events Attended</div></div>\
+        <div class="community-stat-item"><div class="community-stat-value">' + clubsJoined + '</div><div class="community-stat-label">Clubs Joined</div></div>\
+        <div class="community-stat-item"><div class="community-stat-value">' + personalsCount + '</div><div class="community-stat-label">Personals Ads</div></div>\
+        <div class="community-stat-item"><div class="community-stat-value">' + productsSold + '</div><div class="community-stat-label">Products Sold</div></div>';
+    
+    var statsContainer = document.getElementById('community-stats');
+    if (statsContainer) statsContainer.innerHTML = statsHtml;
+    
+    // Profile Likes
+    var likesReceived = 156;
+    var likesGiven = 89;
+    var mutualLikes = 34;
+    
+    document.getElementById('likes-received').textContent = likesReceived;
+    document.getElementById('likes-given').textContent = likesGiven;
+    document.getElementById('mutual-likes').textContent = mutualLikes;
+    
+    // Likers (people who liked this profile)
+    var likers = state.profiles.slice(0, 7).map(function(p) {
+        return { id: p.id, name: p.name, image: p.image };
+    });
+    
+    var likersHtml = likers.slice(0, 6).map(function(l) {
+        return '<img src="' + l.image + '" alt="' + l.name + '" class="liker-avatar" title="' + l.name + '" onclick="showToast(\'' + l.name + ' liked your profile!\')">';
+    }).join('');
+    
+    if (likers.length > 6) {
+        likersHtml += '<div class="liker-more" onclick="showToast(\'View all likes coming soon!\')">+' + (likers.length - 6) + '</div>';
+    }
+    
+    var likersContainer = document.getElementById('profile-likers');
+    if (likersContainer) likersContainer.innerHTML = likersHtml;
+    
+    // Achievements
+    var achievements = [
+        { name: 'First Match', icon: '💕', unlocked: true },
+        { name: 'Chat Master', icon: '💬', unlocked: true, progress: 80 },
+        { name: 'Social Butterfly', icon: '🦋', unlocked: true, progress: 60 },
+        { name: 'Event Seeker', icon: '🎉', unlocked: eventsAttended >= 3, progress: Math.min(100, (eventsAttended / 5) * 100) },
+        { name: 'Forum Legend', icon: '📝', unlocked: forumPosts >= 3, progress: Math.min(100, (forumPosts / 5) * 100) },
+        { name: 'Club Member', icon: '🏛️', unlocked: clubsJoined >= 1, progress: clubsJoined > 0 ? 100 : 0 },
+        { name: 'Super Star', icon: '⭐', unlocked: false, progress: 45 },
+        { name: 'Globetrotter', icon: '🌍', unlocked: false, progress: 20 }
+    ];
+    
+    var achievementsHtml = achievements.map(function(a) {
+        var progressBar = a.progress !== undefined
+            ? '<div class="achievement-progress"><div class="achievement-progress-bar" style="width:' + a.progress + '%;background:var(--primary-gradient)"></div></div>'
+            : '';
+        return '\
+            <div class="achievement-item' + (a.unlocked ? '' : ' locked') + '">\
+                <span class="achievement-icon">' + a.icon + '</span>\
+                <span class="achievement-name">' + a.name + '</span>\
+                ' + progressBar + '\
+            </div>';
+    }).join('');
+    
+    var achievementsContainer = document.getElementById('achievements-grid');
+    if (achievementsContainer) achievementsContainer.innerHTML = achievementsHtml;
 }
 
 function editProfile() {
@@ -3699,6 +3975,64 @@ function openUserProfile(userId) {
             .map(interest => `<span class="interest-tag">${interest}</span>`)
             .join('');
         document.getElementById('popup-interests').innerHTML = interestsHtml;
+
+        // Show provider stats if applicable
+        const isProvider = user.accountType === 'provider';
+        const providerStatsEl = document.getElementById('popup-provider-stats');
+        if (providerStatsEl) {
+            if (isProvider) {
+                providerStatsEl.style.display = 'block';
+                providerStatsEl.innerHTML = `
+                    <div class="profile-stats-section">
+                        <div class="profile-stat-box">
+                            <span class="profile-stat-number">${user.likes || 0}</span>
+                            <span class="profile-stat-label">Likes</span>
+                        </div>
+                        <div class="profile-stat-box">
+                            <span class="profile-stat-number">${user.fans || 0}</span>
+                            <span class="profile-stat-label">Fans</span>
+                        </div>
+                        <div class="profile-stat-box">
+                            <span class="profile-stat-number">${user.rating || 0}</span>
+                            <span class="profile-stat-label">Rating</span>
+                        </div>
+                    </div>
+                    <div class="profile-rating-section">
+                        <div class="profile-rating-header">
+                            <span class="profile-rating-big">${user.rating || 0}</span>
+                            <div>
+                                <div class="profile-rating-stars">
+                                    ${generateStars(user.rating || 0)}
+                                </div>
+                                <span class="profile-rating-count">${user.reviews || 0} reviews</span>
+                            </div>
+                        </div>
+                        <div class="provider-actions">
+                            <button class="provider-action-btn" onclick="likeProfile(${user.id})">
+                                <i class="fas fa-heart"></i>
+                                <span class="count">${user.likes || 0}</span>
+                                <span>Like</span>
+                            </button>
+                            <button class="provider-action-btn" onclick="fanProfile(${user.id})">
+                                <i class="fas fa-users"></i>
+                                <span class="count">${user.fans || 0}</span>
+                                <span>Fan</span>
+                            </button>
+                            <button class="provider-action-btn" onclick="rateProfile(${user.id})">
+                                <i class="fas fa-star"></i>
+                                <span>Rate</span>
+                            </button>
+                            <button class="provider-action-btn" onclick="reviewProfile(${user.id})">
+                                <i class="fas fa-comment"></i>
+                                <span>Review</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                providerStatsEl.style.display = 'none';
+            }
+        }
         
         popup.style.display = 'block';
     }
@@ -5497,84 +5831,183 @@ function commentOnActivity(activityId) {
 
 // ==================== STREAMS FUNCTIONS ====================
 function renderStreams() {
-    // Render featured stream
-    const liveStreams = state.streams.filter(s => s.isLive);
-    if (liveStreams.length > 0) {
-        const featured = liveStreams[0];
-        document.getElementById('featured-streamer-img').src = featured.streamer.image;
-        document.getElementById('featured-streamer-name').textContent = featured.streamer.name;
-        document.getElementById('featured-stream-title').textContent = featured.title;
-        document.getElementById('featured-stream-category').textContent = featured.category;
-        document.getElementById('featured-stream-likes').innerHTML = `<i class="fas fa-heart"></i> ${featured.likes}`;
-        document.getElementById('featured-viewers').innerHTML = `<i class="fas fa-eye"></i> ${(featured.viewers / 1000).toFixed(1)}K`;
+    var tab = state.streamsTab || 'all';
+
+    // Filter streams by tab
+    var filtered = state.streams.filter(function(s) {
+        if (tab === 'all') return true;
+        if (tab === 'webcam') return s.category === 'Webcam';
+        return s.category.toLowerCase() === tab;
+    });
+
+    var liveStreams = filtered.filter(function(s) { return s.isLive; });
+    var webcamStreams = state.streams.filter(function(s) { return s.category === 'Webcam' && s.isLive; });
+    var regularLive = liveStreams.filter(function(s) { return s.category !== 'Webcam'; });
+
+    // Show/hide webcam section based on tab
+    var webcamSection = document.getElementById('webcam-section');
+    if (webcamSection) {
+        webcamSection.style.display = (tab === 'all' || tab === 'webcam') ? 'block' : 'none';
     }
 
-    // Render live streams grid
-    const gridContainer = document.getElementById('live-streams-grid');
-    if (gridContainer) {
-        const streamsToShow = liveStreams.slice(1);
-        if (streamsToShow.length === 0) {
-            gridContainer.innerHTML = '<p style="color: var(--text-tertiary);">No other live streams</p>';
+    // Render featured stream
+    var featuredContainer = document.getElementById('featured-stream');
+    if (featuredContainer) {
+        if (liveStreams.length > 0) {
+            var featured = liveStreams[0];
+            document.getElementById('featured-streamer-img').src = featured.streamer.image;
+            document.getElementById('featured-streamer-name').textContent = featured.streamer.name;
+            document.getElementById('featured-stream-title').textContent = featured.title;
+            document.getElementById('featured-stream-category').textContent = featured.category;
+            document.getElementById('featured-stream-likes').innerHTML = '<i class="fas fa-heart"></i> ' + featured.likes;
+            document.getElementById('featured-viewers').innerHTML = '<i class="fas fa-eye"></i> ' + (featured.viewers / 1000).toFixed(1) + 'K';
+            featuredContainer.style.display = 'flex';
         } else {
-            gridContainer.innerHTML = streamsToShow.map(stream => createStreamCard(stream)).join('');
+            featuredContainer.style.display = 'none';
+        }
+    }
+
+    // Render live streams grid (non-webcam or filtered)
+    var gridContainer = document.getElementById('live-streams-grid');
+    if (gridContainer) {
+        var streamsToShow = tab === 'webcam' ? [] : regularLive.slice(0, 6);
+        if (streamsToShow.length === 0 && tab !== 'webcam') {
+            gridContainer.innerHTML = '<p style="color: var(--text-tertiary); padding: var(--spacing-4);">No live streams in this category</p>';
+        } else if (streamsToShow.length > 0) {
+            gridContainer.innerHTML = streamsToShow.map(function(s) { return createStreamCard(s); }).join('');
+        } else {
+            gridContainer.innerHTML = '';
+        }
+    }
+
+    // Render webcam grid
+    var webcamGrid = document.getElementById('webcam-grid');
+    if (webcamGrid) {
+        if (webcamStreams.length === 0) {
+            webcamGrid.innerHTML = '<p style="color: var(--text-tertiary); padding: var(--spacing-4);">No webcam streams live right now</p>';
+        } else {
+            webcamGrid.innerHTML = webcamStreams.map(function(s) { return createWebcamCard(s); }).join('');
         }
     }
 
     // Render upcoming streams
-    const upcomingContainer = document.getElementById('upcoming-streams-list');
+    var upcomingContainer = document.getElementById('upcoming-streams-list');
     if (upcomingContainer) {
-        const upcoming = state.streams.filter(s => !s.isLive && s.scheduled);
+        var upcoming = state.streams.filter(function(s) { return !s.isLive && s.scheduled; });
         if (upcoming.length === 0) {
             upcomingContainer.innerHTML = '<p style="color: var(--text-tertiary);">No upcoming streams scheduled</p>';
         } else {
-            upcomingContainer.innerHTML = upcoming.map(stream => createStreamListItem(stream)).join('');
+            upcomingContainer.innerHTML = upcoming.map(function(s) { return createStreamListItem(s); }).join('');
         }
     }
 }
 
+function switchStreamsTab(tab) {
+    state.streamsTab = tab;
+    document.querySelectorAll('.streams-tab').forEach(function(t) {
+        t.classList.remove('active');
+        if (t.dataset.tab === tab) t.classList.add('active');
+    });
+    renderStreams();
+}
+
 function createStreamCard(stream) {
-    return `
-        <div class="stream-card" onclick="watchStream(${stream.id})">
-            <div class="stream-card-image">
-                <img src="${stream.thumbnail}" alt="${stream.title}">
-                <span class="stream-card-badge">LIVE</span>
-                <span class="stream-card-viewers"><i class="fas fa-eye"></i> ${(stream.viewers / 1000).toFixed(1)}K</span>
-            </div>
-            <div class="stream-card-info">
-                <h4>${stream.title}</h4>
-                <p>${stream.streamer.name}</p>
-            </div>
-        </div>
-    `;
+    return '\
+        <div class="stream-card" onclick="watchStream(' + stream.id + ')">\
+            <div class="stream-card-image">\
+                <img src="' + stream.thumbnail + '" alt="' + stream.title + '">\
+                <span class="stream-card-badge">LIVE</span>\
+                <span class="stream-card-viewers"><i class="fas fa-eye"></i> ' + (stream.viewers / 1000).toFixed(1) + 'K</span>\
+            </div>\
+            <div class="stream-card-info">\
+                <h4>' + stream.title + '</h4>\
+                <p>' + stream.streamer.name + '</p>\
+            </div>\
+        </div>';
+}
+
+function createWebcamCard(stream) {
+    var badgeHtml = '<span class="stream-card-badge adult-badge">18+</span>';
+    var priceHtml = stream.pricePerMin ? '<span class="webcam-price">R' + stream.pricePerMin + '/min</span>' : '';
+
+    return '\
+        <div class="stream-card webcam-card" onclick="watchCamShow(' + stream.id + ')">\
+            <div class="stream-card-image">\
+                <img src="' + stream.thumbnail + '" alt="' + stream.title + '">\
+                ' + badgeHtml + '\
+                <span class="stream-card-viewers"><i class="fas fa-eye"></i> ' + (stream.viewers / 1000).toFixed(1) + 'K</span>\
+                ' + priceHtml + '\
+            </div>\
+            <div class="stream-card-info">\
+                <h4>' + stream.title + '</h4>\
+                <p>' + stream.streamer.name + '</p>\
+                <div class="webcam-meta">\
+                    ' + (stream.isGroupShow ? '<span class="webcam-tag">Group</span>' : '') + '\
+                    ' + (stream.isCouple ? '<span class="webcam-tag">Couple</span>' : '') + '\
+                    ' + (stream.ageVerified ? '<span class="webcam-tag verified">Verified</span>' : '') + '\
+                </div>\
+            </div>\
+        </div>';
 }
 
 function createStreamListItem(stream) {
-    const scheduledDate = new Date(stream.scheduled);
-    const dateStr = scheduledDate.toLocaleDateString('en-ZA', { weekday: 'short', month: 'short', day: 'numeric' });
-    const timeStr = scheduledDate.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+    var scheduledDate = new Date(stream.scheduled);
+    var dateStr = scheduledDate.toLocaleDateString('en-ZA', { weekday: 'short', month: 'short', day: 'numeric' });
+    var timeStr = scheduledDate.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
 
-    return `
-        <div class="stream-list-item" onclick="remindForStream(${stream.id})">
-            <img src="${stream.thumbnail}" alt="${stream.title}">
-            <div class="stream-list-info">
-                <h4>${stream.title}</h4>
-                <p>${stream.streamer.name}</p>
-                <div class="stream-list-meta">
-                    <span><i class="fas fa-calendar"></i> ${dateStr}</span>
-                    <span><i class="fas fa-clock"></i> ${timeStr}</span>
-                </div>
-            </div>
-            <button class="btn btn-sm btn-outline">
-                <i class="fas fa-bell"></i> Remind
-            </button>
-        </div>
-    `;
+    return '\
+        <div class="stream-list-item" onclick="remindForStream(' + stream.id + ')">\
+            <img src="' + stream.thumbnail + '" alt="' + stream.title + '">\
+            <div class="stream-list-info">\
+                <h4>' + stream.title + '</h4>\
+                <p>' + stream.streamer.name + '</p>\
+                <div class="stream-list-meta">\
+                    <span><i class="fas fa-calendar"></i> ' + dateStr + '</span>\
+                    <span><i class="fas fa-clock"></i> ' + timeStr + '</span>\
+                </div>\
+            </div>\
+            <button class="btn btn-sm btn-outline">\
+                <i class="fas fa-bell"></i> Remind\
+            </button>\
+        </div>';
 }
 
 function watchStream(streamId) {
-    const stream = state.streams.find(s => s.id === streamId);
+    var stream = state.streams.find(function(s) { return s.id === streamId; });
     if (stream) {
-        showToast(`Watching: ${stream.title} 📺`);
+        showToast('Watching: ' + stream.title + ' 📺');
+    }
+}
+
+function watchCamShow(streamId) {
+    var stream = state.streams.find(function(s) { return s.id === streamId; });
+    if (!stream) return;
+
+    if (stream.isAdult) {
+        var modal = document.getElementById('age-verify-modal');
+        if (modal) {
+            state.pendingCamStream = stream;
+            modal.style.display = 'flex';
+        }
+        return;
+    }
+    showToast('Watching: ' + stream.title + ' 📹');
+}
+
+function confirmAdult() {
+    closeAgeVerifyModal();
+    var stream = state.pendingCamStream;
+    if (stream) {
+        state.pendingCamStream = null;
+        showToast('Joined ' + stream.streamer.name + '\'s cam show 🔞');
+    }
+}
+
+function closeAgeVerifyModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('age-verify-modal');
+        if (modal) modal.style.display = 'none';
+        state.pendingCamStream = null;
     }
 }
 
@@ -5585,6 +6018,62 @@ function startStream() {
         return;
     }
     showToast('Starting your live stream... 📹');
+}
+
+function showCamHostModal() {
+    if (!state.currentUser) {
+        showToast('Please login to host a cam show 🔐');
+        showLogin();
+        return;
+    }
+    var modal = document.getElementById('cam-host-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeCamHostModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('cam-host-modal');
+        if (modal) modal.style.display = 'none';
+    }
+}
+
+function startCamShow() {
+    var title = document.getElementById('cam-show-title').value.trim();
+    var type = document.getElementById('cam-show-type').value;
+    var price = document.getElementById('cam-price').value;
+    var description = document.getElementById('cam-description').value.trim();
+
+    if (!title) {
+        showToast('Please enter a show title');
+        return;
+    }
+
+    closeCamHostModal();
+    document.getElementById('cam-show-title').value = '';
+    document.getElementById('cam-description').value = '';
+
+    var newStream = {
+        id: Date.now(),
+        title: title + (type === 'private' ? ' 🔒' : type === 'group' ? ' 👥' : ''),
+        streamer: {
+            id: state.currentUser.id || 999,
+            name: state.currentUser.name || 'You',
+            image: state.currentUser.image || 'https://picsum.photos/seed/default/100/100'
+        },
+        viewers: 0,
+        likes: 0,
+        category: 'Webcam',
+        isLive: true,
+        isAdult: true,
+        pricePerMin: parseInt(price) || 15,
+        ageVerified: document.getElementById('cam-age-verified').value === 'yes',
+        isGroupShow: type === 'group',
+        thumbnail: state.currentUser.image || 'https://picsum.photos/seed/default/400/300'
+    };
+
+    state.streams.unshift(newStream);
+    renderStreams();
+    showToast('Your cam show is now live! 🎥');
 }
 
 function likeStream(streamId) {
@@ -6598,6 +7087,311 @@ function purchaseProviderAccess(plan) {
     }, 1500);
 }
 
+// ==================== STORE MANAGEMENT ====================
+function initStoreData() {
+    if (state.store.products.length === 0) {
+        // Copy products from this vendor into store
+        var vendorProducts = state.products.filter(function(p) {
+            return p.seller && p.seller.id === (state.currentUser ? state.currentUser.id : null);
+        });
+        if (vendorProducts.length === 0 && state.products.length > 0) {
+            // If no matching products, take first 3 as sample store products
+            state.store.products = state.products.slice(0, 3).map(function(p) {
+                return { ...p, status: 'active' };
+            });
+        } else {
+            state.store.products = vendorProducts.map(function(p) {
+                return { ...p, status: 'active' };
+            });
+        }
+    }
+    if (state.store.orders.length === 0) {
+        state.store.orders = [
+            { id: 1001, product: 'Luxury Lingerie Set', customer: 'Jessica', date: new Date(Date.now() - 1*86400000), amount: 850, status: 'pending', quantity: 1 },
+            { id: 1002, product: 'Handmade Jewelry Collection', customer: 'Michael', date: new Date(Date.now() - 3*86400000), amount: 650, status: 'shipped', quantity: 2 },
+            { id: 1003, product: 'Professional Photo Shoot', customer: 'Thando', date: new Date(Date.now() - 7*86400000), amount: 2500, status: 'delivered', quantity: 1 },
+            { id: 1004, product: 'Custom Dance Choreography', customer: 'Zanele', date: new Date(Date.now() - 2*86400000), amount: 1500, status: 'pending', quantity: 1 },
+            { id: 1005, product: 'Luxury Lingerie Set', customer: 'Priya', date: new Date(Date.now() - 10*86400000), amount: 850, status: 'delivered', quantity: 1 },
+            { id: 1006, product: 'Handmade Jewelry Collection', customer: 'Sarah', date: new Date(Date.now() - 14*86400000), amount: 1300, status: 'cancelled', quantity: 2 }
+        ];
+    }
+    if (state.store.earnings.length === 0) {
+        state.store.earnings = [
+            { id: 1, amount: 850, date: new Date(Date.now() - 1*86400000), source: 'Luxury Lingerie Set', type: 'sale' },
+            { id: 2, amount: 1300, date: new Date(Date.now() - 3*86400000), source: 'Handmade Jewelry Collection', type: 'sale' },
+            { id: 3, amount: 2500, date: new Date(Date.now() - 7*86400000), source: 'Professional Photo Shoot', type: 'sale' },
+            { id: 4, amount: 1500, date: new Date(Date.now() - 2*86400000), source: 'Custom Dance Choreography', type: 'sale' },
+            { id: 5, amount: 850, date: new Date(Date.now() - 10*86400000), source: 'Luxury Lingerie Set', type: 'sale' }
+        ];
+    }
+    if (state.store.reviews.length === 0) {
+        state.store.reviews = [
+            { id: 1, customer: 'Jessica', rating: 5, text: 'Absolutely gorgeous! Fit perfectly and arrived quickly.', date: new Date(Date.now() - 2*86400000), product: 'Luxury Lingerie Set' },
+            { id: 2, customer: 'Michael', rating: 4, text: 'Beautiful jewelry, great craftsmanship. Would buy again!', date: new Date(Date.now() - 4*86400000), product: 'Handmade Jewelry Collection' },
+            { id: 3, customer: 'Thando', rating: 5, text: 'Sarah was amazing! The photos came out better than expected.', date: new Date(Date.now() - 8*86400000), product: 'Professional Photo Shoot' },
+            { id: 4, customer: 'Zanele', rating: 3, text: 'Good but could have been better. Arrived a bit late.', date: new Date(Date.now() - 3*86400000), product: 'Custom Dance Choreography' }
+        ];
+    }
+}
+
+function renderStore() {
+    if (!state.currentUser) {
+        showToast('Please login to access your store');
+        return;
+    }
+    initStoreData();
+    updateStoreStats();
+    renderStoreProducts();
+    renderStoreOrders();
+    renderStoreEarnings();
+    renderStoreReviews();
+    
+    // Show store nav item for vendors/providers
+    var navStore = document.getElementById('nav-store');
+    if (navStore) {
+        var isVendor = state.currentUser.type === 'vendor' || state.currentUser.type === 'seller' || state.currentUser.accountType === 'provider';
+        navStore.style.display = isVendor ? 'flex' : 'none';
+    }
+}
+
+function updateStoreStats() {
+    document.getElementById('store-total-products').textContent = state.store.products.length;
+    document.getElementById('store-total-orders').textContent = state.store.orders.length;
+    
+    var totalEarnings = state.store.earnings.reduce(function(sum, e) { return sum + e.amount; }, 0);
+    document.getElementById('store-total-earnings').textContent = 'R' + totalEarnings;
+    
+    var avgRating = state.store.reviews.length > 0
+        ? (state.store.reviews.reduce(function(sum, r) { return sum + r.rating; }, 0) / state.store.reviews.length).toFixed(1)
+        : '0.0';
+    document.getElementById('store-avg-rating').textContent = avgRating;
+    document.getElementById('store-orders-count').textContent = state.store.orders.filter(function(o) { return o.status === 'pending'; }).length;
+}
+
+function switchStoreTab(tab) {
+    state.store.tab = tab;
+    document.querySelectorAll('.store-tab').forEach(function(t) {
+        t.classList.remove('active');
+        if (t.dataset.tab === tab) t.classList.add('active');
+    });
+    document.querySelectorAll('.store-tab-content').forEach(function(c) {
+        c.style.display = 'none';
+    });
+    var target = document.getElementById('store-' + tab);
+    if (target) target.style.display = 'block';
+}
+
+function renderStoreProducts() {
+    var container = document.getElementById('store-products-list');
+    if (!container) return;
+
+    var filter = document.getElementById('store-product-filter');
+    var filterVal = filter ? filter.value : 'all';
+    var searchQuery = document.getElementById('store-search');
+    var query = searchQuery ? searchQuery.value.toLowerCase() : '';
+
+    var filtered = state.store.products.filter(function(p) {
+        if (filterVal !== 'all' && p.status !== filterVal) return false;
+        if (query && p.name.toLowerCase().indexOf(query) === -1) return false;
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = '\
+            <div class="store-empty">\
+                <i class="fas fa-box-open"></i>\
+                <h3>No Products Found</h3>\
+                <p>Add your first product to start selling!</p>\
+                <button class="btn btn-primary" onclick="showAddProductModal()">\
+                    <i class="fas fa-plus"></i> Add Product\
+                </button>\
+            </div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(function(p) {
+        var statusColor = p.status === 'active' ? 'var(--success)' : p.status === 'draft' ? 'var(--text-muted)' : 'var(--error)';
+        return '\
+            <div class="store-product-item">\
+                <div class="store-product-image">\
+                    <img src="' + (p.images ? p.images[0] : 'https://picsum.photos/seed/' + p.id + '/100/100') + '" alt="' + p.name + '">\
+                </div>\
+                <div class="store-product-info">\
+                    <h4>' + p.name + '</h4>\
+                    <span class="store-product-category">' + p.category + '</span>\
+                    <div class="store-product-meta">\
+                        <span><i class="fas fa-shopping-cart"></i> ' + (p.sold || 0) + ' sold</span>\
+                        <span><i class="fas fa-star"></i> ' + (p.rating || 0) + '</span>\
+                        <span><i class="fas fa-box"></i> ' + (p.stock || 0) + ' in stock</span>\
+                    </div>\
+                </div>\
+                <div class="store-product-price">\
+                    <span class="price-current">R' + p.price + '</span>\
+                    ' + (p.originalPrice ? '<span class="price-original">R' + p.originalPrice + '</span>' : '') + '\
+                </div>\
+                <div class="store-product-status" style="color:' + statusColor + '">' + (p.status || 'active') + '</div>\
+                <div class="store-product-actions">\
+                    <button class="btn btn-icon btn-sm" onclick="editStoreProduct(' + p.id + ')" title="Edit"><i class="fas fa-edit"></i></button>\
+                    <button class="btn btn-icon btn-sm" onclick="deleteStoreProduct(' + p.id + ')" title="Delete" style="color:var(--error)"><i class="fas fa-trash"></i></button>\
+                    <button class="btn btn-icon btn-sm" onclick="toggleProductStatus(' + p.id + ')" title="Toggle Status"><i class="fas ' + (p.status === 'active' ? 'fa-pause' : 'fa-play') + '"></i></button>\
+                </div>\
+            </div>';
+    }).join('');
+}
+
+function searchStoreProducts() {
+    renderStoreProducts();
+}
+
+function editStoreProduct(id) {
+    showToast('Edit product feature coming soon! ✏️');
+}
+
+function deleteStoreProduct(id) {
+    if (!confirm('Delete this product?')) return;
+    state.store.products = state.store.products.filter(function(p) { return p.id !== id; });
+    state.products = state.products.filter(function(p) { return p.id !== id; });
+    renderStoreProducts();
+    updateStoreStats();
+    showToast('Product deleted');
+}
+
+function toggleProductStatus(id) {
+    var product = state.store.products.find(function(p) { return p.id === id; });
+    if (product) {
+        product.status = product.status === 'active' ? 'draft' : 'active';
+        renderStoreProducts();
+    }
+}
+
+function renderStoreOrders() {
+    var container = document.getElementById('store-orders-list');
+    if (!container) return;
+
+    var filter = state.store.orderFilter || 'all';
+    var filtered = filter === 'all' ? state.store.orders : state.store.orders.filter(function(o) { return o.status === filter; });
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="store-empty"><i class="fas fa-truck"></i><h3>No Orders</h3><p>' + (filter === 'all' ? 'You haven\'t received any orders yet' : 'No ' + filter + ' orders') + '</p></div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(function(o) {
+        var statusColor = o.status === 'delivered' ? 'var(--success)' : o.status === 'shipped' ? '#3b82f6' : o.status === 'cancelled' ? 'var(--error)' : '#f59e0b';
+        return '\
+            <div class="store-order-item">\
+                <div class="store-order-header">\
+                    <span class="store-order-id">#' + o.id + '</span>\
+                    <span class="store-order-status" style="color:' + statusColor + '">' + o.status.charAt(0).toUpperCase() + o.status.slice(1) + '</span>\
+                </div>\
+                <div class="store-order-body">\
+                    <div class="store-order-product">' + o.product + '</div>\
+                    <div class="store-order-customer"><i class="fas fa-user"></i> ' + o.customer + '</div>\
+                    <div class="store-order-qty">Qty: ' + o.quantity + '</div>\
+                    <div class="store-order-amount">R' + (o.amount * o.quantity) + '</div>\
+                    <div class="store-order-date">' + o.date.toLocaleDateString() + '</div>\
+                </div>\
+                <div class="store-order-actions">\
+                    ' + (o.status === 'pending' ? '<button class="btn btn-sm btn-success" onclick="updateOrderStatus(' + o.id + ',\'shipped\')"><i class="fas fa-shipping-fast"></i> Ship</button>' : '') + '\
+                    ' + (o.status === 'shipped' ? '<button class="btn btn-sm btn-primary" onclick="updateOrderStatus(' + o.id + ',\'delivered\')"><i class="fas fa-check"></i> Confirm Delivery</button>' : '') + '\
+                    ' + (o.status === 'pending' ? '<button class="btn btn-sm btn-ghost" onclick="updateOrderStatus(' + o.id + ',\'cancelled\')" style="color:var(--error)"><i class="fas fa-times"></i></button>' : '') + '\
+                </div>\
+            </div>';
+    }).join('');
+}
+
+function filterStoreOrders(filter) {
+    state.store.orderFilter = filter;
+    document.querySelectorAll('.order-filter-btn').forEach(function(b) {
+        b.classList.remove('active');
+        if (b.dataset.filter === filter) b.classList.add('active');
+    });
+    renderStoreOrders();
+}
+
+function updateOrderStatus(orderId, newStatus) {
+    var order = state.store.orders.find(function(o) { return o.id === orderId; });
+    if (order) {
+        order.status = newStatus;
+        renderStoreOrders();
+        updateStoreStats();
+        showToast('Order updated to ' + newStatus + ' ✓');
+    }
+}
+
+function renderStoreEarnings() {
+    var earnings = state.store.earnings;
+    
+    var today = earnings.filter(function(e) {
+        return e.date.toDateString() === new Date().toDateString();
+    }).reduce(function(s, e) { return s + e.amount; }, 0);
+    
+    var weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    var thisWeek = earnings.filter(function(e) {
+        return e.date >= weekStart;
+    }).reduce(function(s, e) { return s + e.amount; }, 0);
+    
+    var monthStart = new Date();
+    monthStart.setDate(1);
+    var thisMonth = earnings.filter(function(e) {
+        return e.date >= monthStart;
+    }).reduce(function(s, e) { return s + e.amount; }, 0);
+    
+    var total = earnings.reduce(function(s, e) { return s + e.amount; }, 0);
+    
+    document.getElementById('earnings-today').textContent = 'R' + today;
+    document.getElementById('earnings-week').textContent = 'R' + thisWeek;
+    document.getElementById('earnings-month').textContent = 'R' + thisMonth;
+    document.getElementById('earnings-total').textContent = 'R' + total;
+    
+    var listContainer = document.getElementById('earnings-transactions');
+    if (listContainer) {
+        if (earnings.length === 0) {
+            listContainer.innerHTML = '<div class="store-empty"><i class="fas fa-chart-line"></i><h3>No Earnings Yet</h3></div>';
+        } else {
+            listContainer.innerHTML = earnings.sort(function(a, b) { return b.date - a.date; }).map(function(e) {
+                return '\
+                    <div class="earnings-transaction">\
+                        <div class="earnings-tx-icon"><i class="fas fa-arrow-down" style="color:var(--success)"></i></div>\
+                        <div class="earnings-tx-info">\
+                            <span class="earnings-tx-source">' + e.source + '</span>\
+                            <span class="earnings-tx-date">' + e.date.toLocaleDateString() + '</span>\
+                        </div>\
+                        <span class="earnings-tx-amount" style="color:var(--success)">+R' + e.amount + '</span>\
+                    </div>';
+            }).join('');
+        }
+    }
+}
+
+function renderStoreReviews() {
+    var container = document.getElementById('store-reviews-list');
+    if (!container) return;
+    
+    if (state.store.reviews.length === 0) {
+        container.innerHTML = '<div class="store-empty"><i class="fas fa-comments"></i><h3>No Reviews Yet</h3></div>';
+        return;
+    }
+    
+    container.innerHTML = state.store.reviews.map(function(r) {
+        var stars = '';
+        for (var i = 0; i < 5; i++) {
+            stars += '<i class="fas fa-star" style="color:' + (i < r.rating ? '#f59e0b' : 'var(--border-light)') + '"></i>';
+        }
+        return '\
+            <div class="store-review-item">\
+                <div class="store-review-header">\
+                    <strong>' + r.customer + '</strong>\
+                    <span class="store-review-stars">' + stars + '</span>\
+                    <span class="store-review-date">' + r.date.toLocaleDateString() + '</span>\
+                </div>\
+                <p class="store-review-product">on <em>' + r.product + '</em></p>\
+                <p class="store-review-text">"' + r.text + '"</p>\
+            </div>';
+    }).join('');
+}
+
 // ==================== PRODUCTS FUNCTIONS ====================
 function renderProducts() {
     const container = document.getElementById('products-grid');
@@ -7168,69 +7962,12 @@ function renderPricing() {
     var container = document.getElementById('pricing-container');
     if (!container) return;
 
-    var plans = [
-        {
-            name: 'Free',
-            price: 0,
-            annualPrice: 0,
-            icon: 'fa-user',
-            color: '#6b7280',
-            features: [
-                'Basic profile',
-                'Browse users',
-                'Send 10 messages/day',
-                'Standard matching'
-            ],
-            cta: 'Current Plan',
-            ctaClass: 'btn-outline',
-            highlight: false
-        },
-        {
-            name: 'Premium',
-            price: 149,
-            annualPrice: 1199,
-            icon: 'fa-crown',
-            color: '#f59e0b',
-            features: [
-                'Unlimited messages',
-                'Advanced filters',
-                'See who liked you',
-                'Read receipts',
-                'Ad-free experience',
-                'Priority support'
-            ],
-            cta: 'Get Premium',
-            ctaClass: 'btn-primary',
-            highlight: true
-        },
-        {
-            name: 'VIP',
-            price: 449,
-            annualPrice: 3999,
-            icon: 'fa-gem',
-            color: '#8b5cf6',
-            features: [
-                'Everything in Premium',
-                'Profile boost',
-                'Incognito mode',
-                'Verified badge',
-                'Early access to features',
-                'Dedicated account manager'
-            ],
-            cta: 'Go VIP',
-            ctaClass: 'btn-success',
-            highlight: false
-        }
-    ];
-
     var priceSuffix = pricingAnnual ? '/yr' : '/mo';
-    var html = '<div class="pricing-grid">';
 
-    plans.forEach(function(plan) {
+    function planCard(plan) {
         var priceVal = pricingAnnual ? plan.annualPrice : plan.price;
         var displayPrice = priceVal === 0 ? 'Free' : 'R' + priceVal;
-
-        html += '\
+        return '\
             <div class="pricing-card' + (plan.highlight ? ' pricing-card-highlighted' : '') + '">\
                 ' + (plan.highlight ? '<div class="pricing-badge">Most Popular</div>' : '') + '\
                 <div class="pricing-card-header">\
@@ -7252,9 +7989,79 @@ function renderPricing() {
                     ' + plan.cta + '\
                 </button>\
             </div>';
-    });
+    }
 
+    var html = '';
+
+    // Users section
+    html += '<div class="pricing-section-header"><h2><i class="fas fa-user"></i> Users</h2><p>Plans for browsing, connecting, and dating</p></div>';
+    html += '<div class="pricing-grid">';
+    var userPlans = [
+        {
+            name: 'Free', price: 0, annualPrice: 0, icon: 'fa-user', color: '#6b7280',
+            features: ['Basic profile', 'Browse users', 'Send 10 messages/day', 'Standard matching'],
+            cta: 'Current Plan', ctaClass: 'btn-outline', highlight: false
+        },
+        {
+            name: 'Premium', price: 149, annualPrice: 1199, icon: 'fa-crown', color: '#f59e0b',
+            features: ['Unlimited messages', 'Advanced filters', 'See who liked you', 'Read receipts', 'Ad-free experience', 'Priority support'],
+            cta: 'Get Premium', ctaClass: 'btn-primary', highlight: true
+        },
+        {
+            name: 'VIP', price: 449, annualPrice: 3999, icon: 'fa-gem', color: '#8b5cf6',
+            features: ['Everything in Premium', 'Profile boost', 'Incognito mode', 'Verified badge', 'Early access to features', 'Dedicated account manager'],
+            cta: 'Go VIP', ctaClass: 'btn-success', highlight: false
+        }
+    ];
+    userPlans.forEach(function(p) { html += planCard(p); });
     html += '</div>';
+
+    // Service Providers section
+    html += '<div class="pricing-section-header" style="margin-top:var(--spacing-8)"><h2><i class="fas fa-briefcase"></i> Service Providers</h2><p>Plans for content creators, models, dancers, escorts, promoters, studios</p></div>';
+    html += '<div class="pricing-grid">';
+    var providerPlans = [
+        {
+            name: 'Starter', price: 299, annualPrice: 2999, icon: 'fa-rocket', color: '#3b82f6',
+            features: ['Service profile', 'Offer up to 5 services', 'Basic analytics', 'Standard visibility'],
+            cta: 'Get Started', ctaClass: 'btn-outline', highlight: false
+        },
+        {
+            name: 'Professional', price: 599, annualPrice: 5999, icon: 'fa-star', color: '#8b5cf6',
+            features: ['Enhanced profile', 'Unlimited services', 'Full analytics', 'Priority visibility', 'Promotional tools', 'Direct bookings'],
+            cta: 'Go Pro', ctaClass: 'btn-primary', highlight: true
+        },
+        {
+            name: 'Elite', price: 999, annualPrice: 9999, icon: 'fa-crown', color: '#f59e0b',
+            features: ['Everything in Professional', 'Featured listing', 'Dedicated support', 'Verified badge', 'API access', 'Revenue insights'],
+            cta: 'Go Elite', ctaClass: 'btn-success', highlight: false
+        }
+    ];
+    providerPlans.forEach(function(p) { html += planCard(p); });
+    html += '</div>';
+
+    // Venue / Club Owners section
+    html += '<div class="pricing-section-header" style="margin-top:var(--spacing-8)"><h2><i class="fas fa-map-pin"></i> Venue / Club Owners</h2><p>Plans for venues, clubs, and event spaces</p></div>';
+    html += '<div class="pricing-grid">';
+    var venuePlans = [
+        {
+            name: 'Venue Basic', price: 499, annualPrice: 4999, icon: 'fa-building', color: '#14b8a6',
+            features: ['Venue profile page', 'Post events', 'Basic event analytics', 'Standard support'],
+            cta: 'Get Basic', ctaClass: 'btn-outline', highlight: false
+        },
+        {
+            name: 'Venue Plus', price: 899, annualPrice: 8999, icon: 'fa-door-open', color: '#a855f7',
+            features: ['Featured venue listing', 'Unlimited events', 'Ticket integration', 'Promotional boosts', 'Full analytics', 'Priority support'],
+            cta: 'Get Plus', ctaClass: 'btn-primary', highlight: true
+        },
+        {
+            name: 'Venue Pro', price: 1499, annualPrice: 14999, icon: 'fa-gem', color: '#ef4444',
+            features: ['Everything in Plus', 'Homepage spotlight', 'Dedicated account manager', 'Cross-promotion', 'API access', 'Custom branding'],
+            cta: 'Go Pro', ctaClass: 'btn-success', highlight: false
+        }
+    ];
+    venuePlans.forEach(function(p) { html += planCard(p); });
+    html += '</div>';
+
     container.innerHTML = html;
 }
 

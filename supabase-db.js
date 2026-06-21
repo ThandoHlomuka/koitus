@@ -774,20 +774,24 @@ async function loadAllData() {
         }
     } catch (e) {}
 
-    // Load all data in parallel
-    await Promise.all([
-        ProfileDB.getAll().catch(function() {}),
-        ForumDB.getPosts('all').catch(function() {}),
-        DirectoryDB.getAll().catch(function() {}),
-        ProductDB.getAll().catch(function() {}),
-        EventDB.getAll().catch(function() {}),
-        PersonalsDB.getAll().catch(function() {}),
-        StreamsDB.getAll().catch(function() {}),
-        ClubsDB.getAll().catch(function() {})
-    ]);
+    // Track what loaded
+    var loaded = { profiles: 0, forum: 0, directory: 0, products: 0, events: 0 };
 
-    // If no data loaded, try localStorage fallback
-    if (state.directory.listings.length === 0 || state.forumPosts.length === 0) {
+    try { var p = await ProfileDB.getAll(); loaded.profiles = p ? p.length : 0; } catch(e) { loaded.profiles = -1; }
+    try { var f = await ForumDB.getPosts('all'); loaded.forum = f ? f.length : 0; } catch(e) { loaded.forum = -1; }
+    try { var d = await DirectoryDB.getAll(); loaded.directory = d ? d.length : 0; } catch(e) { loaded.directory = -1; }
+    try { var pr = await ProductDB.getAll(); loaded.products = pr ? pr.length : 0; } catch(e) { loaded.products = -1; }
+    try { var ev = await EventDB.getAll(); loaded.events = ev ? ev.length : 0; } catch(e) { loaded.events = -1; }
+    try { await PersonalsDB.getAll(); } catch(e) {}
+    try { await StreamsDB.getAll(); } catch(e) {}
+    try { await ClubsDB.getAll(); } catch(e) {}
+
+    console.log('📊 Supabase load results:', loaded);
+
+    // If no data loaded from Supabase (fresh project or tables missing), fall back
+    var hasData = loaded.profiles > 0 || loaded.forum > 0 || loaded.directory > 0 || loaded.products > 0 || loaded.events > 0;
+    if (!hasData) {
+        console.log('📂 No data from Supabase — loading from localStorage/samples');
         loadUserData();
         loadSampleData();
     }

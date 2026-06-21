@@ -1,0 +1,43 @@
+# Supabase Configuration
+# Generated for project: bxzdfegumzvzaqnhixwy
+
+[project]
+project_id = "bxzdfegumzvzaqnhixwy"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[email]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "https://koitus.vercel.app"
+additional_redirect_urls = ["https://koitus.vercel.app/*"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_confirmations = false
+enable_autoconfirm = true
+
+[storage]
+enabled = true
+file_size_limit = 52428800
+
+[storage.buckets.media]
+public = true
+file_size_limit = 52428800
+allowed_mime_types = ["image/*", "video/*", "audio/*", "application/pdf"]

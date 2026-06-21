@@ -1516,6 +1516,10 @@ function initializeApp() {
     // Boot via Supabase (loads from cloud or falls back to localStorage)
     bootstrapSupabase().then(function() {
         updateNavVisibility();
+        // Re-render current view now that data is loaded
+        if (state.currentView) {
+            switchView(state.currentView);
+        }
         if (state.currentUser?.isAdmin || state.currentUser?.role === 'admin') {
             setTimeout(function() {
                 showAdminDashboard();
@@ -2265,6 +2269,8 @@ function showMainApp() {
             showAdminFeatures();
         }
     }
+
+    switchView('discover');
 }
 
 // Show admin-only features
@@ -2410,6 +2416,9 @@ function switchView(viewName) {
                 break;
             case 'directory':
                 renderDirectory();
+                break;
+            case 'settings':
+                // Static HTML — no dynamic render needed
                 break;
         }
     } catch (e) {

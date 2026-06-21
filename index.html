@@ -938,6 +938,23 @@
             </div>
         </aside>
 
+        <!-- Mobile Header Bar -->
+        <div class="mobile-header" id="mobile-header">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="mobile-header-logo">
+                <div class="logo-icon"><i class="fas fa-heart"></i></div>
+                <span class="logo-text">Koitus</span>
+            </div>
+            <button class="mobile-menu-btn" onclick="showLogin()">
+                <i class="fas fa-user"></i>
+            </button>
+        </div>
+
+        <!-- Mobile sidebar overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
         <!-- Main Content -->
         <main class="app-main">
             <!-- Users View -->

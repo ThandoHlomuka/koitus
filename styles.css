@@ -2197,6 +2197,8 @@ select:disabled {
     display: flex;
     flex-direction: column;
     position: relative;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .chat-placeholder {
@@ -2232,6 +2234,7 @@ select:disabled {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
 }
 
 .chat-header {
@@ -3327,6 +3330,16 @@ select:disabled {
     color: var(--primary);
 }
 
+/* Mobile Header (hidden on desktop) */
+.mobile-header {
+    display: none;
+}
+
+/* Sidebar Overlay (hidden on desktop) */
+.sidebar-overlay {
+    display: none;
+}
+
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 1024px) {
     .messages-layout {
@@ -3344,9 +3357,56 @@ select:disabled {
 }
 
 @media (max-width: 768px) {
+    .mobile-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--spacing-3) var(--spacing-4);
+        background: var(--bg-primary);
+        border-bottom: 1px solid var(--border-light);
+        position: sticky;
+        top: 0;
+        z-index: 40;
+    }
+
+    .mobile-menu-btn {
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        padding: var(--spacing-2);
+        cursor: pointer;
+    }
+
+    .mobile-header-logo {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-2);
+        font-weight: 700;
+        font-size: 1.125rem;
+        color: var(--primary);
+    }
+
+    .mobile-header-logo .logo-icon {
+        font-size: 1.25rem;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 49;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+
     .sidebar {
         transform: translateX(-100%);
         transition: transform var(--transition-slow);
+        z-index: 51;
     }
 
     .sidebar.active {

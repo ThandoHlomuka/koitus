@@ -1954,8 +1954,25 @@ function showAdminFeatures() {
 }
 
 // ==================== NAVIGATION ====================
+function toggleSidebar() {
+    var sidebar = document.querySelector('.sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) {
+        sidebar.classList.toggle('active');
+        if (overlay) overlay.classList.toggle('active');
+    }
+}
+
 function switchView(viewName) {
     state.currentView = viewName;
+    
+    // Close sidebar on mobile
+    var sidebar = document.querySelector('.sidebar');
+    if (sidebar && sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+        var overlay = document.getElementById('sidebar-overlay');
+        if (overlay) overlay.classList.remove('active');
+    }
     
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => {

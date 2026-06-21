@@ -14,7 +14,13 @@
     try {
         if (typeof process !== 'undefined' && process.env && process.env.SUPABASE_URL) {
             localStorage.setItem('supabase_url', process.env.SUPABASE_URL);
-            localStorage.setItem('supabase_anon_key', process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+            localStorage.setItem('supabase_anon_key', process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+        }
+    } catch(e) {}
+    // Detect publishable key (new Supabase key format)
+    try {
+        if (typeof __SUPABASE_PUBLISHABLE_KEY !== 'undefined') {
+            localStorage.setItem('supabase_anon_key', __SUPABASE_PUBLISHABLE_KEY);
         }
     } catch(e) {}
 })();
@@ -34,9 +40,13 @@ function getSupabaseUrl() {
 
 function getSupabaseAnonKey() {
     var key = localStorage.getItem('supabase_anon_key');
-    if (!key && window.__supabaseConfig && window.__supabaseConfig.supabaseAnonKey) {
-        key = window.__supabaseConfig.supabaseAnonKey;
-        localStorage.setItem('supabase_anon_key', key);
+    if (!key && window.__supabaseConfig) {
+        key = window.__supabaseConfig.supabaseAnonKey || window.__supabaseConfig.supabasePublishableKey;
+        if (key) localStorage.setItem('supabase_anon_key', key);
+    }
+    if (!key) {
+        key = localStorage.getItem('supabase_publishable_key');
+        if (key) localStorage.setItem('supabase_anon_key', key);
     }
     return key;
 }

@@ -4906,6 +4906,9 @@ Tips for a great post:
                     window.__supabaseConfig = cfg;
                     localStorage.setItem('supabase_url', cfg.supabaseUrl);
                     localStorage.setItem('supabase_anon_key', cfg.supabaseAnonKey);
+                    if (cfg.supabasePublishableKey) {
+                        localStorage.setItem('supabase_publishable_key', cfg.supabasePublishableKey);
+                    }
                     console.log('☁️ Supabase config loaded from Vercel env');
                 }
             }).catch(function() {

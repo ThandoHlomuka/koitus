@@ -159,6 +159,8 @@ const state = {
     userClubs: [],
     // Emoji picker
     emojiPickerOpen: false,
+    // AI Ice Breakers
+    enableIcebreakers: true,
     // User profiles storage
     userProfiles: {}
 };
@@ -2670,7 +2672,23 @@ function renderMessages() {
     if (!messagesContainer || !state.currentChat) return;
 
     messagesContainer.innerHTML = state.currentChat.messages.map(msg => {
-        const bubbleText = parseEmoji(msg.text);
+        var bubbleContent = '';
+        if (msg.attachment) {
+            if (msg.attachment.isImage) {
+                bubbleContent = '<div class="msg-attachment"><img src="' + msg.attachment.data + '" alt="' + msg.attachment.name + '" class="msg-attach-image" onclick="window.open(\'' + msg.attachment.data + '\')"><div class="msg-attach-name"><i class="fas fa-image"></i> ' + msg.attachment.name + '</div></div>';
+            } else {
+                var icon = 'fa-file';
+                if (msg.attachment.type.includes('pdf')) icon = 'fa-file-pdf';
+                else if (msg.attachment.type.includes('word') || msg.attachment.type.includes('doc')) icon = 'fa-file-word';
+                else if (msg.attachment.type.includes('zip')) icon = 'fa-file-archive';
+                else if (msg.attachment.type.includes('audio')) icon = 'fa-file-audio';
+                else if (msg.attachment.type.includes('video')) icon = 'fa-file-video';
+                bubbleContent = '<div class="msg-attachment"><div class="msg-attach-file" onclick="downloadAttachment(\'' + msg.attachment.name + '\',\'' + msg.attachment.data + '\')"><i class="fas ' + icon + '"></i><div class="msg-attach-info"><span class="msg-attach-filename">' + msg.attachment.name + '</span><span class="msg-attach-size">' + msg.attachment.size + '</span></div></div></div>';
+            }
+        }
+        if (msg.text) {
+            bubbleContent = parseEmoji(msg.text) + bubbleContent;
+        }
         return `
         <div class="message ${msg.sent ? 'sent' : 'received'}"${msg.id ? ` data-msg-id="${msg.id}"` : ''}>
             ${!msg.sent ? `
@@ -2679,7 +2697,7 @@ function renderMessages() {
                 </div>
             ` : ''}
             <div class="message-content">
-                <div class="message-bubble">${bubbleText}</div>
+                <div class="message-bubble">${bubbleContent}</div>
                 <div class="message-meta">
                     <span class="message-time">${msg.time}</span>
                     ${msg.sent ? `
@@ -2936,6 +2954,11 @@ function startChat(profileId) {
 }
 
 function toggleIceBreakers() {
+    if (!state.enableIcebreakers) {
+        showToast('AI Ice Breakers are disabled. Enable them in the chat menu.');
+        return;
+    }
+    
     const panel = document.getElementById('ice-breakers-panel');
     const suggestionsContainer = document.getElementById('ice-breakers-suggestions');
     
@@ -2960,13 +2983,100 @@ function toggleIceBreakers() {
     }
 }
 
+function toggleIceBreakersSetting() {
+    state.enableIcebreakers = !state.enableIcebreakers;
+    var text = document.getElementById('icebreakers-menu-text');
+    var magicBtn = document.querySelector('.chat-actions .btn-icon[onclick="toggleIceBreakers()"]');
+    if (text) {
+        text.textContent = 'AI Ice Breakers: ' + (state.enableIcebreakers ? 'On' : 'Off');
+    }
+    if (magicBtn) {
+        magicBtn.style.display = state.enableIcebreakers ? '' : 'none';
+    }
+    // Close panel if disabled
+    if (!state.enableIcebreakers) {
+        var panel = document.getElementById('ice-breakers-panel');
+        if (panel) panel.style.display = 'none';
+    }
+    // Close the more menu
+    var menu = document.getElementById('chat-more-menu');
+    if (menu) menu.style.display = 'none';
+    showToast('AI Ice Breakers ' + (state.enableIcebreakers ? 'enabled' : 'disabled'));
+}
+
 function useIceBreaker(text) {
     document.getElementById('message-input').value = text;
     toggleIceBreakers();
 }
 
 function attachFile() {
-    showNotification('File attachment coming soon!', 'info');
+    if (!state.currentChat) {
+        showToast('Open a conversation first', 'warning');
+        return;
+    }
+    var input = document.getElementById('file-attach-input');
+    if (!input) {
+        input = document.createElement('input');
+        input.id = 'file-attach-input';
+        input.type = 'file';
+        input.accept = 'image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,.zip,.mp3,.mp4,.mov';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+        input.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            handleFileAttachment(file);
+            input.value = '';
+        });
+    }
+    input.click();
+}
+
+function downloadAttachment(name, data) {
+    var a = document.createElement('a');
+    a.href = data;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function handleFileAttachment(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var data = e.target.result;
+        var isImage = file.type.startsWith('image/');
+        var fileSize = (file.size / 1024).toFixed(1);
+        
+        var msg = {
+            id: 'msg-' + Date.now(),
+            text: '',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            sent: true,
+            delivered: true,
+            read: false,
+            attachment: {
+                name: file.name,
+                size: fileSize + ' KB',
+                type: file.type,
+                data: data,
+                isImage: isImage
+            }
+        };
+        
+        if (state.currentChat) {
+            state.currentChat.messages.push(msg);
+            state.currentChat.lastMessage = '📎 ' + file.name;
+            renderMessages();
+            renderConversations();
+        }
+    };
+    
+    if (file.type.startsWith('image/')) {
+        reader.readAsDataURL(file);
+    } else {
+        reader.readAsDataURL(file);
+    }
 }
 
 function toggleEmojiPicker() {
@@ -6799,9 +6909,6 @@ function showCreateStoryModal() {
 const emojiList = ['😀', '😁', '😂', '🤣', '😍', '😘', '😜', '🤪', '😎', '🤗', '🤭', '😇', '🤔', '😏', '😴', '🤤', '😋', '🙄', '😤', '😡', '🤬', '😢', '😭', '😨', '😱', '👍', '👎', '👏', '🙌', '👋', '🤝', '❤️', '🔥', '✨', '🎉', '💯', '💕', '💔', '💋', '🌹', '🍾', '🍷', '🍺', '🎵', '🚗', '🏠', '💰', '🎁', '📍', '⭐', '🥰', '😳', '😅', '🤩', '😈', '👻', '💀', '🎃', '🌈', '🌻', '🍀', '🎯', '🏆', '🥇', '🎮', '💎', '🔮', '📸', '☕', '🍕'];
 
 function parseEmoji(text) {
-    if (typeof twemoji !== 'undefined') {
-        return twemoji.parse(text, { className: 'emoji-3d', size: 'svg' });
-    }
     return text;
 }
 

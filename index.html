@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <!-- Twemoji for 3D emojis -->
-    <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
+
 
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
@@ -1130,6 +1130,7 @@
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div class="chat-more-menu" id="chat-more-menu" style="display:none;">
+                                        <button class="btn btn-ghost btn-sm dropdown-item" onclick="toggleIceBreakersSetting()"><i class="fas fa-magic"></i> <span id="icebreakers-menu-text">AI Ice Breakers: On</span></button>
                                         <button class="btn btn-ghost btn-sm dropdown-item" onclick="if(state.currentChat)clearConversation(state.currentChat.id)"><i class="fas fa-trash"></i> Clear Chat</button>
                                     </div>
                                 </div>

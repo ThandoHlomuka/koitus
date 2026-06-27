@@ -8067,69 +8067,69 @@ function contactSeller() {
 function renderGames() {
     var container = document.getElementById('games-container');
     if (!container) return;
-    container.innerHTML = '\
-        <div class="games-grid">\
-            <div class="game-card" onclick="showToast(\'Challenges coming soon!\')">\
-                <div class="game-icon"><i class="fas fa-trophy"></i></div>\
-                <h3>Challenges</h3>\
-                <p>Compete and earn rewards</p>\
-            </div>\
-            <div class="game-card" onclick="showToast(\'Icebreakers coming soon!\')">\
-                <div class="game-icon"><i class="fas fa-heart"></i></div>\
-                <h3>Icebreakers</h3>\
-                <p>Fun questions to break the ice</p>\
-            </div>\
-            <div class="game-card" onclick="showToast(\'Would You Rather coming soon!\')">\
-                <div class="game-icon"><i class="fas fa-question-circle"></i></div>\
-                <h3>Would You Rather</h3>\
-                <p>Compare answers with others</p>\
-            </div>\
-            <div class="game-card" onclick="showToast(\'Quiz Match coming soon!\')">\
-                <div class="game-icon"><i class="fas fa-brain"></i></div>\
-                <h3>Quiz Match</h3>\
-                <p>Test your compatibility</p>\
-            </div>\
-            <div class="game-card" onclick="showFantasyRequestForm()">\
-                <div class="game-icon"><i class="fas fa-star"></i></div>\
-                <h3>Fantasy Requests</h3>\
-                <p>Submit your fantasy request to admins</p>\
-            </div>\
-            <div class="game-card" onclick="showToast(\'Flirt Roulette coming soon!\')">\
-                <div class="game-icon"><i class="fas fa-dice"></i></div>\
-                <h3>Flirt Roulette</h3>\
-                <p>Random fun challenges</p>\
-            </div>\
-            <div class="game-card" onclick="showToast(\'Compatibility Test coming soon!\')">\
-                <div class="game-icon"><i class="fas fa-puzzle-piece"></i></div>\
-                <h3>Compatibility Test</h3>\
-                <p>See how well you match</p>\
-            </div>\
-        </div>\
-        <div class="games-tools-section">\
-            <h2>Tools</h2>\
-            <div class="tools-grid">\
-                <div class="tool-card" onclick="showToast(\'Bio Generator coming soon!\')">\
-                    <div class="tool-icon"><i class="fas fa-pen-fancy"></i></div>\
-                    <h3>Bio Generator</h3>\
-                    <p>AI-powered profile bios</p>\
-                </div>\
-                <div class="tool-card" onclick="showToast(\'Pickup Line Generator coming soon!\')">\
-                    <div class="tool-icon"><i class="fas fa-fire"></i></div>\
-                    <h3>Pickup Lines</h3>\
-                    <p>Clever openers for any vibe</p>\
-                </div>\
-                <div class="tool-card" onclick="showToast(\'Mood Matcher coming soon!\')">\
-                    <div class="tool-icon"><i class="fas fa-music"></i></div>\
-                    <h3>Mood Matcher</h3>\
-                    <p>Find connections by vibe</p>\
-                </div>\
-                <div class="tool-card" onclick="showToast(\'Compatibility Calculator coming soon!\')">\
-                    <div class="tool-icon"><i class="fas fa-calculator"></i></div>\
-                    <h3>Compatibility Calc</h3>\
-                    <p>Score your connection</p>\
-                </div>\
-            </div>\
-        </div>';
+    container.innerHTML =
+        '<div class="games-grid">' +
+            '<div class="game-card" onclick="showToast(\'Challenges coming soon!\')">' +
+                '<div class="game-icon"><i class="fas fa-trophy"></i></div>' +
+                '<h3>Challenges</h3>' +
+                '<p>Compete and earn rewards</p>' +
+            '</div>' +
+            '<div class="game-card" onclick="showToast(\'Icebreakers coming soon!\')">' +
+                '<div class="game-icon"><i class="fas fa-heart"></i></div>' +
+                '<h3>Icebreakers</h3>' +
+                '<p>Fun questions to break the ice</p>' +
+            '</div>' +
+            '<div class="game-card" onclick="showToast(\'Would You Rather coming soon!\')">' +
+                '<div class="game-icon"><i class="fas fa-question-circle"></i></div>' +
+                '<h3>Would You Rather</h3>' +
+                '<p>Compare answers with others</p>' +
+            '</div>' +
+            '<div class="game-card" onclick="showToast(\'Quiz Match coming soon!\')">' +
+                '<div class="game-icon"><i class="fas fa-brain"></i></div>' +
+                '<h3>Quiz Match</h3>' +
+                '<p>Test your compatibility</p>' +
+            '</div>' +
+            '<div class="game-card" onclick="showFantasyRequestForm()">' +
+                '<div class="game-icon"><i class="fas fa-star"></i></div>' +
+                '<h3>Fantasy Requests</h3>' +
+                '<p>Submit your fantasy request to admins</p>' +
+            '</div>' +
+            '<div class="game-card" onclick="showToast(\'Flirt Roulette coming soon!\')">' +
+                '<div class="game-icon"><i class="fas fa-dice"></i></div>' +
+                '<h3>Flirt Roulette</h3>' +
+                '<p>Random fun challenges</p>' +
+            '</div>' +
+            '<div class="game-card" onclick="showToast(\'Compatibility Test coming soon!\')">' +
+                '<div class="game-icon"><i class="fas fa-puzzle-piece"></i></div>' +
+                '<h3>Compatibility Test</h3>' +
+                '<p>See how well you match</p>' +
+            '</div>' +
+        '</div>' +
+        '<div class="games-tools-section">' +
+            '<h2>Tools</h2>' +
+            '<div class="tools-grid">' +
+                '<div class="tool-card" onclick="showToast(\'Bio Generator coming soon!\')">' +
+                    '<div class="tool-icon"><i class="fas fa-pen-fancy"></i></div>' +
+                    '<h3>Bio Generator</h3>' +
+                    '<p>AI-powered profile bios</p>' +
+                '</div>' +
+                '<div class="tool-card" onclick="showToast(\'Pickup Line Generator coming soon!\')">' +
+                    '<div class="tool-icon"><i class="fas fa-fire"></i></div>' +
+                    '<h3>Pickup Lines</h3>' +
+                    '<p>Clever openers for any vibe</p>' +
+                '</div>' +
+                '<div class="tool-card" onclick="showToast(\'Mood Matcher coming soon!\')">' +
+                    '<div class="tool-icon"><i class="fas fa-music"></i></div>' +
+                    '<h3>Mood Matcher</h3>' +
+                    '<p>Find connections by vibe</p>' +
+                '</div>' +
+                '<div class="tool-card" onclick="showToast(\'Compatibility Calculator coming soon!\')">' +
+                    '<div class="tool-icon"><i class="fas fa-calculator"></i></div>' +
+                    '<h3>Compatibility Calc</h3>' +
+                    '<p>Score your connection</p>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
 }
 
 // ==================== FANTASY REQUESTS ====================

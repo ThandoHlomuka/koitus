@@ -8065,8 +8065,11 @@ function contactSeller() {
 
 // ==================== FUN & GAMES ====================
 function renderGames() {
+    console.log('🎮 renderGames called');
     var container = document.getElementById('games-container');
-    if (!container) { renderGamesInline(); return; }
+    console.log('🎮 #games-container found:', !!container);
+    if (!container) { console.log('🎮 falling back to renderGamesInline'); renderGamesInline(); return; }
+    console.log('🎮 rendering games into container');
     container.innerHTML =
         '<div class="games-grid">' +
             '<div class="game-card" onclick="showToast(\'Challenges coming soon!\')">' +

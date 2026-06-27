@@ -7396,8 +7396,26 @@ function closeProviderAccessModal(event) {
 }
 
 function purchaseProviderAccess(plan) {
-    if (state.currentUser) {
+    if (!state.currentUser) {
+        state.currentUser = {
+            id: 'provider_' + Date.now(),
+            name: 'Service Provider',
+            email: 'provider@koitus.app',
+            accountType: 'provider',
+            hasProviderAccess: true,
+            isLoggedIn: true,
+            avatar: 'https://i.pravatar.cc/80?u=provider',
+            bio: 'Service Provider on Koitus',
+            interests: ['Business', 'Networking']
+        };
+        state.isLoggedIn = true;
+        saveUserData();
+        showMainApp();
+        updateNavVisibility();
+        if (state.socket && state.socket.connected) joinPlatform();
+    } else {
         state.currentUser.hasProviderAccess = true;
+        state.currentUser.accountType = 'provider';
     }
     closeProviderAccessModal();
     showToast('Provider access granted! ✓');

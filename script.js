@@ -3711,11 +3711,7 @@ function handleFileAttachment(file) {
     }
 }
 
-function toggleEmojiPicker() {
-    toggleChatEmojiPicker();
-}
 
-function startVideoCall() {
     if (!state.currentChat) {
         showNotification('Open a conversation first', 'warning');
         return;
@@ -3782,14 +3778,7 @@ function getNotificationIcon(type) {
     return icons[type] || 'bell';
 }
 
-function markAsRead(notificationId) {
-    const notification = state.notifications.find(n => n.id === notificationId);
-    if (notification) {
-        notification.unread = false;
-        renderNotifications();
-        updateNotificationCounts();
-    }
-}
+
 
 function markAllRead() {
     state.notifications.forEach(n => n.unread = false);
@@ -3898,10 +3887,6 @@ function renderProfile() {
     
     var achievementsContainer = document.getElementById('achievements-grid');
     if (achievementsContainer) achievementsContainer.innerHTML = achievementsHtml;
-}
-
-function editProfile() {
-    showNotification('Profile editing coming soon!', 'info');
 }
 
 function upgradeToPremium() {
@@ -4640,13 +4625,22 @@ function sendTypingIndicator(to, typing) {
     });
 }
 
-function markAsRead(messageId, conversationId) {
-    if (!state.socket) return;
-    
-    state.socket.emit('mark_read', {
-        messageId,
-        conversationId
-    });
+function markAsRead(id, conversationId) {
+    if (arguments.length === 1) {
+        var notification = state.notifications.find(function(n) { return n.id === id; });
+        if (notification) {
+            notification.unread = false;
+            renderNotifications();
+            updateNotificationCounts();
+        }
+        return;
+    }
+    if (state.socket) {
+        state.socket.emit('mark_read', {
+            messageId: id,
+            conversationId: conversationId
+        });
+    }
 }
 
 // ==================== VIDEO CALLS (WebRTC) ====================
@@ -5770,37 +5764,11 @@ function closeAttendeesModal(event) {
 }
 
 // ==================== HOST CONTROLS ====================
-function editEvent() {
-    showToast('Edit event feature coming soon! 🔧');
-}
-
 function sendMessageToAll() {
     const event = state.selectedEvent;
     if (!event) return;
 
     showToast(`Message will be sent to ${event.attendeeCount} attendees 📧`);
-}
-
-function cancelEvent() {
-    const event = state.selectedEvent;
-    if (!event) return;
-
-    if (confirm('Are you sure you want to cancel this event? All attendees will be notified.')) {
-        // Remove event
-        const index = state.events.findIndex(e => e.id === event.id);
-        if (index > -1) {
-            state.events.splice(index, 1);
-        }
-
-        // Close modals
-        closeEventDetail();
-        closeAttendeesModal();
-
-        // Refresh events
-        renderEvents();
-
-        showToast('Event cancelled. Attendees have been notified. 📢');
-    }
 }
 
 function showToast(message) {
@@ -7338,48 +7306,6 @@ function renderAdminPosts(status) {
     `).join('');
 }
 
-function approvePost(postId) {
-    const post = pendingApprovalPosts.find(p => p.id === postId);
-    if (post) {
-        post.status = 'approved';
-        
-        // Add to appropriate forum
-        if (post.type === 'provider') {
-            const existingIndex = state.providerForumPosts.findIndex(p => p.id === postId);
-            if (existingIndex >= 0) {
-                state.providerForumPosts[existingIndex].status = 'approved';
-            }
-        } else {
-            const existingIndex = state.forumPosts.findIndex(p => p.id === postId);
-            if (existingIndex >= 0) {
-                state.forumPosts[existingIndex].status = 'approved';
-            }
-        }
-        
-        updateAdminPanel();
-        if (currentForumType === 'user') {
-            renderForumPosts();
-        } else {
-            renderProviderForumPosts();
-        }
-        showToast('Post approved! ✓');
-    }
-}
-
-function rejectPost(postId) {
-    const post = pendingApprovalPosts.find(p => p.id === postId);
-    if (post) {
-        post.status = 'rejected';
-        
-        // Remove from main forum arrays
-        state.forumPosts = state.forumPosts.filter(p => p.id !== postId);
-        state.providerForumPosts = state.providerForumPosts.filter(p => p.id !== postId);
-        
-        updateAdminPanel();
-        showToast('Post rejected');
-    }
-}
-
 // ==================== PROVIDER ACCESS FUNCTIONS ====================
 function showProviderAccessModal() {
     const modal = document.getElementById('provider-access-modal');
@@ -8290,7 +8216,88 @@ function likeStory(storyId) {
 }
 
 function showCreateStoryModal() {
-    showToast('Story creation coming soon!');
+    var modal = document.getElementById('create-story-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        showToast('Story creation modal not available');
+    }
+}
+
+function closeCreateStoryModal(event) {
+    if (event && event.target !== document.getElementById('create-story-modal')) return;
+    var modal = document.getElementById('create-story-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        clearStoryMedia();
+        document.getElementById('create-story-form').reset();
+    }
+}
+
+var _pendingStoryMedia = null;
+
+function previewStoryMedia(event) {
+    var file = event.target.files ? event.target.files[0] : null;
+    if (!file) return;
+    _pendingStoryMedia = file;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var preview = document.getElementById('story-media-preview');
+        var img = document.getElementById('story-media-preview-img');
+        var video = document.getElementById('story-media-preview-video');
+        if (file.type.startsWith('video/')) {
+            img.style.display = 'none';
+            video.style.display = 'block';
+            video.src = e.target.result;
+        } else {
+            video.style.display = 'none';
+            img.style.display = 'block';
+            img.src = e.target.result;
+        }
+        preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearStoryMedia() {
+    _pendingStoryMedia = null;
+    var preview = document.getElementById('story-media-preview');
+    if (preview) preview.style.display = 'none';
+    var input = document.getElementById('story-media-input');
+    if (input) input.value = '';
+}
+
+function createStory(event) {
+    event.preventDefault();
+    var caption = document.getElementById('story-caption').value.trim();
+    var location = document.getElementById('story-location').value.trim();
+    var privacy = document.getElementById('story-privacy').value;
+
+    if (!_pendingStoryMedia) {
+        showToast('Please select a photo or video for your story');
+        return;
+    }
+
+    var storyData = {
+        id: 'story_' + Date.now(),
+        userId: state.currentUser ? state.currentUser.id : 'anonymous',
+        userName: state.currentUser ? state.currentUser.name : 'Anonymous',
+        userAvatar: state.currentUser ? (state.currentUser.avatar || state.currentUser.photos && state.currentUser.photos[0]) : null,
+        caption: caption,
+        location: location,
+        privacy: privacy,
+        mediaFile: _pendingStoryMedia,
+        timestamp: new Date().toISOString(),
+        likes: 0,
+        views: 0
+    };
+
+    if (!state.stories) state.stories = [];
+    state.stories.unshift(storyData);
+
+    closeCreateStoryModal();
+    showToast('Story shared successfully!');
+    if (typeof renderStories === 'function') renderStories();
 }
 
 // ==================== EMOJI SYSTEM FOR CHAT ====================
@@ -8696,100 +8703,11 @@ function submitRechargeRequest(e) {
 }
 
 // ==================== PROFILE EDITING ====================
-function editProfile() {
-    const modal = document.getElementById('edit-profile-modal');
-    if (modal) {
-        // Pre-fill with current user data
-        if (state.currentUser) {
-            document.getElementById('edit-name').value = state.currentUser.name || '';
-            document.getElementById('edit-age').value = state.currentUser.age || '';
-            document.getElementById('edit-bio').value = state.currentUser.bio || '';
-            document.getElementById('edit-location').value = state.currentUser.location || '';
-            document.getElementById('edit-interests').value = state.currentUser.interests?.join(', ') || '';
-        }
-        modal.style.display = 'flex';
-    }
-}
-
 function closeEditProfileModal(event) {
     if (!event || event.target === event.currentTarget) {
         const modal = document.getElementById('edit-profile-modal');
         if (modal) modal.style.display = 'none';
     }
-}
-
-function saveProfileChanges(e) {
-    e.preventDefault();
-
-    const name = document.getElementById('edit-name').value;
-    const age = document.getElementById('edit-age').value;
-    const bio = document.getElementById('edit-bio').value;
-    const location = document.getElementById('edit-location').value;
-    const interests = document.getElementById('edit-interests').value.split(',').map(i => i.trim()).filter(i => i);
-
-    // Store old values for logging
-    const oldProfile = { ...state.currentUser };
-
-    // Update current user
-    if (state.currentUser) {
-        state.currentUser.name = name;
-        state.currentUser.age = parseInt(age);
-        state.currentUser.bio = bio;
-        state.currentUser.location = location;
-        state.currentUser.interests = interests;
-        state.currentUser.avatar = state.currentUser.avatar || 'https://picsum.photos/seed/img47/400/300';
-    }
-
-    // Log activity
-    logActivity({
-        type: ActivityType.PROFILE_UPDATE,
-        action: `Updated profile: ${name}`,
-        details: {
-            changes: { name, age, bio, location, interests },
-            oldValues: oldProfile
-        }
-    });
-
-    // Save to localStorage
-    saveUserData();
-
-    // Update profile view
-    document.getElementById('my-profile-name').textContent = `${name}, ${age}`;
-    document.getElementById('my-profile-bio').textContent = bio || 'Add a bio to tell people about yourself...';
-
-    // Render interests
-    const interestsContainer = document.getElementById('my-profile-interests');
-    if (interestsContainer) {
-        interestsContainer.innerHTML = interests.map(interest => `
-            <span class="interest-tag">${interest}</span>
-        `).join('');
-    }
-
-    closeEditProfileModal();
-    showToast('Profile updated successfully! ✓');
-
-    // Re-render users if needed
-    renderUsers();
-}
-
-function uploadProfilePhoto() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                if (state.currentUser) {
-                    state.currentUser.avatar = event.target.result;
-                }
-                showToast('Photo uploaded! ✓');
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    input.click();
 }
 
 // ==================== COMPREHENSIVE ADMIN PANEL ====================
@@ -9325,16 +9243,6 @@ function viewAdminUserProfile(userId) {
     
     showToast(`Viewing profile: ${user.name}`);
     console.log('👤 User Details:', user);
-}
-
-function editAdminUserProfile(userId) {
-    const user = state.profiles.find(p => p.id === userId);
-    if (!user) {
-        showToast('User not found');
-        return;
-    }
-    
-    showToast(`Edit user: ${user.name} - Feature coming soon`);
 }
 
 function banAdminUser(userId) {

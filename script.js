@@ -8069,25 +8069,7 @@ function contactSeller() {
 
 // ==================== FUN & GAMES ====================
 function renderGames() {
-    console.log('🎮 renderGames called');
-    var container = document.getElementById('games-container');
-    console.log('🎮 #games-container found:', !!container, '| view-games found:', !!document.getElementById('view-games'));
-    if (!container) { console.log('🎮 #games-container MISSING, rendering inline'); var v = document.getElementById('view-games'); if (v) v.innerHTML = '<div style="padding:2rem;text-align:center;"><h2>Fun & Games</h2><p style="margin-top:1rem;color:var(--text-tertiary);">Games content would appear here.</p></div>'; return; }
-    console.log('🎮 rendering games into container');
-    container.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-primary);"><h2>Fun & Games</h2><p style="margin-top:1rem;color:var(--text-tertiary);">Games are loading...</p><div style="margin-top:2rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;" id="test-grid"></div></div>';
-    var grid = document.getElementById('test-grid');
-    if (grid) {
-        var games = ['Challenges','Icebreakers','Would You Rather','Quiz Match','Fantasy Requests','Flirt Roulette','Compatibility Test'];
-        games.forEach(function(name) {
-            grid.innerHTML += '<div style="background:var(--bg-primary);border:1px solid var(--border-light);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;" onclick="showToast(\'' + name + ' coming soon!\')"><h3>' + name + '</h3></div>';
-        });
-        grid.innerHTML += '<div style="margin-top:2rem;padding:1.5rem;background:var(--bg-primary);border:1px solid var(--border-light);border-radius:12px;"><h2 style="margin-bottom:1rem;">Tools</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;">' + 
-            '<div style="padding:1rem;text-align:center;background:var(--bg-secondary);border-radius:8px;" onclick="showToast(\'Bio Generator coming soon!\')">Bio Generator</div>' +
-            '<div style="padding:1rem;text-align:center;background:var(--bg-secondary);border-radius:8px;" onclick="showToast(\'Pickup Lines coming soon!\')">Pickup Lines</div>' +
-            '<div style="padding:1rem;text-align:center;background:var(--bg-secondary);border-radius:8px;" onclick="showToast(\'Mood Matcher coming soon!\')">Mood Matcher</div>' +
-            '<div style="padding:1rem;text-align:center;background:var(--bg-secondary);border-radius:8px;" onclick="showToast(\'Compatibility Calc coming soon!\')">Compatibility Calc</div>' +
-        '</div></div>';
-    }
+    // Games are rendered as static HTML in index.html
 }
 
 // ==================== FANTASY REQUESTS ====================

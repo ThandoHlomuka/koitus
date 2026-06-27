@@ -2353,80 +2353,79 @@ function switchView(viewName) {
     if (adminDash) adminDash.style.display = 'none';
 
     // Refresh data based on view
-    try {
-        switch(viewName) {
-            case 'discover':
-                renderUsers();
-                renderDiscoverFeed();
-                break;
-            case 'matches':
-                renderMatches();
-                break;
-            case 'messages':
-                renderConversations();
-                break;
-            case 'notifications':
-                renderNotifications();
-                break;
-            case 'map':
-                initMap();
-                break;
-            case 'profile':
-                renderProfile();
-                renderProfileGallery();
-                setTimeout(initProfileCharts, 100);
-                break;
-            case 'events':
-                renderEvents();
-                break;
-            case 'wallet':
-                renderWallet();
-                break;
-            case 'activity':
-                renderActivityFeed();
-                break;
-            case 'streams':
-                renderStreams();
-                break;
-            case 'content':
-                renderContent();
-                break;
-            case 'forum':
-                renderForum();
-                break;
-            case 'products':
-                renderProducts();
-                break;
-            case 'games':
-                renderGames();
-                break;
-            case 'stories':
-                renderStories();
-                break;
-            case 'pricing':
-                renderPricing();
-                break;
-            case 'personals':
-                renderPersonals();
-                break;
-            case 'profiles':
-                renderProfiles();
-                break;
-            case 'store':
-                renderStore();
-                break;
-            case 'provider-portal':
-                renderProviderPortal();
-                break;
-            case 'directory':
-                renderDirectory();
-                break;
-            case 'settings':
-                // Static HTML — no dynamic render needed
-                break;
-        }
-    } catch (e) {
-        console.error('Error in switchView for', viewName, ':', e);
+    function safeRender(fn, name) {
+        try { fn(); } catch (e) { console.error('Error in', name, ':', e); }
+    }
+    switch(viewName) {
+        case 'discover':
+            safeRender(renderUsers, 'renderUsers');
+            safeRender(renderDiscoverFeed, 'renderDiscoverFeed');
+            break;
+        case 'matches':
+            safeRender(renderMatches, 'renderMatches');
+            break;
+        case 'messages':
+            safeRender(renderConversations, 'renderConversations');
+            break;
+        case 'notifications':
+            safeRender(renderNotifications, 'renderNotifications');
+            break;
+        case 'map':
+            safeRender(initMap, 'initMap');
+            break;
+        case 'profile':
+            safeRender(renderProfile, 'renderProfile');
+            safeRender(renderProfileGallery, 'renderProfileGallery');
+            setTimeout(function() { safeRender(initProfileCharts, 'initProfileCharts'); }, 100);
+            break;
+        case 'events':
+            safeRender(renderEvents, 'renderEvents');
+            break;
+        case 'wallet':
+            safeRender(renderWallet, 'renderWallet');
+            break;
+        case 'activity':
+            safeRender(renderActivityFeed, 'renderActivityFeed');
+            break;
+        case 'streams':
+            safeRender(renderStreams, 'renderStreams');
+            break;
+        case 'content':
+            safeRender(renderContent, 'renderContent');
+            break;
+        case 'forum':
+            safeRender(renderForum, 'renderForum');
+            break;
+        case 'products':
+            safeRender(renderProducts, 'renderProducts');
+            break;
+        case 'games':
+            safeRender(renderGames, 'renderGames');
+            break;
+        case 'stories':
+            safeRender(renderStories, 'renderStories');
+            break;
+        case 'pricing':
+            safeRender(renderPricing, 'renderPricing');
+            break;
+        case 'personals':
+            safeRender(renderPersonals, 'renderPersonals');
+            break;
+        case 'profiles':
+            safeRender(renderProfiles, 'renderProfiles');
+            break;
+        case 'store':
+            safeRender(renderStore, 'renderStore');
+            break;
+        case 'provider-portal':
+            safeRender(renderProviderPortal, 'renderProviderPortal');
+            break;
+        case 'directory':
+            safeRender(renderDirectory, 'renderDirectory');
+            break;
+        case 'settings':
+            // Static HTML — no dynamic render needed
+            break;
     }
 }
 
@@ -7415,7 +7414,11 @@ function purchaseProviderAccess(plan) {
             interests: ['Business', 'Networking', 'Professional Development'],
             photos: ['https://i.pravatar.cc/400?u=provider'],
             online: true,
-            verified: true
+            verified: true,
+            profile: {
+                providerType: 'general',
+                bio: 'Service Provider on Koitus — offering professional services to the community.'
+            }
         };
         state.isLoggedIn = true;
         saveUserData();
@@ -12227,10 +12230,12 @@ var portalState = {
 
 function renderProviderPortal() {
     var user = state.currentUser;
-    if (!user || !user.profile) {
-        showToast('Please complete your profile first');
-        switchView('discover');
-        return;
+    if (!user) { switchView('discover'); showToast('Please log in first'); return; }
+    if (!user.profile) {
+        user.profile = {
+            providerType: 'general',
+            bio: user.bio || 'Service Provider'
+        };
     }
 
     // Set profile summary

@@ -7401,12 +7401,17 @@ function purchaseProviderAccess(plan) {
             id: 'provider_' + Date.now(),
             name: 'Service Provider',
             email: 'provider@koitus.app',
+            age: 30,
+            location: 'South Africa',
             accountType: 'provider',
             hasProviderAccess: true,
             isLoggedIn: true,
             avatar: 'https://i.pravatar.cc/80?u=provider',
-            bio: 'Service Provider on Koitus',
-            interests: ['Business', 'Networking']
+            bio: 'Service Provider on Koitus — offering professional services to the community.',
+            interests: ['Business', 'Networking', 'Professional Development'],
+            photos: ['https://i.pravatar.cc/400?u=provider'],
+            online: true,
+            verified: true
         };
         state.isLoggedIn = true;
         saveUserData();
@@ -7418,8 +7423,8 @@ function purchaseProviderAccess(plan) {
         state.currentUser.accountType = 'provider';
     }
     closeProviderAccessModal();
+    switchView('discover');
     showToast('Provider access granted! ✓');
-    switchForumType('provider');
 }
 
 // ==================== STORE MANAGEMENT ====================

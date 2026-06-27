@@ -7396,25 +7396,12 @@ function closeProviderAccessModal(event) {
 }
 
 function purchaseProviderAccess(plan) {
-    const prices = {
-        monthly: 'R299/month',
-        lifetime: 'R2,499 once-off'
-    };
-    
-    // In a real app, this would initiate payment processing
-    showToast(`Processing ${prices[plan]} payment...`);
-    
-    setTimeout(() => {
-        // Simulate successful payment
-        if (state.currentUser) {
-            state.currentUser.hasProviderAccess = true;
-        }
-        closeProviderAccessModal();
-        showToast('Payment successful! Provider access granted. ✓');
-        
-        // Switch to provider forum
-        switchForumType('provider');
-    }, 1500);
+    if (state.currentUser) {
+        state.currentUser.hasProviderAccess = true;
+    }
+    closeProviderAccessModal();
+    showToast('Provider access granted! ✓');
+    switchForumType('provider');
 }
 
 // ==================== STORE MANAGEMENT ====================

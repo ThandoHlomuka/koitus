@@ -7159,48 +7159,8 @@ select:disabled {
 .deposit-modal-content,
 .upload-modal-content,
 .new-post-modal-content,
-.transaction-history-modal-content,
-.create-story-modal-content,
-.event-modal-content,
-.event-detail-modal-content {
+.transaction-history-modal-content {
     max-width: 500px;
-}
-
-.story-media-preview {
-    margin-top: var(--spacing-3);
-    position: relative;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    background: var(--bg-tertiary);
-}
-
-.story-media-preview img,
-.story-media-preview video {
-    width: 100%;
-    max-height: 300px;
-    object-fit: contain;
-    display: block;
-}
-
-.story-media-preview .btn {
-    position: absolute;
-    top: var(--spacing-2);
-    right: var(--spacing-2);
-    background: rgba(0,0,0,0.6);
-    color: var(--white);
-    border: none;
-    border-radius: var(--radius-full);
-    padding: var(--spacing-1) var(--spacing-2);
-    font-size: 0.75rem;
-}
-
-.modal-actions {
-    display: flex;
-    gap: var(--spacing-3);
-    justify-content: flex-end;
-    padding-top: var(--spacing-4);
-    border-top: 1px solid var(--border-light);
-    margin-top: var(--spacing-4);
 }
 
 .deposit-amounts {

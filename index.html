@@ -4986,59 +4986,5 @@ Tips for a great post:
             });
         })();
     </script>
-
-    <!-- Create Story Modal -->
-    <div id="create-story-modal" class="modal-overlay" style="display: none;" onclick="closeCreateStoryModal(event)">
-        <div class="modal-content create-story-modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-plus-circle"></i> Create Story</h2>
-                <button class="modal-close" onclick="closeCreateStoryModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="create-story-form" onsubmit="createStory(event)">
-                    <div class="form-group">
-                        <label>Story Media</label>
-                        <div class="file-drop-zone" onclick="document.getElementById('story-media-input').click()">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <p>Click to upload photo or video</p>
-                            <small>Max 30 seconds for videos</small>
-                        </div>
-                        <input type="file" id="story-media-input" accept="image/*,video/*" style="display: none;" onchange="previewStoryMedia(event)">
-                        <div id="story-media-preview" class="story-media-preview" style="display: none;">
-                            <img id="story-media-preview-img" src="" alt="Preview">
-                            <video id="story-media-preview-video" src="" style="display: none;" controls></video>
-                            <button type="button" class="btn btn-sm btn-ghost" onclick="clearStoryMedia()">
-                                <i class="fas fa-times"></i> Remove
-                            </button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="story-caption">Caption</label>
-                        <textarea id="story-caption" rows="3" placeholder="What's on your mind?" maxlength="300"></textarea>
-                        <small style="color: var(--text-tertiary);">Max 300 characters</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="story-location">Location (optional)</label>
-                        <input type="text" id="story-location" placeholder="Add a location">
-                    </div>
-                    <div class="form-group">
-                        <label for="story-privacy">Privacy</label>
-                        <select id="story-privacy">
-                            <option value="public">Public</option>
-                            <option value="friends">Friends Only</option>
-                        </select>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-ghost" onclick="closeCreateStoryModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane"></i> Share Story
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

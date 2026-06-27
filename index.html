@@ -4982,17 +4982,15 @@ Tips for a great post:
                     }
                 });
 
-                // Check for saved admin session
+                // Check for saved admin session — show small notification, not full-page modal overlay
                 var savedUser = localStorage.getItem('koitus_user');
                 if (savedUser) {
                     try {
                         var user = JSON.parse(savedUser);
                         if (user.isAdmin || user.role === 'admin') {
                             setTimeout(function() {
-                                var modal = document.getElementById('admin-dashboard-modal');
-                                if (modal) { modal.style.display = 'flex'; }
-                                if (typeof loadAdminSection === 'function') loadAdminSection('analytics');
-                            }, 1000);
+                                showToast('Admin dashboard available. Click the Users button in the forum.');
+                            }, 1500);
                         }
                     } catch(e) { console.log('User data parse error:', e); }
                 }

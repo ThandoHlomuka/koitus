@@ -2348,6 +2348,10 @@ function switchView(viewName) {
         targetView.classList.add('active');
     }
     
+    // Hide admin dashboard modal when switching to a regular view
+    var adminDash = document.getElementById('admin-dashboard-modal');
+    if (adminDash) adminDash.style.display = 'none';
+
     // Refresh data based on view
     try {
         switch(viewName) {

@@ -1,7 +1,6 @@
 // ==================== SUPABASE DATA ACCESS LAYER ====================
 // Handles all CRUD operations, auth, and storage
-
-var sb = getSupabase();
+// Note: All methods call getSupabase() internally for lazy initialization
 
 // ==================== AUTH ====================
 
@@ -77,7 +76,6 @@ var AuthDB = {
         var newUser = {
             id: 'local_' + Date.now(),
             email: email,
-            password: btoa(password),
             name: profileData.name || email.split('@')[0],
             ...profileData,
             created_at: new Date().toISOString()
@@ -89,12 +87,8 @@ var AuthDB = {
 
     _fallbackSignIn(email, password) {
         var users = JSON.parse(localStorage.getItem('koitus_users') || '[]');
-        var user = users.find(function(u) { return u.email === email && u.password === btoa(password); });
+        var user = users.find(function(u) { return u.email === email; });
         if (!user) {
-            // Also check legacy admin
-            if (email === 'admin@koitus.co.za' && password === 'KoitusDev2024!') {
-                return { user: { id: 'admin-001', email: email, name: 'Admin', is_admin: true }, error: null };
-            }
             return { user: null, error: { message: 'Invalid email or password' } };
         }
         return { user: user, error: null };

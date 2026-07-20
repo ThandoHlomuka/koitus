@@ -40,9 +40,10 @@ Open `index.html` in your browser
 
 ### Step 3: Enter Credentials
 ```
-Email: fanasihlomuka@gmail.com
-Password: Nozibusiso89
+Email: (your admin email)
+Password: (your admin password)
 ```
+> Admin accounts must have `is_admin: true` set in the Supabase `profiles` table.
 
 ### Step 4: Automatic Redirect
 After successful login, you should automatically see:

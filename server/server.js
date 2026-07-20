@@ -26,14 +26,15 @@ let redisAvailable = false;
             redisAvailable = true;
             console.log('✅ Connected to Upstash Redis');
         } else {
-            console.log('ℹ️ No Redis credentials found, using in-memory storage');
+            console.log('ℹ️ No Redis credentials found, using in-memory storage (data not persisted)');
+        console.log('⚠️ WARNING: Data will be lost on server restart. Set REDIS_URL and REDIS_TOKEN for persistence.');
         }
     } catch (err) {
         console.log('ℹ️ Redis unavailable, using in-memory storage:', err.message);
     }
 })();
 
-// In-memory fallback stores
+// In-memory fallback stores (data will be lost on restart)
 const memUsers = new Map();
 const memConversations = new Map();
 const memCalls = new Map();

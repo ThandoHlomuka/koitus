@@ -1669,7 +1669,7 @@ function loadSampleData() {
             timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
             userId: 'admin',
             userName: 'Administrator',
-            userEmail: 'fanasihlomuka@gmail.com',
+            userEmail: state.currentUser?.email || 'admin@koitus.co.za',
             type: ActivityType.ADMIN_ACTION,
             level: ActivityLevel.CRITICAL,
             action: 'Resolved a user report',
@@ -1804,11 +1804,8 @@ function closeAuth() {
     document.getElementById('signup-modal').classList.remove('active');
 }
 
-// Admin credentials
-const ADMIN_CREDENTIALS = {
-    email: 'fanasihlomuka@gmail.com',
-    password: 'Nozibusiso89'
-};
+// Admin authentication is handled via Supabase profiles (is_admin/role fields)
+// No hardcoded credentials — admins must have is_admin=true in the profiles table
 
 // Show admin login modal
 function showAdminLogin() {
@@ -1832,8 +1829,6 @@ function handleAdminLogin(event) {
 
     var email = document.getElementById('admin-login-email').value;
     var password = document.getElementById('admin-login-password').value;
-
-    console.log('🔐 Admin login attempt:', { email, password: '***' });
 
     AuthDB.signIn(email, password).then(function(result) {
         if (result.error) {
@@ -1866,30 +1861,7 @@ function handleAdminLogin(event) {
                     showNotification('Welcome back, Administrator! 🛡️', 'success');
                 }, 500);
             } else {
-                // Check legacy admin credentials
-                if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-                    state.currentUser = {
-                        id: 'admin',
-                        name: 'Administrator',
-                        email: email,
-                        role: 'admin',
-                        isAdmin: true,
-                        avatar: 'https://i.pravatar.cc/400?u=Administrator'
-                    };
-                    state.isLoggedIn = true;
-                    state.isAdmin = true;
-                    // Store admin in Supabase
-                    ProfileDB.upsert({ id: 'admin', email: email, name: 'Administrator', role: 'admin', is_admin: true });
-                    saveUserData();
-                    closeAdminLogin();
-                    showMainApp();
-                    setTimeout(function() {
-                        showAdminDashboard();
-                        showNotification('Welcome back, Administrator! 🛡️', 'success');
-                    }, 500);
-                } else {
-                    showNotification('Not an admin account.', 'error');
-                }
+                showNotification('Not an admin account.', 'error');
             }
         });
     });
@@ -1900,33 +1872,6 @@ function handleLogin(event) {
 
     var email = document.getElementById('login-email').value;
     var password = document.getElementById('login-password').value;
-
-    console.log('🔐 Login attempt:', { email, password: '***' });
-
-    // Check for admin login first
-    if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-        state.currentUser = {
-            id: 'admin',
-            name: 'Administrator',
-            email: email,
-            role: 'admin',
-            isAdmin: true,
-            avatar: 'https://i.pravatar.cc/400?u=Administrator'
-        };
-        state.isLoggedIn = true;
-        state.isAdmin = true;
-        ProfileDB.upsert({ id: 'admin', email: email, name: 'Administrator', role: 'admin', is_admin: true });
-        saveUserData();
-        updateNavVisibility();
-        closeAuth();
-        showMainApp();
-        if (state.socket && state.socket.connected) joinPlatform();
-        setTimeout(function() {
-            showAdminDashboard();
-            showNotification('Welcome back, Administrator! 🛡️', 'success');
-        }, 500);
-        return;
-    }
 
     AuthDB.signIn(email, password).then(function(result) {
         if (result.error) {
@@ -1979,7 +1924,11 @@ function handleSignup(event) {
 
     var name = document.getElementById('signup-name').value;
     var email = document.getElementById('signup-email').value;
-    var password = document.getElementById('signup-password')?.value || 'TempPass123!';
+    var password = document.getElementById('signup-password')?.value;
+    if (!password) {
+        showNotification('Please enter a password', 'error');
+        return;
+    }
     var age = document.getElementById('signup-age').value;
     var accountType = document.querySelector('input[name="account-type"]:checked')?.value;
 
@@ -9097,7 +9046,7 @@ function showAddUserModal() {
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="new-user-password">Password *</label>
-                                <input type="password" id="new-user-password" required placeholder="Create password" minlength="6">
+                                <input type="password" id="new-user-password" required placeholder="Create password" minlength="8">
                             </div>
                             <div class="form-group">
                                 <label for="new-user-age">Age *</label>
@@ -9188,12 +9137,25 @@ function createAdminUser(event) {
         return;
     }
     
-    // Create new user
+    // Create new user via Supabase auth (passwords are hashed server-side)
+    if (typeof AuthDB !== 'undefined' && getSupabase()) {
+        AuthDB.signUp(email, password, { name, age, gender, location: location || 'Johannesburg, South Africa', accountType, bio: bio || 'Just joined Koitus!', interests: interests.length > 0 ? interests : ['Music', 'Travel'], verified: true }).then(function(result) {
+            if (result.error) {
+                showToast('Error creating user: ' + result.error.message);
+                return;
+            }
+            showToast('User created successfully! ✓');
+            renderAdminUsers();
+            closeCreateUserModal();
+        });
+        return;
+    }
+
+    // Local fallback (no password stored)
     const newUser = {
         id: Date.now(),
         name: name,
         email: email,
-        password: password, // In production, hash this!
         age: age,
         gender: gender,
         location: location || 'Johannesburg, South Africa',
@@ -9203,7 +9165,7 @@ function createAdminUser(event) {
         image: 'https://i.pravatar.cc/400?u=AdminUser',
         date: new Date(),
         online: false,
-        verified: true // Admin-created users are verified
+        verified: true
     };
     
     // Add to profiles
@@ -11761,8 +11723,8 @@ function updateEvent(event, eventId) {
     ev.isPrivate = document.getElementById('edit-event-private').checked;
 
     logActivity({
-        type: ActivityType.EVENT_UPDATE || 'event_update',
-        level: ActivityLevel.INFO || 'info',
+        type: ActivityType.EVENT_UPDATE,
+        level: ActivityLevel.INFO,
         action: `Updated event: "${ev.name}"`,
         details: { eventId: ev.id, eventName: ev.name }
     });
@@ -12347,6 +12309,8 @@ function renderPortalMiniChart() {
                 }
             }
         });
+    } else {
+        canvas.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:0.85rem"><i class="fas fa-chart-line" style="margin-right:8px;opacity:0.5"></i>Chart library not loaded</div>';
     }
 }
 
@@ -12551,7 +12515,11 @@ function searchPortalStore(value) {
 }
 
 function renderPortalAnalytics() {
-    if (typeof Chart === 'undefined') return;
+    if (typeof Chart === 'undefined') {
+        var container = document.getElementById('portal-analytics-chart');
+        if (container) container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-secondary);font-size:0.85rem"><i class="fas fa-chart-bar" style="margin-right:8px;opacity:0.5"></i>Chart library not loaded</div>';
+        return;
+    }
     var period = parseInt(document.getElementById('portal-analytics-period').value) || 30;
     var labels = [];
     for (var i = period - 1; i >= 0; i--) {
@@ -13503,7 +13471,11 @@ let chartInstances = {};
 
 function renderMiniChart(canvasId, data, color) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas || typeof Chart === 'undefined') return;
+    if (!canvas) return;
+    if (typeof Chart === 'undefined') {
+        canvas.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:0.75rem;opacity:0.7">Chart unavailable</div>';
+        return;
+    }
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }

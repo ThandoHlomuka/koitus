@@ -3,5 +3,5 @@
 window.KOITUS_CONFIG = {
     SERVER_URL: 'https://koitus-server-f2qm.onrender.com',
     APP_NAME: 'Koitus',
-    VERSION: '1.0.0'
+    VERSION: '2.0.0'
 };

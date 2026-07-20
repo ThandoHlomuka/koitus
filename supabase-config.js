@@ -3,26 +3,41 @@
 // Vercel injects SUPABASE_URL / SUPABASE_ANON_KEY env vars automatically.
 // The anon key is PUBLIC — security is enforced via Row Level Security (RLS).
 
-// Priority: Vercel globals > localStorage > hardcoded defaults
+// In-memory config (not persisted to localStorage for security)
+var _supabaseUrl = null;
+var _supabaseAnonKey = null;
+
 (function() {
     // Vercel injects these at build time for the Supabase integration
     if (typeof __SUPABASE_URL !== 'undefined' && typeof __SUPABASE_ANON_KEY !== 'undefined') {
-        localStorage.setItem('supabase_url', __SUPABASE_URL);
-        localStorage.setItem('supabase_anon_key', __SUPABASE_ANON_KEY);
+        _supabaseUrl = __SUPABASE_URL;
+        _supabaseAnonKey = __SUPABASE_ANON_KEY;
     }
     // Also check for process.env (some bundlers replace at build time)
     try {
         if (typeof process !== 'undefined' && process.env && process.env.SUPABASE_URL) {
-            localStorage.setItem('supabase_url', process.env.SUPABASE_URL);
-            localStorage.setItem('supabase_anon_key', process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+            _supabaseUrl = process.env.SUPABASE_URL;
+            _supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
         }
     } catch(e) {}
     // Detect publishable key (new Supabase key format)
     try {
         if (typeof __SUPABASE_PUBLISHABLE_KEY !== 'undefined') {
-            localStorage.setItem('supabase_anon_key', __SUPABASE_PUBLISHABLE_KEY);
+            _supabaseAnonKey = __SUPABASE_PUBLISHABLE_KEY;
         }
     } catch(e) {}
+    // Fallback: try the Vercel serverless function
+    if (!_supabaseUrl || !_supabaseAnonKey) {
+        fetch('/api/config.js').then(function(r) { return r.json(); }).then(function(cfg) {
+            if (cfg.configured) {
+                _supabaseUrl = cfg.supabaseUrl;
+                _supabaseAnonKey = cfg.supabaseAnonKey || cfg.supabasePublishableKey;
+                // Reinitialize client with new config
+                supabaseClient = null;
+                initSupabase();
+            }
+        }).catch(function() {});
+    }
 })();
 
 // ==================== SUPABASE CLIENT ====================
@@ -30,25 +45,36 @@
 var supabaseClient = null;
 
 function getSupabaseUrl() {
-    var url = localStorage.getItem('supabase_url');
-    if (!url && window.__supabaseConfig && window.__supabaseConfig.supabaseUrl) {
-        url = window.__supabaseConfig.supabaseUrl;
-        localStorage.setItem('supabase_url', url);
+    if (_supabaseUrl) return _supabaseUrl;
+    if (window.__supabaseConfig && window.__supabaseConfig.supabaseUrl) {
+        _supabaseUrl = window.__supabaseConfig.supabaseUrl;
+        return _supabaseUrl;
     }
-    return url;
+    // Legacy: check localStorage for manual configuration
+    var url = localStorage.getItem('supabase_url');
+    if (url) {
+        _supabaseUrl = url;
+        return url;
+    }
+    return null;
 }
 
 function getSupabaseAnonKey() {
-    var key = localStorage.getItem('supabase_anon_key');
-    if (!key && window.__supabaseConfig) {
-        key = window.__supabaseConfig.supabaseAnonKey || window.__supabaseConfig.supabasePublishableKey;
-        if (key) localStorage.setItem('supabase_anon_key', key);
+    if (_supabaseAnonKey) return _supabaseAnonKey;
+    if (window.__supabaseConfig) {
+        var key = window.__supabaseConfig.supabaseAnonKey || window.__supabaseConfig.supabasePublishableKey;
+        if (key) {
+            _supabaseAnonKey = key;
+            return key;
+        }
     }
-    if (!key) {
-        key = localStorage.getItem('supabase_publishable_key');
-        if (key) localStorage.setItem('supabase_anon_key', key);
+    // Legacy: check localStorage for manual configuration
+    var key = localStorage.getItem('supabase_anon_key') || localStorage.getItem('supabase_publishable_key');
+    if (key) {
+        _supabaseAnonKey = key;
+        return key;
     }
-    return key;
+    return null;
 }
 
 function initSupabase() {
@@ -82,8 +108,8 @@ function getSupabase() {
 
 // Allow configuring from browser console for setup
 function configureSupabase(url, key) {
-    localStorage.setItem('supabase_url', url);
-    localStorage.setItem('supabase_anon_key', key);
+    _supabaseUrl = url;
+    _supabaseAnonKey = key;
     supabaseClient = null;
     return initSupabase();
 }

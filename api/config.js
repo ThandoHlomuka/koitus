@@ -3,7 +3,13 @@
 // The Vercel + Supabase integration auto-sets SUPABASE_URL and SUPABASE_ANON_KEY.
 
 module.exports = function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    var allowedOrigins = ['https://koitus.vercel.app', 'https://www.koitus.app', 'http://localhost:3000', 'http://localhost:5500'];
+    var origin = req.headers.origin || '';
+    if (allowedOrigins.indexOf(origin) !== -1) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600');
 
     var url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';

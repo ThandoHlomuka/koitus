@@ -9,9 +9,7 @@ Admins can now manually create user accounts through the admin dashboard!
 ## 🎯 How to Add a User
 
 ### Step 1: Access Admin Dashboard
-1. Login as admin:
-   - Email: `fanasihlomuka@gmail.com`
-   - Password: `Nozibusiso89`
+1. Login as admin with your admin credentials (requires `is_admin: true` in Supabase profiles)
 2. Click **"Users"** in the admin sidebar
 
 ### Step 2: Click "Add User" Button
@@ -23,7 +21,7 @@ Admins can now manually create user accounts through the admin dashboard!
 **Required Fields:**
 - Full Name
 - Email Address
-- Password (min 6 characters)
+- Password (min 8 characters)
 - Age (18-100)
 - Account Type (Customer or Service Provider)
 
@@ -99,7 +97,7 @@ Admins can now manually create user accounts through the admin dashboard!
 
 **Validation:**
 - Email uniqueness check
-- Password minimum length (6 chars)
+- Password minimum length (8 chars)
 - Age range (18-100)
 - Required field validation
 
@@ -123,7 +121,7 @@ Admins can now manually create user accounts through the admin dashboard!
 ```
 Name: Test User
 Email: test@example.com
-Password: test123
+Password: test1234
 Age: 25
 Gender: Male
 Location: Cape Town
@@ -135,7 +133,7 @@ Interests: Testing, QA, Development
 ```
 Name: Premium Member
 Email: vip@example.com
-Password: vip2024
+Password: vip202400
 Age: 30
 Account Type: Customer
 Bio: VIP customer
@@ -167,7 +165,6 @@ Interests: Business, Networking
   id: 1234567890,
   name: "John Doe",
   email: "john@example.com",
-  password: "hashed_password", // Hash in production!
   age: 25,
   gender: "male",
   location: "Johannesburg",
@@ -186,7 +183,7 @@ Interests: Business, Networking
 ## ⚠️ Important Notes
 
 **Production Considerations:**
-1. **Password Hashing**: Currently stored in plain text - use bcrypt in production
+1. **Password Hashing**: Passwords are hashed by Supabase Auth server-side. Local fallback does not store passwords.
 2. **Email Verification**: Add real email sending with verification links
 3. **Duplicate Check**: Enhanced validation for phone numbers, etc.
 4. **Role-Based Access**: Only super admins should create users

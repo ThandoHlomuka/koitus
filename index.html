@@ -4878,17 +4878,15 @@ Tips for a great post:
     <script src="supabase-db.js"></script>
     <script src="script.js?v=3.0.0"></script>
     <script>
-        // Try to load Supabase config from Vercel API
+        // Try to load Supabase config from Vercel API (in-memory only, no localStorage)
         (function fetchSupabaseConfig() {
             fetch('/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
                 if (cfg.configured) {
                     window.__supabaseConfig = cfg;
-                    localStorage.setItem('supabase_url', cfg.supabaseUrl);
-                    localStorage.setItem('supabase_anon_key', cfg.supabaseAnonKey);
-                    if (cfg.supabasePublishableKey) {
-                        localStorage.setItem('supabase_publishable_key', cfg.supabasePublishableKey);
-                    }
                     console.log('☁️ Supabase config loaded from Vercel env');
+                } else {
+                    console.warn('⚠️ Supabase not configured. Database may be paused.');
+                    if (typeof showSupabaseWarning === 'function') showSupabaseWarning();
                 }
             }).catch(function() {
                 console.log('☁️ No Vercel API config (running locally or static fallback)');

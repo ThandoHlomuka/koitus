@@ -2,10 +2,21 @@
   "version": 2,
   "framework": null,
   "outputDirectory": ".",
-  "installCommand": null,
+  "installCommand": "echo 'No install needed'",
   "functions": {
     "api/config.js": {
       "maxDuration": 10
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=600" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/api/config", "destination": "/api/config.js" }
+  ]
 }

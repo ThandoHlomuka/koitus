@@ -32,11 +32,15 @@ var _supabaseAnonKey = null;
             if (cfg.configured) {
                 _supabaseUrl = cfg.supabaseUrl;
                 _supabaseAnonKey = cfg.supabaseAnonKey || cfg.supabasePublishableKey;
-                // Reinitialize client with new config
                 supabaseClient = null;
                 initSupabase();
+            } else {
+                console.warn('⚠️ Supabase not configured. Running in offline mode.');
+                if (typeof showSupabaseWarning === 'function') showSupabaseWarning();
             }
-        }).catch(function() {});
+        }).catch(function() {
+            console.warn('⚠️ Could not reach config endpoint. Running in offline mode.');
+        });
     }
 })();
 

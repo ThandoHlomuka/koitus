@@ -1,0 +1,9 @@
+server/
+node_modules/
+.git/
+.vercel/
+*.md
+clear-cache.bat
+.env
+.env.*
+!.env.example

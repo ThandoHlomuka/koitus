@@ -5761,6 +5761,15 @@ function cancelEvent() {
     }
 }
 
+function showSupabaseWarning() {
+    if (document.getElementById('supabase-offline-banner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'supabase-offline-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#f59e0b;color:#1a1a2e;text-align:center;padding:10px 40px 10px 16px;font-size:14px;font-weight:600;';
+    banner.innerHTML = '⚠️ Database is paused. Some features are unavailable. <a href="https://supabase.com/dashboard" target="_blank" style="color:#1a1a2e;text-decoration:underline;margin-left:8px;">Restore project</a> <button onclick="this.parentElement.remove()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;font-weight:bold;">&times;</button>';
+    document.body.appendChild(banner);
+}
+
 function showToast(message) {
     // Remove existing toast
     const existingToast = document.querySelector('.toast-notification');

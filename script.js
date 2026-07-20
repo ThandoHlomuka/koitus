@@ -4098,10 +4098,14 @@ function showMapProfilePopup(profile) {
     
     // Show popup
     document.getElementById('map-profile-popup').style.display = 'block';
+    var backdrop = document.getElementById('profile-popup-backdrop');
+    if (backdrop) backdrop.style.display = 'block';
 }
 
 function closeMapPopup() {
     document.getElementById('map-profile-popup').style.display = 'none';
+    var backdrop = document.getElementById('profile-popup-backdrop');
+    if (backdrop) backdrop.style.display = 'none';
     state.selectedProfile = null;
 }
 
@@ -4295,6 +4299,8 @@ function openUserProfile(userId) {
         }
         
         popup.style.display = 'block';
+        var backdrop = document.getElementById('profile-popup-backdrop');
+        if (backdrop) backdrop.style.display = 'block';
     }
 }
 

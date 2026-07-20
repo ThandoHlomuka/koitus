@@ -2834,62 +2834,6 @@
                 <!-- Map Container -->
                 <div class="map-view-container">
                     <div id="members-map"></div>
-                    
-                    <!-- Profile Popup -->
-                    <div id="map-profile-popup" class="map-profile-popup" style="display: none;">
-                        <button class="popup-close" onclick="closeMapPopup()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                        <div class="popup-content">
-                            <div class="popup-image">
-                                <img src="" alt="" id="popup-image">
-                                <span class="popup-type-badge" id="popup-type"></span>
-                            </div>
-                            <div class="popup-info">
-                                <h3 id="popup-name"></h3>
-                                <p class="popup-location" id="popup-location"></p>
-                                <p class="popup-bio" id="popup-bio"></p>
-                                <div class="popup-interests" id="popup-interests"></div>
-                                <div class="popup-stats">
-                                    <div class="popup-stat">
-                                        <span class="stat-value" id="popup-age"></span>
-                                        <span class="stat-label">Age</span>
-                                    </div>
-                                    <div class="popup-stat">
-                                        <span class="stat-value" id="popup-distance"></span>
-                                        <span class="stat-label">Distance</span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Provider Stats Container -->
-                                <div id="popup-provider-stats" style="display: none;"></div>
-                                
-                                <div class="popup-actions">
-                                    <button class="btn btn-primary" onclick="startChatFromMap()">
-                                        <i class="fas fa-comment"></i> Chat
-                                    </button>
-                                    <button class="btn btn-outline" onclick="showComplimentBox()">
-                                        <i class="fas fa-heart"></i> Compliment
-                                    </button>
-                                    <button class="btn btn-ghost" onclick="viewFullProfile()">
-                                        <i class="fas fa-eye"></i> View Profile
-                                    </button>
-                                </div>
-                                
-                                <!-- Compliment Box -->
-                                <div id="compliment-box" class="compliment-box" style="display: none;">
-                                    <h4>Send a Compliment</h4>
-                                    <textarea id="compliment-text" placeholder="Write something nice..." rows="3"></textarea>
-                                    <div class="compliment-actions">
-                                        <button class="btn btn-sm btn-ghost" onclick="hideComplimentBox()">Cancel</button>
-                                        <button class="btn btn-sm btn-primary" onclick="sendCompliment()">
-                                            <i class="fas fa-paper-plane"></i> Send
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -5019,5 +4963,59 @@ Tips for a great post:
             });
         })();
     </script>
+
+    <!-- Profile Popup Backdrop -->
+    <div id="profile-popup-backdrop" class="profile-popup-backdrop" style="display: none;" onclick="closeMapPopup()"></div>
+
+    <!-- Global Profile Popup (works on all views) -->
+    <div id="map-profile-popup" class="map-profile-popup" style="display: none;">
+        <button class="popup-close" onclick="closeMapPopup()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="popup-content">
+            <div class="popup-image">
+                <img src="" alt="" id="popup-image">
+                <span class="popup-type-badge" id="popup-type"></span>
+            </div>
+            <div class="popup-info">
+                <h3 id="popup-name"></h3>
+                <p class="popup-location" id="popup-location"></p>
+                <p class="popup-bio" id="popup-bio"></p>
+                <div class="popup-interests" id="popup-interests"></div>
+                <div class="popup-stats">
+                    <div class="popup-stat">
+                        <span class="stat-value" id="popup-age"></span>
+                        <span class="stat-label">Age</span>
+                    </div>
+                    <div class="popup-stat">
+                        <span class="stat-value" id="popup-distance"></span>
+                        <span class="stat-label">Distance</span>
+                    </div>
+                </div>
+                <div id="popup-provider-stats" style="display: none;"></div>
+                <div class="popup-actions">
+                    <button class="btn btn-primary" onclick="startChatFromMap()">
+                        <i class="fas fa-comment"></i> Chat
+                    </button>
+                    <button class="btn btn-outline" onclick="showComplimentBox()">
+                        <i class="fas fa-heart"></i> Compliment
+                    </button>
+                    <button class="btn btn-ghost" onclick="viewFullProfile()">
+                        <i class="fas fa-eye"></i> View Profile
+                    </button>
+                </div>
+                <div id="compliment-box" class="compliment-box" style="display: none;">
+                    <h4>Send a Compliment</h4>
+                    <textarea id="compliment-text" placeholder="Write something nice..." rows="3"></textarea>
+                    <div class="compliment-actions">
+                        <button class="btn btn-sm btn-ghost" onclick="hideComplimentBox()">Cancel</button>
+                        <button class="btn btn-sm btn-primary" onclick="sendCompliment()">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

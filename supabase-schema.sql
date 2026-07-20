@@ -378,3 +378,31 @@ insert into public.forum_categories (id, name, icon, color, description, "order"
   ('provider-tips', 'Business Tips', 'chart-line', '#14b8a6', 'Grow your adult entertainment business', 2, true),
   ('provider-safety', 'Safety Protocols', 'user-shield', '#ef4444', 'Best practices for safety', 3, true)
 on conflict (id) do nothing;
+
+-- 12. REVIEWS
+create table if not exists public.reviews (
+  id bigserial primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  target_user_id uuid references public.profiles(id) on delete cascade not null,
+  rating integer check (rating >= 1 and rating <= 5) not null,
+  text text,
+  helpful integer default 0,
+  created_at timestamp with time zone default now()
+);
+
+create index if not exists idx_reviews_target on public.reviews(target_user_id);
+create index if not exists idx_reviews_user on public.reviews(user_id);
+
+alter table public.reviews enable row level security;
+
+create policy "Reviews are viewable by everyone" on public.reviews
+  for select using (true);
+
+create policy "Users can insert their own reviews" on public.reviews
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can update their own reviews" on public.reviews
+  for update using (auth.uid() = user_id);
+
+create policy "Users can delete their own reviews" on public.reviews
+  for delete using (auth.uid() = user_id);

@@ -1141,22 +1141,34 @@
                 <div class="view-header">
                     <h1>Your Matches</h1>
                     <div class="header-actions">
-                        <button class="btn btn-icon">
+                        <button class="btn btn-icon" onclick="toggleMatchesSearch()">
                             <i class="fas fa-search"></i>
                         </button>
+                        <button class="btn btn-icon" onclick="toggleMatchesFilter()">
+                            <i class="fas fa-filter"></i>
+                        </button>
                     </div>
+                </div>
+                <div id="matches-search-bar" class="matches-search-bar" style="display: none;">
+                    <input type="text" id="matches-search-input" placeholder="Search matches..." oninput="filterMatches()">
+                </div>
+                <div id="matches-filters" class="matches-filters" style="display: none;">
+                    <button class="filter-chip active" data-filter="all" onclick="setMatchFilter('all', this)">All</button>
+                    <button class="filter-chip" data-filter="providers" onclick="setMatchFilter('providers', this)">Providers</button>
+                    <button class="filter-chip" data-filter="online" onclick="setMatchFilter('online', this)">Online Now</button>
+                    <button class="filter-chip" data-filter="unmatched" onclick="setMatchFilter('unmatched', this)">Unmatched</button>
                 </div>
                 
                 <div class="matches-container">
                     <div class="new-matches-section">
-                        <h3>New Matches</h3>
+                        <h3>New Matches <span id="new-matches-count" class="match-count"></span></h3>
                         <div class="new-matches-grid" id="new-matches-grid">
                             <!-- Populated by JS -->
                         </div>
                     </div>
                     
                     <div class="all-matches-section">
-                        <h3>All Matches</h3>
+                        <h3>All Matches <span id="all-matches-count" class="match-count"></span></h3>
                         <div class="matches-list" id="matches-list">
                             <!-- Populated by JS -->
                         </div>
@@ -4975,43 +4987,115 @@ Tips for a great post:
                 <img src="" alt="" id="popup-image">
                 <span class="popup-type-badge" id="popup-type"></span>
             </div>
-            <div class="popup-info">
-                <h3 id="popup-name"></h3>
-                <p class="popup-location" id="popup-location"></p>
-                <p class="popup-bio" id="popup-bio"></p>
-                <div class="popup-interests" id="popup-interests"></div>
-                <div class="popup-stats">
-                    <div class="popup-stat">
-                        <span class="stat-value" id="popup-age"></span>
-                        <span class="stat-label">Age</span>
+            <div class="popup-tabs">
+                <button class="popup-tab active" onclick="switchPopupTab('about')">About</button>
+                <button class="popup-tab" onclick="switchPopupTab('reviews')">Reviews <span id="popup-review-count" class="review-count-badge"></span></button>
+            </div>
+            <div id="popup-tab-about" class="popup-tab-content">
+                <div class="popup-info">
+                    <h3 id="popup-name"></h3>
+                    <div class="popup-rating" id="popup-rating"></div>
+                    <p class="popup-location" id="popup-location"></p>
+                    <p class="popup-bio" id="popup-bio"></p>
+                    <div class="popup-interests" id="popup-interests"></div>
+                    <div class="popup-stats">
+                        <div class="popup-stat">
+                            <span class="stat-value" id="popup-age"></span>
+                            <span class="stat-label">Age</span>
+                        </div>
+                        <div class="popup-stat">
+                            <span class="stat-value" id="popup-distance"></span>
+                            <span class="stat-label">Distance</span>
+                        </div>
                     </div>
-                    <div class="popup-stat">
-                        <span class="stat-value" id="popup-distance"></span>
-                        <span class="stat-label">Distance</span>
+                    <div id="popup-provider-stats" style="display: none;"></div>
+                </div>
+            </div>
+            <div id="popup-tab-reviews" class="popup-tab-content" style="display: none;">
+                <div class="popup-reviews-section" id="popup-reviews-list">
+                    <div class="review-summary" id="popup-review-summary"></div>
+                    <div class="reviews-list" id="popup-reviews-items"></div>
+                </div>
+                <div class="write-review-section">
+                    <h4>Write a Review</h4>
+                    <div class="review-star-selector" id="review-star-selector">
+                        <span class="star-btn" onclick="setReviewRating(1)">★</span>
+                        <span class="star-btn" onclick="setReviewRating(2)">★</span>
+                        <span class="star-btn" onclick="setReviewRating(3)">★</span>
+                        <span class="star-btn" onclick="setReviewRating(4)">★</span>
+                        <span class="star-btn" onclick="setReviewRating(5)">★</span>
                     </div>
-                </div>
-                <div id="popup-provider-stats" style="display: none;"></div>
-                <div class="popup-actions">
-                    <button class="btn btn-primary" onclick="startChatFromMap()">
-                        <i class="fas fa-comment"></i> Chat
-                    </button>
-                    <button class="btn btn-outline" onclick="showComplimentBox()">
-                        <i class="fas fa-heart"></i> Compliment
-                    </button>
-                    <button class="btn btn-ghost" onclick="viewFullProfile()">
-                        <i class="fas fa-eye"></i> View Profile
+                    <textarea id="review-text" placeholder="Share your experience..." rows="3"></textarea>
+                    <button class="btn btn-primary btn-sm" onclick="submitReview()">
+                        <i class="fas fa-paper-plane"></i> Submit Review
                     </button>
                 </div>
-                <div id="compliment-box" class="compliment-box" style="display: none;">
-                    <h4>Send a Compliment</h4>
-                    <textarea id="compliment-text" placeholder="Write something nice..." rows="3"></textarea>
-                    <div class="compliment-actions">
-                        <button class="btn btn-sm btn-ghost" onclick="hideComplimentBox()">Cancel</button>
-                        <button class="btn btn-sm btn-primary" onclick="sendCompliment()">
-                            <i class="fas fa-paper-plane"></i> Send
-                        </button>
-                    </div>
+            </div>
+            <div class="popup-actions">
+                <button class="btn btn-primary" onclick="startChatFromMap()">
+                    <i class="fas fa-comment"></i> Chat
+                </button>
+                <button class="btn btn-outline" onclick="showComplimentBox()">
+                    <i class="fas fa-heart"></i> Compliment
+                </button>
+                <button class="btn btn-ghost" onclick="viewFullProfile()">
+                    <i class="fas fa-eye"></i> View Profile
+                </button>
+            </div>
+            <div id="compliment-box" class="compliment-box" style="display: none;">
+                <h4>Send a Compliment</h4>
+                <textarea id="compliment-text" placeholder="Write something nice..." rows="3"></textarea>
+                <div class="compliment-actions">
+                    <button class="btn btn-sm btn-ghost" onclick="hideComplimentBox()">Cancel</button>
+                    <button class="btn btn-sm btn-primary" onclick="sendCompliment()">
+                        <i class="fas fa-paper-plane"></i> Send
+                    </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Profile View -->
+    <div id="view-user-profile" class="full-profile-view" style="display: none;">
+        <div class="full-profile-header">
+            <button class="back-btn" onclick="closeFullProfile()">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+            <h3 id="full-profile-name">Profile</h3>
+        </div>
+        <div class="full-profile-body" id="full-profile-body">
+            <div class="full-profile-gallery" id="full-profile-gallery"></div>
+            <div class="full-profile-info">
+                <h2 id="full-profile-display-name"></h2>
+                <div class="full-profile-meta" id="full-profile-meta"></div>
+                <div class="full-profile-rating" id="full-profile-rating"></div>
+                <p class="full-profile-bio" id="full-profile-bio"></p>
+                <div class="full-profile-interests" id="full-profile-interests"></div>
+                <div class="full-profile-tabs">
+                    <button class="full-tab active" onclick="switchFullTab('info')">Info</button>
+                    <button class="full-tab" onclick="switchFullTab('reviews')">Reviews <span id="full-review-count" class="review-count-badge"></span></button>
+                    <button class="full-tab" onclick="switchFullTab('gallery')">Gallery</button>
+                </div>
+                <div id="full-tab-info" class="full-tab-content">
+                    <div class="full-profile-details" id="full-profile-details"></div>
+                </div>
+                <div id="full-tab-reviews" class="full-tab-content" style="display: none;">
+                    <div id="full-reviews-section"></div>
+                </div>
+                <div id="full-tab-gallery" class="full-tab-content" style="display: none;">
+                    <div class="full-profile-gallery-grid" id="full-profile-gallery-grid"></div>
+                </div>
+            </div>
+            <div class="full-profile-actions">
+                <button class="btn btn-primary btn-lg" onclick="startChatFromProfile()">
+                    <i class="fas fa-comment"></i> Message
+                </button>
+                <button class="btn btn-outline btn-lg" onclick="startCallFromProfile('video')">
+                    <i class="fas fa-video"></i> Video Call
+                </button>
+                <button class="btn btn-outline btn-lg" onclick="startCallFromProfile('audio')">
+                    <i class="fas fa-phone"></i> Audio Call
+                </button>
             </div>
         </div>
     </div>

@@ -142,6 +142,10 @@ const state = {
     // Stories
     stories: [],
     storiesFilter: 'all',
+    // Reviews
+    reviews: [],
+    // Call History
+    callHistory: [],
     // Admin
     adminData: {
         users: [],
@@ -2871,17 +2875,314 @@ function fanProfile(userId) {
 }
 
 function rateProfile(userId) {
-    const rating = prompt('Rate this provider (1-5):');
-    if (rating && rating >= 1 && rating <= 5) {
-        showToast(`Rating submitted: ${rating} stars ⭐`);
-    }
+    openPopupTab('reviews');
+    const starBtns = document.querySelectorAll('#review-star-selector .star-btn');
+    starBtns.forEach(b => b.classList.remove('active'));
 }
 
 function reviewProfile(userId) {
-    const review = prompt('Write your review:');
-    if (review) {
-        showToast('Review submitted! Thank you for your feedback 📝');
+    openPopupTab('reviews');
+    setTimeout(() => {
+        const textarea = document.getElementById('review-text');
+        if (textarea) textarea.focus();
+    }, 300);
+}
+
+let reviewRating = 0;
+let reviewTargetUserId = null;
+
+function switchPopupTab(tab) {
+    document.querySelectorAll('.popup-tab').forEach(t => t.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('popup-tab-about').style.display = tab === 'about' ? 'block' : 'none';
+    document.getElementById('popup-tab-reviews').style.display = tab === 'reviews' ? 'block' : 'none';
+    if (tab === 'reviews' && reviewTargetUserId) {
+        renderPopupReviews(reviewTargetUserId);
     }
+}
+
+function openPopupTab(tab) {
+    const tabs = document.querySelectorAll('.popup-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    if (tab === 'reviews' && tabs[1]) tabs[1].classList.add('active');
+    else if (tabs[0]) tabs[0].classList.add('active');
+    document.getElementById('popup-tab-about').style.display = tab === 'about' ? 'block' : 'none';
+    document.getElementById('popup-tab-reviews').style.display = tab === 'reviews' ? 'block' : 'none';
+}
+
+function setReviewRating(stars) {
+    reviewRating = stars;
+    const btns = document.querySelectorAll('#review-star-selector .star-btn');
+    btns.forEach((b, i) => {
+        b.classList.toggle('active', i < stars);
+    });
+}
+
+function submitReview() {
+    if (!reviewTargetUserId) {
+        showToast('No profile selected', 'error');
+        return;
+    }
+    if (reviewRating === 0) {
+        showToast('Please select a rating', 'warning');
+        return;
+    }
+    const textarea = document.getElementById('review-text');
+    const text = textarea ? textarea.value.trim() : '';
+    if (!text) {
+        showToast('Please write a review', 'warning');
+        return;
+    }
+
+    const review = {
+        id: Date.now(),
+        userId: state.currentUser.id,
+        userName: state.currentUser.name || 'Anonymous',
+        userImage: state.currentUser.image || '',
+        targetUserId: reviewTargetUserId,
+        rating: reviewRating,
+        text: text,
+        date: new Date().toISOString(),
+        helpful: 0
+    };
+
+    if (!state.reviews) state.reviews = [];
+    state.reviews.push(review);
+    localStorage.setItem('koitus_reviews', JSON.stringify(state.reviews));
+
+    textarea.value = '';
+    reviewRating = 0;
+    document.querySelectorAll('#review-star-selector .star-btn').forEach(b => b.classList.remove('active'));
+    showToast('Review submitted!', 'success');
+    renderPopupReviews(reviewTargetUserId);
+}
+
+function getReviewsForUser(userId) {
+    if (!state.reviews) state.reviews = [];
+    return state.reviews.filter(r => r.targetUserId === userId);
+}
+
+function getAverageRating(userId) {
+    const reviews = getReviewsForUser(userId);
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((a, r) => a + r.rating, 0);
+    return sum / reviews.length;
+}
+
+function renderStars(rating, size) {
+    const sz = size || 14;
+    let html = '<span class="stars-display" style="font-size:' + sz + 'px">';
+    for (let i = 1; i <= 5; i++) {
+        if (i <= Math.floor(rating)) {
+            html += '<span class="star filled">★</span>';
+        } else if (i - rating < 1 && i - rating > 0) {
+            html += '<span class="star half">★</span>';
+        } else {
+            html += '<span class="star empty">★</span>';
+        }
+    }
+    html += '</span>';
+    return html;
+}
+
+function renderPopupReviews(userId) {
+    const reviews = getReviewsForUser(userId);
+    const avg = getAverageRating(userId);
+    const countEl = document.getElementById('popup-review-count');
+    if (countEl) countEl.textContent = reviews.length > 0 ? '(' + reviews.length + ')' : '';
+
+    const summaryEl = document.getElementById('popup-review-summary');
+    if (summaryEl) {
+        summaryEl.innerHTML = reviews.length > 0 ?
+            '<div class="review-avg"><span class="avg-number">' + avg.toFixed(1) + '</span>' + renderStars(avg, 18) + '<span class="review-total">' + reviews.length + ' review' + (reviews.length !== 1 ? 's' : '') + '</span></div>' :
+            '<p class="no-reviews">No reviews yet. Be the first!</p>';
+    }
+
+    const listEl = document.getElementById('popup-reviews-items');
+    if (!listEl) return;
+    if (reviews.length === 0) {
+        listEl.innerHTML = '';
+        return;
+    }
+
+    listEl.innerHTML = reviews.slice(0, 10).map(r => {
+        const timeAgo = getTimeAgo(r.date);
+        return '<div class="review-card">' +
+            '<div class="review-header">' +
+                '<img src="' + (r.userImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.userName) + '&background=ff6b9d&color=fff&size=32') + '" class="review-avatar">' +
+                '<div class="review-meta"><span class="reviewer-name">' + escapeHtml(r.userName) + '</span><span class="review-date">' + timeAgo + '</span></div>' +
+                '<div class="review-stars">' + renderStars(r.rating, 12) + '</div>' +
+            '</div>' +
+            '<p class="review-text">' + escapeHtml(r.text) + '</p>' +
+            '<div class="review-actions"><button class="btn-link" onclick="markReviewHelpful(' + r.id + ')"><i class="fas fa-thumbs-up"></i> Helpful (' + (r.helpful || 0) + ')</button></div>' +
+        '</div>';
+    }).join('');
+}
+
+function markReviewHelpful(reviewId) {
+    if (!state.reviews) return;
+    const review = state.reviews.find(r => r.id === reviewId);
+    if (review) {
+        review.helpful = (review.helpful || 0) + 1;
+        localStorage.setItem('koitus_reviews', JSON.stringify(state.reviews));
+        if (reviewTargetUserId) renderPopupReviews(reviewTargetUserId);
+    }
+}
+
+function getTimeAgo(dateStr) {
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diff = Math.floor((now - then) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return new Date(dateStr).toLocaleDateString();
+}
+
+// ==================== FULL PROFILE PAGE ====================
+function viewFullProfile() {
+    const userId = getCurrentPopupUserId();
+    if (!userId) {
+        showToast('No profile selected', 'warning');
+        return;
+    }
+    openFullProfile(userId);
+}
+
+function openFullProfile(userId) {
+    const user = state.profiles.find(p => p.id === userId);
+    if (!user) {
+        showToast('Profile not found', 'error');
+        return;
+    }
+
+    closeMapPopup();
+
+    const profileView = document.getElementById('view-user-profile');
+    if (!profileView) return;
+
+    reviewTargetUserId = userId;
+
+    const gallery = document.getElementById('full-profile-gallery');
+    const images = user.gallery && user.gallery.length > 0 ? user.gallery : (user.images || [user.image]);
+    gallery.innerHTML = images.map((img, i) =>
+        '<div class="gallery-thumb ' + (i === 0 ? 'active' : '') + '" onclick="setFullProfileMainImage(\'' + img + '\', this)">' +
+        '<img src="' + img + '" alt="' + escapeHtml(user.name) + '"></div>'
+    ).join('');
+
+    document.getElementById('full-profile-name').textContent = user.name;
+    document.getElementById('full-profile-display-name').textContent = user.name;
+    document.getElementById('full-profile-bio').textContent = user.bio || 'No bio yet';
+
+    const meta = document.getElementById('full-profile-meta');
+    const age = user.age || calculateAge(user.dob);
+    const distance = user.distance || calculateDistance(user.location);
+    meta.innerHTML = '<span class="meta-item"><i class="fas fa-map-marker-alt"></i> ' + escapeHtml(distance) + '</span>' +
+        '<span class="meta-item"><i class="fas fa-birthday-cake"></i> ' + age + '</span>' +
+        (user.callRate ? '<span class="meta-item"><i class="fas fa-coins"></i> R' + user.callRate + '/min</span>' : '') +
+        (user.gender ? '<span class="meta-item"><i class="fas fa-venus-mars"></i> ' + escapeHtml(user.gender) + '</span>' : '');
+
+    const avg = getAverageRating(userId);
+    const reviews = getReviewsForUser(userId);
+    document.getElementById('full-profile-rating').innerHTML = avg > 0 ?
+        renderStars(avg, 16) + ' <span>(' + reviews.length + ' reviews)</span>' : '<span class="no-rating">No reviews yet</span>';
+
+    const interests = document.getElementById('full-profile-interests');
+    if (user.interests && user.interests.length > 0) {
+        interests.innerHTML = '<div class="interests-grid">' + user.interests.map(i =>
+            '<span class="interest-tag">' + escapeHtml(i) + '</span>'
+        ).join('') + '</div>';
+    } else {
+        interests.innerHTML = '';
+    }
+
+    const details = document.getElementById('full-profile-details');
+    let detailsHtml = '';
+    if (user.type === 'provider' || user.role === 'provider') {
+        detailsHtml += '<div class="detail-card"><h4><i class="fas fa-briefcase"></i> Provider Details</h4>';
+        if (user.services) detailsHtml += '<p><strong>Services:</strong> ' + escapeHtml(Array.isArray(user.services) ? user.services.join(', ') : user.services) + '</p>';
+        if (user.callRate) detailsHtml += '<p><strong>Rate:</strong> R' + user.callRate + '/min</p>';
+        if (user.experience) detailsHtml += '<p><strong>Experience:</strong> ' + escapeHtml(user.experience) + '</p>';
+        detailsHtml += '</div>';
+    }
+    detailsHtml += '<div class="detail-card"><h4><i class="fas fa-user"></i> About</h4>';
+    if (user.location) detailsHtml += '<p><i class="fas fa-map-marker-alt"></i> ' + escapeHtml(user.location) + '</p>';
+    if (user.dob) detailsHtml += '<p><i class="fas fa-birthday-cake"></i> ' + escapeHtml(user.dob) + '</p>';
+    if (user.zodiac) detailsHtml += '<p><i class="fas fa-star"></i> ' + escapeHtml(user.zodiac) + '</p>';
+    detailsHtml += '</div>';
+    details.innerHTML = detailsHtml;
+
+    const fullReviewCount = document.getElementById('full-review-count');
+    if (fullReviewCount) fullReviewCount.textContent = reviews.length > 0 ? '(' + reviews.length + ')' : '';
+    const fullReviewsSection = document.getElementById('full-reviews-section');
+    if (fullReviewsSection) {
+        if (reviews.length === 0) {
+            fullReviewsSection.innerHTML = '<p class="no-reviews">No reviews yet</p>';
+        } else {
+            fullReviewsSection.innerHTML =
+                '<div class="review-summary"><span class="avg-number">' + avg.toFixed(1) + '</span>' + renderStars(avg, 18) + '</div>' +
+                '<div class="reviews-list">' + reviews.map(r => {
+                    return '<div class="review-card"><div class="review-header"><img src="' + (r.userImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(r.userName) + '&background=ff6b9d&color=fff&size=32') + '" class="review-avatar"><div class="review-meta"><span class="reviewer-name">' + escapeHtml(r.userName) + '</span><span class="review-date">' + getTimeAgo(r.date) + '</span></div><div class="review-stars">' + renderStars(r.rating, 12) + '</div></div><p class="review-text">' + escapeHtml(r.text) + '</p></div>';
+                }).join('') + '</div>';
+        }
+    }
+
+    const galleryGrid = document.getElementById('full-profile-gallery-grid');
+    if (galleryGrid) {
+        galleryGrid.innerHTML = images.map(img =>
+            '<div class="gallery-full-item"><img src="' + img + '" alt="Photo"></div>'
+        ).join('');
+    }
+
+    profileView.style.display = 'block';
+    profileView.dataset.userId = userId;
+}
+
+function closeFullProfile() {
+    const view = document.getElementById('view-user-profile');
+    if (view) view.style.display = 'none';
+}
+
+function switchFullTab(tab) {
+    document.querySelectorAll('.full-tab').forEach(t => t.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('full-tab-info').style.display = tab === 'info' ? 'block' : 'none';
+    document.getElementById('full-tab-reviews').style.display = tab === 'reviews' ? 'block' : 'none';
+    document.getElementById('full-tab-gallery').style.display = tab === 'gallery' ? 'block' : 'none';
+}
+
+function setFullProfileMainImage(src, el) {
+    const main = document.querySelector('#full-profile-gallery .gallery-thumb.active');
+    if (main) main.classList.remove('active');
+    if (el) el.classList.add('active');
+    const hero = document.querySelector('#full-profile-gallery .gallery-hero img');
+    if (hero) hero.src = src;
+}
+
+function startChatFromProfile() {
+    const view = document.getElementById('view-user-profile');
+    const userId = view ? view.dataset.userId : null;
+    if (!userId) return;
+    closeFullProfile();
+    openChat(userId);
+}
+
+function startCallFromProfile(type) {
+    const view = document.getElementById('view-user-profile');
+    const userId = view ? view.dataset.userId : null;
+    if (!userId) return;
+    if (type === 'audio') {
+        startAudioCallWith(userId);
+    } else {
+        startVideoCallWith(userId);
+    }
+}
+
+function getCurrentPopupUserId() {
+    const popup = document.getElementById('map-profile-popup');
+    if (popup && popup.dataset.userId) return popup.dataset.userId;
+    return null;
 }
 
 function toggleUserFilters() {
@@ -3104,34 +3405,174 @@ function applyFilters() {
 
 // ==================== MATCHES VIEW ====================
 function renderMatches() {
+    if (!state.matches) state.matches = [];
+    
+    let filtered = [...state.matches];
+    const searchTerm = document.getElementById('matches-search-input');
+    const activeFilter = document.querySelector('.filter-chip.active');
+    const filterType = activeFilter ? activeFilter.dataset.filter : 'all';
+
+    if (searchTerm && searchTerm.value.trim()) {
+        const q = searchTerm.value.trim().toLowerCase();
+        filtered = filtered.filter(m => m.name && m.name.toLowerCase().includes(q));
+    }
+
+    if (filterType === 'providers') {
+        filtered = filtered.filter(m => m.type === 'provider' || m.role === 'provider');
+    } else if (filterType === 'online') {
+        filtered = filtered.filter(m => m.online);
+    } else if (filterType === 'unmatched') {
+        filtered = filtered.filter(m => m.unmatched);
+    }
+
+    const newMatches = filtered.slice(0, 5);
+    const allMatches = filtered;
+
+    const newCountEl = document.getElementById('new-matches-count');
+    if (newCountEl) newCountEl.textContent = '(' + newMatches.length + ')';
+    const allCountEl = document.getElementById('all-matches-count');
+    if (allCountEl) allCountEl.textContent = '(' + allMatches.length + ')';
+
     // New matches grid
     const newMatchesGrid = document.getElementById('new-matches-grid');
     if (newMatchesGrid) {
-        newMatchesGrid.innerHTML = state.matches.slice(0, 5).map(match => `
-            <div class="match-avatar" onclick="startChat(${match.id})">
-                <img src="${match.image}" alt="${match.name}">
-                <span class="match-name">${match.name}, ${match.age}</span>
-                ${match.online ? '<span class="online-indicator"></span>' : ''}
-            </div>
-        `).join('');
+        newMatchesGrid.innerHTML = newMatches.length === 0 ?
+            '<p class="no-matches-msg">No new matches yet. Keep swiping!</p>' :
+            newMatches.map(match => {
+                const compatibility = calculateCompatibility(match);
+                return `<div class="match-avatar" onclick="startChat(${match.id})">
+                    <img src="${match.image}" alt="${match.name}">
+                    <span class="match-name">${match.name}, ${match.age}</span>
+                    <span class="match-compatibility">${compatibility}%</span>
+                    ${match.online ? '<span class="online-indicator"></span>' : ''}
+                    <button class="match-unmatch-btn" onclick="event.stopPropagation(); unmatchUser(${match.id})" title="Unmatch">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>`;
+            }).join('');
     }
     
     // All matches list
     const matchesList = document.getElementById('matches-list');
     if (matchesList) {
-        matchesList.innerHTML = state.matches.map(match => `
-            <div class="match-item" onclick="startChat(${match.id})">
-                <div class="match-item-avatar">
-                    <img src="${match.image}" alt="${match.name}">
-                </div>
-                <div class="match-item-info">
-                    <div class="match-item-name">${match.name}, ${match.age}</div>
-                    <div class="match-item-last-message">${match.lastMessage}</div>
-                </div>
-                <div class="match-item-time">${match.time}</div>
-                ${match.unread ? '<span class="match-item-unread"></span>' : ''}
-            </div>
-        `).join('');
+        matchesList.innerHTML = allMatches.length === 0 ?
+            '<p class="no-matches-msg">No matches found. Try adjusting your filters!</p>' :
+            allMatches.map(match => {
+                const compatibility = calculateCompatibility(match);
+                const matchDate = match.matchedAt ? getTimeAgo(match.matchedAt) : '';
+                const lastMsg = match.lastMessage || '';
+                const starter = !lastMsg ? getSuggestion(match) : '';
+                return `<div class="match-item" onclick="startChat(${match.id})">
+                    <div class="match-item-avatar">
+                        <img src="${match.image}" alt="${match.name}">
+                        ${match.online ? '<span class="online-indicator"></span>' : ''}
+                    </div>
+                    <div class="match-item-info">
+                        <div class="match-item-name">
+                            ${match.name}, ${match.age}
+                            <span class="match-compatibility-badge">${compatibility}%</span>
+                            ${match.type === 'provider' || match.role === 'provider' ? '<span class="match-provider-badge">Provider</span>' : ''}
+                        </div>
+                        <div class="match-item-last-message">${lastMsg || '<em class="conversation-starter">' + starter + '</em>'}</div>
+                        ${matchDate ? '<div class="match-item-date">Matched ' + matchDate + '</div>' : ''}
+                    </div>
+                    <div class="match-item-actions">
+                        <button class="btn-icon-sm" onclick="event.stopPropagation(); startChat(${match.id})" title="Chat">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                        <button class="btn-icon-sm" onclick="event.stopPropagation(); openFullProfile(${match.id})" title="View Profile">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-icon-sm danger" onclick="event.stopPropagation(); unmatchUser(${match.id})" title="Unmatch">
+                            <i class="fas fa-user-times"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+    }
+}
+
+function calculateCompatibility(match) {
+    if (!match || !state.currentUser) return Math.floor(Math.random() * 30) + 60;
+    
+    let score = 60;
+    const userInterests = state.currentUser.interests || [];
+    const matchInterests = match.interests || [];
+    if (userInterests.length > 0 && matchInterests.length > 0) {
+        const shared = userInterests.filter(i => matchInterests.includes(i));
+        score += Math.min(shared.length * 8, 25);
+    }
+    
+    if (match.location && state.currentUser.location) {
+        if (match.location === state.currentUser.location) score += 10;
+    }
+    
+    const ageDiff = Math.abs((match.age || 25) - (state.currentUser.age || 25));
+    if (ageDiff <= 3) score += 5;
+    else if (ageDiff > 10) score -= 5;
+    
+    return Math.min(Math.max(score, 40), 99);
+}
+
+function getSuggestion(match) {
+    const suggestions = [
+        'Hey! How\'s your day going? 😊',
+        'I love your profile! What are you into?',
+        'Hi there! What do you do for fun?',
+        'You seem interesting! Tell me about yourself',
+        'Hey! Any fun plans this weekend?',
+        'Love your vibe! Want to chat? 💬',
+        'Hi! What\'s your favorite thing about this app?'
+    ];
+    
+    if (match.interests && match.interests.length > 0) {
+        const interest = match.interests[Math.floor(Math.random() * match.interests.length)];
+        return 'Hey! I see you\'re into ' + interest + '... tell me more! 👋';
+    }
+    
+    return suggestions[Math.floor(Math.random() * suggestions.length)];
+}
+
+function toggleMatchesSearch() {
+    const bar = document.getElementById('matches-search-bar');
+    if (bar) {
+        const isVisible = bar.style.display !== 'none';
+        bar.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible) {
+            const input = document.getElementById('matches-search-input');
+            if (input) input.focus();
+        } else {
+            filterMatches();
+        }
+    }
+}
+
+function toggleMatchesFilter() {
+    const filters = document.getElementById('matches-filters');
+    if (filters) {
+        filters.style.display = filters.style.display === 'none' ? 'flex' : 'none';
+    }
+}
+
+function setMatchFilter(type, el) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderMatches();
+}
+
+function filterMatches() {
+    renderMatches();
+}
+
+function unmatchUser(userId) {
+    const match = state.matches.find(m => m.id === userId);
+    if (!match) return;
+    
+    if (confirm('Are you sure you want to unmatch with ' + match.name + '?')) {
+        state.matches = state.matches.filter(m => m.id !== userId);
+        localStorage.setItem('koitus_matches', JSON.stringify(state.matches));
+        showToast('Unmatched with ' + match.name, 'info');
+        renderMatches();
     }
 }
 
@@ -4096,8 +4537,25 @@ function showMapProfilePopup(profile) {
         .join('');
     document.getElementById('popup-interests').innerHTML = interestsHtml;
     
+    // Store userId for review system and full profile
+    const popup = document.getElementById('map-profile-popup');
+    popup.dataset.userId = profile.id;
+    reviewTargetUserId = profile.id;
+
+    // Render average rating
+    const avg = getAverageRating(profile.id);
+    const reviewCount = getReviewsForUser(profile.id).length;
+    const ratingEl = document.getElementById('popup-rating');
+    if (ratingEl) {
+        ratingEl.innerHTML = avg > 0 ?
+            renderStars(avg, 14) + ' <span class="review-count-inline">(' + reviewCount + ')</span>' :
+            '<span class="no-rating">No reviews yet</span>';
+    }
+    const countBadge = document.getElementById('popup-review-count');
+    if (countBadge) countBadge.textContent = reviewCount > 0 ? '(' + reviewCount + ')' : '';
+    
     // Show popup
-    document.getElementById('map-profile-popup').style.display = 'block';
+    popup.style.display = 'block';
     var backdrop = document.getElementById('profile-popup-backdrop');
     if (backdrop) backdrop.style.display = 'block';
 }
@@ -4226,6 +4684,8 @@ function openUserProfile(userId) {
     // Populate popup
     const popup = document.getElementById('map-profile-popup');
     if (popup) {
+        popup.dataset.userId = user.id;
+        reviewTargetUserId = user.id;
         document.getElementById('popup-image').src = user.image;
         document.getElementById('popup-name').textContent = `${user.name}, ${user.age}`;
         document.getElementById('popup-location').textContent = user.location;
@@ -4239,6 +4699,18 @@ function openUserProfile(userId) {
             .map(interest => `<span class="interest-tag">${interest}</span>`)
             .join('');
         document.getElementById('popup-interests').innerHTML = interestsHtml;
+
+        // Show rating
+        const avg = getAverageRating(user.id);
+        const reviewCount = getReviewsForUser(user.id).length;
+        const ratingEl = document.getElementById('popup-rating');
+        if (ratingEl) {
+            ratingEl.innerHTML = avg > 0 ?
+                renderStars(avg, 14) + ' <span class="review-count-inline">(' + reviewCount + ')</span>' :
+                '<span class="no-rating">No reviews yet</span>';
+        }
+        const countBadge = document.getElementById('popup-review-count');
+        if (countBadge) countBadge.textContent = reviewCount > 0 ? '(' + reviewCount + ')' : '';
 
         // Show provider stats if applicable
         const isProvider = user.accountType === 'provider';
@@ -4508,7 +4980,32 @@ function initRealtimeConnection() {
     // Call accepted
     state.socket.on('call_accepted', (data) => {
         console.log('Call accepted:', data);
-        setupWebRTCConnection('receiver');
+        setupWebRTCConnection('caller');
+    });
+
+    // Call rejected
+    state.socket.on('call_rejected', (data) => {
+        console.log('Call rejected:', data);
+        stopCallTimer();
+        hideCallUI();
+        if (state.peerConnection) { state.peerConnection.close(); state.peerConnection = null; }
+        if (state.localStream) { state.localStream.getTracks().forEach(t => t.stop()); state.localStream = null; }
+        state.activeCall = null;
+        showNotification('Call rejected', 'warning');
+    });
+
+    // Call ended by remote
+    state.socket.on('call_ended', (data) => {
+        console.log('Call ended by remote:', data);
+        stopCallTimer();
+        hideCallUI();
+        if (state.peerConnection) { state.peerConnection.close(); state.peerConnection = null; }
+        if (state.localStream) { state.localStream.getTracks().forEach(t => t.stop()); state.localStream = null; }
+        if (state.activeCall) {
+            chargeForCall(state.activeCall);
+            state.activeCall = null;
+        }
+        showNotification('Call ended', 'info');
     });
 
     // WebRTC offer
@@ -4686,6 +5183,21 @@ function startAudioCallWith(userId) {
 let callTimerInterval = null;
 let callSeconds = 0;
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function calculateAge(dob) {
+    if (!dob) return 0;
+    const birth = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+}
+
 function formatCallTime(seconds) {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -4699,6 +5211,13 @@ function startCallTimer() {
         callSeconds++;
         const el = document.getElementById('call-timer');
         if (el) el.textContent = formatCallTime(callSeconds);
+        const costEl = document.getElementById('call-cost-display');
+        if (costEl && state.activeCall) {
+            const provider = state.profiles.find(p => p.id === state.activeCall.userId);
+            const rate = provider ? (provider.callRate || 0) : 0;
+            const minutes = Math.ceil(callSeconds / 60);
+            costEl.textContent = 'R' + (minutes * rate).toFixed(2);
+        }
     }, 1000);
 }
 
@@ -4774,26 +5293,26 @@ async function acceptCall(callId, from) {
     const modal = document.getElementById('incoming-call-modal');
     if (modal) modal.remove();
 
+    const callType = (state.activeCall && state.activeCall.type) || 'video';
+
     try {
         state.localStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
+            video: callType !== 'audio',
             audio: true
         });
         
         const user = state.profiles.find(p => p.id === from);
-        showCallUI(user || { name: 'User', image: '' }, 'receiver', 'video');
+        showCallUI(user || { name: 'User', image: '' }, 'receiver', callType);
         
         state.socket.emit('accept_call', {
             callId,
             from: state.currentUser.id
         });
         
-        setupWebRTCConnection('receiver');
-        
         state.activeCall = {
             callId,
             userId: from,
-            type: 'video',
+            type: callType,
             status: 'accepted'
         };
         
@@ -4818,6 +5337,54 @@ function rejectCall(callId) {
     showNotification('Call rejected', 'info');
 }
 
+// ==================== CALL BILLING ====================
+function chargeForCall(activeCall) {
+    if (!activeCall || !activeCall.userId) return;
+    const provider = state.profiles.find(p => p.id === activeCall.userId);
+    if (!provider) return;
+    
+    const ratePerMin = provider.callRate || 0;
+    if (ratePerMin <= 0) return;
+    
+    const minutes = Math.ceil(callSeconds / 60);
+    const charge = minutes * ratePerMin;
+    
+    if (charge <= 0) return;
+    
+    state.wallet.balance -= charge;
+    state.wallet.transactions.unshift({
+        id: Date.now(),
+        type: 'call_charge',
+        amount: -charge,
+        description: `Call with ${provider.name} (${minutes} min @ R${ratePerMin}/min)`,
+        date: new Date().toISOString(),
+        userId: state.currentUser.id,
+        toUserId: provider.id
+    });
+    
+    localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(state.wallet));
+    
+    if (charge > 0) {
+        showNotification(`Call charged: R${charge.toFixed(2)} (${minutes} min × R${ratePerMin}/min)`, 'info');
+    }
+    
+    // Add to call history
+    if (!state.callHistory) state.callHistory = [];
+    state.callHistory.unshift({
+        id: Date.now(),
+        userId: provider.id,
+        name: provider.name,
+        image: provider.image,
+        type: activeCall.type,
+        duration: callSeconds,
+        cost: charge,
+        rate: ratePerMin,
+        date: new Date().toISOString(),
+        direction: 'outgoing'
+    });
+    localStorage.setItem('koitus_call_history', JSON.stringify(state.callHistory));
+}
+
 function endCall() {
     if (state.activeCall) {
         if (state.socket) {
@@ -4837,6 +5404,7 @@ function endCall() {
         }
         
         stopCallTimer();
+        chargeForCall(state.activeCall);
         hideCallUI();
         state.activeCall = null;
         
@@ -4944,9 +5512,11 @@ let isCameraOff = false;
 let isSpeakerOn = false;
 
 function showCallUI(user, role, callType) {
-    // Remove existing call modal
     const existing = document.getElementById('call-modal');
     if (existing) existing.remove();
+
+    const ratePerMin = user.callRate || 0;
+    const rateInfo = ratePerMin > 0 ? `R${ratePerMin}/min` : 'Free';
 
     const callModal = document.createElement('div');
     callModal.id = 'call-modal';
@@ -4954,19 +5524,51 @@ function showCallUI(user, role, callType) {
     callModal.innerHTML = `
         <div class="call-container">
             <div class="call-status-bar">
-                <span id="call-status-text">${role === 'caller' ? 'Calling...' : 'Connecting...'}</span>
-                <span id="call-timer" style="display:${role === 'caller' ? 'none' : 'inline'}">00:00</span>
+                <div class="call-status-left">
+                    <span id="call-status-text">${role === 'caller' ? 'Calling...' : 'Connecting...'}</span>
+                    <span id="call-timer" style="display:none">00:00</span>
+                </div>
+                <div class="call-status-right">
+                    <span class="call-rate-badge"><i class="fas fa-coins"></i> ${rateInfo}</span>
+                    <span class="call-cost" id="call-cost-display">R0.00</span>
+                </div>
             </div>
             <div class="call-video-grid" id="call-video-grid">
-                <div class="video-container remote">
+                <div class="video-container remote" id="call-bg-remote">
                     <video id="remote-video" autoplay playsinline></video>
                     <div class="video-label">${user.name}</div>
                     ${callType === 'audio' ? '<div class="audio-only-indicator"><i class="fas fa-music"></i> Audio Call</div>' : ''}
                 </div>
-                <div class="video-container local">
+                <div class="video-container local" id="call-bg-local">
                     <video id="local-video" autoplay playsinline muted></video>
                     <div class="video-label">You</div>
                 </div>
+            </div>
+            <div class="call-customize-bar" id="call-customize-bar" style="display:${callType === 'audio' ? 'none' : 'flex'}">
+                <button class="call-customize-btn active" onclick="setCallBackground('none')" title="No Background">
+                    <i class="fas fa-ban"></i><span>None</span>
+                </button>
+                <button class="call-customize-btn" onclick="setCallBackground('blur')" title="Blur">
+                    <i class="fas fa-circle-half-stroke"></i><span>Blur</span>
+                </button>
+                <button class="call-customize-btn" onclick="setCallBackground('beach')" title="Beach">
+                    <span style="font-size:16px">🏖️</span><span>Beach</span>
+                </button>
+                <button class="call-customize-btn" onclick="setCallBackground('space')" title="Space">
+                    <span style="font-size:16px">🌌</span><span>Space</span>
+                </button>
+                <button class="call-customize-btn" onclick="setCallBackground('sunset')" title="Sunset">
+                    <span style="font-size:16px">🌅</span><span>Sunset</span>
+                </button>
+                <button class="call-customize-btn" onclick="setCallBackground('city')" title="City">
+                    <span style="font-size:16px">🌃</span><span>City</span>
+                </button>
+                <button class="call-customize-btn" onclick="setCallBackground('forest')" title="Forest">
+                    <span style="font-size:16px">🌲</span><span>Forest</span>
+                </button>
+                <button class="call-customize-btn" onclick="setCallBackground('gradient')" title="Gradient">
+                    <span style="font-size:16px">🎨</span><span>Art</span>
+                </button>
             </div>
             <div class="call-controls">
                 <button class="call-btn" id="call-mute-btn" onclick="toggleMute()" title="Mute">
@@ -4978,6 +5580,9 @@ function showCallUI(user, role, callType) {
                 <button class="call-btn" id="call-speaker-btn" onclick="toggleSpeaker()" title="Speaker">
                     <i class="fas fa-volume-up"></i>
                 </button>
+                <button class="call-btn" id="call-effects-btn" onclick="toggleCallEffects()" title="Effects" style="display:${callType === 'audio' ? 'none' : 'flex'}">
+                    <i class="fas fa-magic"></i>
+                </button>
                 <button class="call-btn end" onclick="endCall()" title="End Call">
                     <i class="fas fa-phone-slash"></i>
                 </button>
@@ -4987,7 +5592,6 @@ function showCallUI(user, role, callType) {
     
     document.body.appendChild(callModal);
 
-    // Show local video
     setTimeout(() => {
         const localVideo = document.getElementById('local-video');
         if (localVideo && state.localStream) {
@@ -5008,6 +5612,56 @@ function showCallUI(user, role, callType) {
             }
         }
     }, 100);
+}
+
+function toggleCallEffects() {
+    const bar = document.getElementById('call-customize-bar');
+    if (bar) {
+        bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+    }
+}
+
+const callBackgrounds = {
+    none: '',
+    blur: 'blur(20px) brightness(0.7)',
+    beach: 'linear-gradient(135deg, #00b4db, #0083b0)',
+    space: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',
+    sunset: 'linear-gradient(135deg, #fa709a, #fee140)',
+    city: 'linear-gradient(135deg, #232526, #414345)',
+    forest: 'linear-gradient(135deg, #134e5e, #71b280)',
+    gradient: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)'
+};
+
+function setCallBackground(bg) {
+    const remote = document.getElementById('call-bg-remote');
+    const local = document.getElementById('call-bg-local');
+    document.querySelectorAll('.call-customize-btn').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    if (!remote || !local) return;
+
+    if (bg === 'none') {
+        remote.style.background = '';
+        remote.style.backdropFilter = '';
+        local.style.background = '';
+        local.style.backdropFilter = '';
+        const vid = document.getElementById('remote-video');
+        if (vid) vid.style.filter = '';
+    } else if (bg === 'blur') {
+        remote.style.background = '';
+        remote.style.backdropFilter = 'blur(20px)';
+        local.style.background = '';
+        local.style.backdropFilter = 'blur(20px)';
+        const vid = document.getElementById('remote-video');
+        if (vid) vid.style.filter = 'brightness(0.85)';
+    } else {
+        remote.style.background = callBackgrounds[bg];
+        remote.style.backdropFilter = '';
+        local.style.background = callBackgrounds[bg];
+        local.style.backdropFilter = '';
+        const vid = document.getElementById('remote-video');
+        if (vid) vid.style.filter = '';
+    }
 }
 
 function hideCallUI() {
@@ -10948,6 +11602,20 @@ function loadUserData() {
             state.userProfiles = JSON.parse(savedProfiles);
         }
         
+        // Load reviews and call history
+        const savedReviews = localStorage.getItem('koitus_reviews');
+        if (savedReviews) {
+            try { state.reviews = JSON.parse(savedReviews); } catch(e) { state.reviews = []; }
+        } else {
+            state.reviews = [];
+        }
+        const savedCallHistory = localStorage.getItem('koitus_call_history');
+        if (savedCallHistory) {
+            try { state.callHistory = JSON.parse(savedCallHistory); } catch(e) { state.callHistory = []; }
+        } else {
+            state.callHistory = [];
+        }
+        
         return !!hasRegistered;
     } catch (error) {
         console.error('Error loading user data:', error);
@@ -10969,6 +11637,10 @@ function clearCacheAndLogout() {
         state.conversations = [];
         state.wallet.balance = 0;
         state.wallet.transactions = [];
+        state.reviews = [];
+        state.callHistory = [];
+        localStorage.removeItem('koitus_reviews');
+        localStorage.removeItem('koitus_call_history');
         AuthDB.signOut();
         console.log('🗑️ Cache cleared and user logged out');
     } catch (error) {

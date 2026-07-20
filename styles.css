@@ -8950,11 +8950,12 @@ select:disabled {
     align-items: center;
     gap: var(--spacing-1);
     padding: var(--spacing-3);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-light);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-lg);
     cursor: pointer;
     transition: all var(--transition-fast);
+    color: var(--text-primary);
 }
 
 .provider-action-btn:hover {
@@ -8962,20 +8963,36 @@ select:disabled {
     color: var(--white);
     border-color: var(--primary);
     transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(220, 20, 60, 0.3);
 }
 
 .provider-action-btn i {
     font-size: 1.25rem;
+    color: var(--primary-light);
+}
+
+.provider-action-btn:hover i {
+    color: var(--white);
 }
 
 .provider-action-btn span {
     font-size: 0.7rem;
     font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.provider-action-btn:hover span {
+    color: var(--white);
 }
 
 .provider-action-btn .count {
     font-size: 0.875rem;
     font-weight: 700;
+    color: var(--primary);
+}
+
+.provider-action-btn:hover .count {
+    color: var(--white);
 }
 
 @media (max-width: 768px) {

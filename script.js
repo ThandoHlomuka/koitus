@@ -136,6 +136,10 @@ const state = {
     providerForumPosts: [],
     forumReplies: {}, // Store replies by post ID
     forumVotes: {}, // Store votes by post ID
+    comments: {},
+    streamChatMessages: [],
+    streamViewerInterval: null,
+    streamChatInterval: null,
     // Products
     products: [],
     productsTab: 'all',
@@ -2376,8 +2380,11 @@ function switchView(viewName) {
         case 'directory':
             safeRender(renderDirectory, 'renderDirectory');
             break;
+        case 'clubs':
+            safeRender(renderClubs, 'renderClubs');
+            break;
         case 'settings':
-            // Static HTML — no dynamic render needed
+            safeRender(renderSettings, 'renderSettings');
             break;
     }
 }
@@ -5133,30 +5140,36 @@ async function startVideoCallWith(userId) {
     }
     
     try {
-        // Try video+audio first, then video-only, then audio-only
-        let hasVideo = false;
-        let hasAudio = false;
+        // Try video+audio first
         try {
             state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            hasVideo = true;
-            hasAudio = true;
         } catch (e1) {
-            try {
+            // Mic is busy — ask user to close other apps, then retry once
+            const retry = await new Promise(resolve => {
+                showNotification('Microphone is busy. Close other apps using the mic (Zoom, Teams, Discord, calls) and tap OK to retry.', 'warning');
+                // Give user 5 seconds, then auto-retry
+                const checkInterval = setInterval(async () => {
+                    try {
+                        const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        testStream.getTracks().forEach(t => t.stop());
+                        clearInterval(checkInterval);
+                        resolve(true);
+                    } catch (e) { /* still busy */ }
+                }, 1000);
+                // Auto-retry after 5 seconds
+                setTimeout(() => { clearInterval(checkInterval); resolve(false); }, 5000);
+            });
+
+            if (retry) {
+                state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            } else {
+                // Still busy after 5s — proceed video-only
                 state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                hasVideo = true;
-                showNotification('Microphone unavailable — video call without audio', 'warning');
-            } catch (e2) {
-                try {
-                    state.localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-                    hasAudio = true;
-                    showNotification('Camera unavailable — audio-only call', 'warning');
-                } catch (e3) {
-                    showNotification('No camera or microphone available. Check permissions and close other apps using the mic.', 'error');
-                    return;
-                }
+                showNotification('Microphone still busy — starting video call without audio', 'warning');
             }
         }
         
+        const hasVideo = state.localStream.getVideoTracks().length > 0;
         const callType = hasVideo ? 'video' : 'audio';
         showCallUI(user, 'caller', callType);
         
@@ -5222,29 +5235,57 @@ function startAudioCallWith(userId) {
         
         startCallTimer();
     }).catch(error => {
-        console.warn('Microphone busy, trying video-only call:', error);
-        // Mic is busy — try video-only so the call still goes through
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
-            state.localStream = stream;
-            showCallUI(user, 'caller', 'video');
-            state.socket.emit('initiate_call', {
-                from: state.currentUser.id,
-                to: userId,
-                type: 'video'
-            });
-            state.activeCall = {
-                callId: userId + '-' + Date.now(),
-                userId,
-                type: 'video',
-                status: 'initiating'
-            };
-            startCallTimer();
-            showNotification('Microphone busy — starting video call instead', 'warning');
-        }).catch(finalErr => {
-            console.error('Cannot access any media device:', finalErr);
-            releaseMediaDevices();
-            showNotification('No camera or microphone available. Check permissions and close other apps using the mic.', 'error');
-        });
+        console.warn('Microphone busy, retrying...', error);
+        showNotification('Microphone is busy. Close other apps using the mic and retrying...', 'warning');
+        // Poll for mic availability, retry up to 5 seconds
+        let attempts = 0;
+        const retryInterval = setInterval(async () => {
+            attempts++;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                clearInterval(retryInterval);
+                state.localStream = stream;
+                showCallUI(user, 'caller', 'audio');
+                state.socket.emit('initiate_call', {
+                    from: state.currentUser.id,
+                    to: userId,
+                    type: 'audio'
+                });
+                state.activeCall = {
+                    callId: userId + '-' + Date.now(),
+                    userId,
+                    type: 'audio',
+                    status: 'initiating'
+                };
+                startCallTimer();
+            } catch (e) {
+                if (attempts >= 5) {
+                    clearInterval(retryInterval);
+                    // Last resort — try video-only
+                    try {
+                        const vidStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                        state.localStream = vidStream;
+                        showCallUI(user, 'caller', 'video');
+                        state.socket.emit('initiate_call', {
+                            from: state.currentUser.id,
+                            to: userId,
+                            type: 'video'
+                        });
+                        state.activeCall = {
+                            callId: userId + '-' + Date.now(),
+                            userId,
+                            type: 'video',
+                            status: 'initiating'
+                        };
+                        startCallTimer();
+                        showNotification('Mic still busy — starting video call instead', 'warning');
+                    } catch (finalErr) {
+                        releaseMediaDevices();
+                        showNotification('No camera or microphone available. Close other apps and try again.', 'error');
+                    }
+                }
+            }
+        }, 1000);
     });
 }
 
@@ -5373,32 +5414,44 @@ async function acceptCall(callId, from) {
     }
 
     try {
-        // Try requested media, cascade: video+audio → video-only → audio-only
-        let hasVideo = false;
-        let hasAudio = false;
+        // Try requested media, with retry for mic
+        let stream = null;
         try {
-            state.localStream = await navigator.mediaDevices.getUserMedia({
+            stream = await navigator.mediaDevices.getUserMedia({
                 video: callType !== 'audio',
                 audio: true
             });
-            hasVideo = state.localStream.getVideoTracks().length > 0;
-            hasAudio = state.localStream.getAudioTracks().length > 0;
         } catch (e1) {
-            try {
-                state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                hasVideo = true;
-            } catch (e2) {
+            // Mic busy — poll and retry up to 5 seconds
+            showNotification('Microphone busy. Close other apps and waiting...', 'warning');
+            for (let i = 0; i < 5; i++) {
+                await new Promise(r => setTimeout(r, 1000));
                 try {
-                    state.localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-                    hasAudio = true;
-                } catch (e3) {
-                    showNotification('No camera or microphone available.', 'error');
-                    rejectCall(callId);
-                    return;
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: callType !== 'audio',
+                        audio: true
+                    });
+                    break;
+                } catch (e) { /* still busy */ }
+            }
+            // Final fallback — no audio
+            if (!stream) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                } catch (e2) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                    } catch (e3) {
+                        showNotification('No camera or microphone available.', 'error');
+                        rejectCall(callId);
+                        return;
+                    }
                 }
             }
         }
         
+        state.localStream = stream;
+        const hasVideo = stream.getVideoTracks().length > 0;
         const user = state.profiles.find(p => p.id === from);
         const finalType = hasVideo ? 'video' : 'audio';
         showCallUI(user || { name: 'User', image: '' }, 'receiver', finalType);
@@ -5652,6 +5705,7 @@ function showCallUI(user, role, callType) {
                     <video id="local-video" autoplay playsinline muted></video>
                     <div class="video-label">You</div>
                 </div>
+                <div class="call-floating-emojis" id="call-floating-emojis"></div>
             </div>
             <div class="call-customize-bar" id="call-customize-bar" style="display:${callType === 'audio' ? 'none' : 'flex'}">
                 <button class="call-customize-btn active" onclick="setCallBackground('none')" title="No Background">
@@ -5679,6 +5733,23 @@ function showCallUI(user, role, callType) {
                     <span style="font-size:16px">🎨</span><span>Art</span>
                 </button>
             </div>
+            <div class="call-emoji-bar" id="call-emoji-bar">
+                <button class="call-emoji-btn" onclick="sendCallEmoji('❤️')" title="Heart">❤️</button>
+                <button class="call-emoji-btn" onclick="sendCallEmoji('😍')" title="Heart Eyes">😍</button>
+                <button class="call-emoji-btn" onclick="sendCallEmoji('🔥')" title="Fire">🔥</button>
+                <button class="call-emoji-btn" onclick="sendCallEmoji('😂')" title="Laugh">😂</button>
+                <button class="call-emoji-btn" onclick="sendCallEmoji('👏')" title="Clap">👏</button>
+                <button class="call-emoji-btn" onclick="sendCallEmoji('💋')" title="Kiss">💋</button>
+                <button class="call-emoji-btn" onclick="sendCallEmoji('✨')" title="Sparkle">✨</button>
+                <button class="call-emoji-btn" onclick="sendCallEmoji('🎉')" title="Party">🎉</button>
+                <div class="call-emoji-divider"></div>
+                <button class="call-gift-btn" onclick="openCallGiftPanel()" title="Send Gift">
+                    <i class="fas fa-gift"></i><span>Gift</span>
+                </button>
+                <button class="call-tip-btn" onclick="openCallTipPanel()" title="Send Tip">
+                    <i class="fas fa-hand-holding-usd"></i><span>Tip</span>
+                </button>
+            </div>
             <div class="call-controls">
                 <button class="call-btn" id="call-mute-btn" onclick="toggleMute()" title="Mute">
                     <i class="fas fa-microphone"></i>
@@ -5695,6 +5766,58 @@ function showCallUI(user, role, callType) {
                 <button class="call-btn end" onclick="endCall()" title="End Call">
                     <i class="fas fa-phone-slash"></i>
                 </button>
+            </div>
+        </div>
+        <div class="call-gift-panel" id="call-gift-panel" style="display:none">
+            <div class="call-gift-panel-header">
+                <h4>Send a Gift</h4>
+                <span class="wallet-balance">Balance: R${(state.wallet.balance || 0).toFixed(2)}</span>
+                <button class="call-panel-close" onclick="closeCallGiftPanel()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="call-gift-grid">
+                <div class="call-gift-item" onclick="sendCallGift('Rose', 10, '🌹')">
+                    <span class="gift-icon">🌹</span><span class="gift-name">Rose</span><span class="gift-price">R10</span>
+                </div>
+                <div class="call-gift-item" onclick="sendCallGift('Champagne', 25, '🍾')">
+                    <span class="gift-icon">🍾</span><span class="gift-name">Champagne</span><span class="gift-price">R25</span>
+                </div>
+                <div class="call-gift-item" onclick="sendCallGift('Diamond', 50, '💎')">
+                    <span class="gift-icon">💎</span><span class="gift-name">Diamond</span><span class="gift-price">R50</span>
+                </div>
+                <div class="call-gift-item" onclick="sendCallGift('Crown', 100, '👑')">
+                    <span class="gift-icon">👑</span><span class="gift-name">Crown</span><span class="gift-price">R100</span>
+                </div>
+                <div class="call-gift-item" onclick="sendCallGift('Love Box', 150, '💌')">
+                    <span class="gift-icon">💌</span><span class="gift-name">Love Box</span><span class="gift-price">R150</span>
+                </div>
+                <div class="call-gift-item" onclick="sendCallGift('Teddy Bear', 200, '🧸')">
+                    <span class="gift-icon">🧸</span><span class="gift-name">Teddy Bear</span><span class="gift-price">R200</span>
+                </div>
+                <div class="call-gift-item" onclick="sendCallGift('Lamborghini', 500, '🏎️')">
+                    <span class="gift-icon">🏎️</span><span class="gift-name">Lambo</span><span class="gift-price">R500</span>
+                </div>
+                <div class="call-gift-item" onclick="sendCallGift('Yacht', 1000, '🛥️')">
+                    <span class="gift-icon">🛥️</span><span class="gift-name">Yacht</span><span class="gift-price">R1000</span>
+                </div>
+            </div>
+        </div>
+        <div class="call-tip-panel" id="call-tip-panel" style="display:none">
+            <div class="call-gift-panel-header">
+                <h4>Send a Tip</h4>
+                <span class="wallet-balance">Balance: R${(state.wallet.balance || 0).toFixed(2)}</span>
+                <button class="call-panel-close" onclick="closeCallTipPanel()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="call-tip-grid">
+                <div class="call-tip-item" onclick="sendCallTip(10)">R10</div>
+                <div class="call-tip-item" onclick="sendCallTip(25)">R25</div>
+                <div class="call-tip-item" onclick="sendCallTip(50)">R50</div>
+                <div class="call-tip-item" onclick="sendCallTip(100)">R100</div>
+                <div class="call-tip-item" onclick="sendCallTip(200)">R200</div>
+                <div class="call-tip-item" onclick="sendCallTip(500)">R500</div>
+            </div>
+            <div class="call-tip-custom">
+                <input type="number" id="call-tip-amount" placeholder="Custom amount" min="1" max="5000">
+                <button class="btn btn-primary btn-sm" onclick="sendCustomCallTip()">Send</button>
             </div>
         </div>
     `;
@@ -5741,11 +5864,12 @@ const callBackgrounds = {
     gradient: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)'
 };
 
-function setCallBackground(bg) {
+function setCallBackground(bg, evt) {
     const remote = document.getElementById('call-bg-remote');
     const local = document.getElementById('call-bg-local');
     document.querySelectorAll('.call-customize-btn').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    var target = evt ? evt.currentTarget : document.querySelector('.call-customize-btn');
+    if (target) target.classList.add('active');
 
     if (!remote || !local) return;
 
@@ -5771,6 +5895,158 @@ function setCallBackground(bg) {
         const vid = document.getElementById('remote-video');
         if (vid) vid.style.filter = '';
     }
+}
+
+// ==================== CALL EMOJIS, GIFTS & TIPS ====================
+function sendCallEmoji(emoji) {
+    const container = document.getElementById('call-floating-emojis');
+    if (!container) return;
+
+    const el = document.createElement('div');
+    el.className = 'call-floating-emoji';
+    el.textContent = emoji;
+    el.style.left = (20 + Math.random() * 60) + '%';
+    el.style.animationDuration = (2 + Math.random() * 2) + 's';
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+
+    if (state.activeCall && state.socket) {
+        state.socket.emit('call_signal', {
+            callId: state.activeCall.callId,
+            type: 'emoji',
+            data: emoji
+        });
+    }
+}
+
+function openCallGiftPanel() {
+    const panel = document.getElementById('call-gift-panel');
+    const tipPanel = document.getElementById('call-tip-panel');
+    if (tipPanel) tipPanel.style.display = 'none';
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function closeCallGiftPanel() {
+    const panel = document.getElementById('call-gift-panel');
+    if (panel) panel.style.display = 'none';
+}
+
+function openCallTipPanel() {
+    const panel = document.getElementById('call-tip-panel');
+    const giftPanel = document.getElementById('call-gift-panel');
+    if (giftPanel) giftPanel.style.display = 'none';
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function closeCallTipPanel() {
+    const panel = document.getElementById('call-tip-panel');
+    if (panel) panel.style.display = 'none';
+}
+
+function sendCallGift(name, price, emoji) {
+    if (state.wallet.balance < price) {
+        showToast('Insufficient balance. You need R' + price.toFixed(2) + ' but have R' + (state.wallet.balance || 0).toFixed(2));
+        return;
+    }
+
+    state.wallet.balance -= price;
+    state.wallet.transactions.unshift({
+        id: Date.now(),
+        type: 'gift_sent',
+        amount: -price,
+        description: 'Gift: ' + name + ' ' + emoji,
+        date: new Date().toISOString(),
+        userId: state.currentUser ? state.currentUser.id : null,
+        toUserId: state.activeCall ? state.activeCall.userId : null
+    });
+    localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(state.wallet));
+
+    const container = document.getElementById('call-floating-emojis');
+    if (container) {
+        const el = document.createElement('div');
+        el.className = 'call-floating-emoji call-floating-gift';
+        el.textContent = emoji;
+        el.style.left = (30 + Math.random() * 40) + '%';
+        el.style.fontSize = '48px';
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 5000);
+    }
+
+    if (state.activeCall && state.socket) {
+        state.socket.emit('call_signal', {
+            callId: state.activeCall.callId,
+            type: 'gift',
+            data: { name: name, emoji: emoji, price: price }
+        });
+    }
+
+    showToast(emoji + ' ' + name + ' sent! -R' + price.toFixed(2));
+    closeCallGiftPanel();
+
+    const balanceEl = document.querySelector('.call-gift-panel .wallet-balance');
+    if (balanceEl) balanceEl.textContent = 'Balance: R' + state.wallet.balance.toFixed(2);
+}
+
+function sendCallTip(amount) {
+    if (state.wallet.balance < amount) {
+        showToast('Insufficient balance. You need R' + amount.toFixed(2) + ' but have R' + (state.wallet.balance || 0).toFixed(2));
+        return;
+    }
+
+    state.wallet.balance -= amount;
+    state.wallet.transactions.unshift({
+        id: Date.now(),
+        type: 'tip_sent',
+        amount: -amount,
+        description: 'Tip during call',
+        date: new Date().toISOString(),
+        userId: state.currentUser ? state.currentUser.id : null,
+        toUserId: state.activeCall ? state.activeCall.userId : null
+    });
+    localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(state.wallet));
+
+    const container = document.getElementById('call-floating-emojis');
+    if (container) {
+        const el = document.createElement('div');
+        el.className = 'call-floating-emoji call-floating-tip';
+        el.textContent = '💰';
+        el.style.left = (30 + Math.random() * 40) + '%';
+        el.style.fontSize = '48px';
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 5000);
+
+        const tipText = document.createElement('div');
+        tipText.className = 'call-floating-emoji call-floating-tip-text';
+        tipText.textContent = '+R' + amount.toFixed(2);
+        tipText.style.left = (30 + Math.random() * 40) + '%';
+        container.appendChild(tipText);
+        setTimeout(() => tipText.remove(), 5000);
+    }
+
+    if (state.activeCall && state.socket) {
+        state.socket.emit('call_signal', {
+            callId: state.activeCall.callId,
+            type: 'tip',
+            data: { amount: amount }
+        });
+    }
+
+    showToast('💰 Tip of R' + amount.toFixed(2) + ' sent!');
+    closeCallTipPanel();
+
+    const balanceEls = document.querySelectorAll('.wallet-balance');
+    balanceEls.forEach(el => el.textContent = 'Balance: R' + state.wallet.balance.toFixed(2));
+}
+
+function sendCustomCallTip() {
+    const input = document.getElementById('call-tip-amount');
+    const amount = parseFloat(input ? input.value : 0);
+    if (!amount || amount <= 0) {
+        showToast('Enter a valid amount');
+        return;
+    }
+    sendCallTip(amount);
+    if (input) input.value = '';
 }
 
 function hideCallUI() {
@@ -6939,7 +7215,7 @@ function switchStreamsTab(tab) {
 
 function createStreamCard(stream) {
     return '\
-        <div class="stream-card" onclick="watchStream(' + stream.id + ')">\
+        <div class="stream-card" onclick="openStreamViewer(' + stream.id + ')">\
             <div class="stream-card-image">\
                 <img src="' + stream.thumbnail + '" alt="' + stream.title + '">\
                 <span class="stream-card-badge">LIVE</span>\
@@ -6957,7 +7233,7 @@ function createWebcamCard(stream) {
     var priceHtml = stream.pricePerMin ? '<span class="webcam-price">R' + stream.pricePerMin + '/min</span>' : '';
 
     return '\
-        <div class="stream-card webcam-card" onclick="watchCamShow(' + stream.id + ')">\
+        <div class="stream-card webcam-card" onclick="openStreamViewer(' + stream.id + ')">\
             <div class="stream-card-image">\
                 <img src="' + stream.thumbnail + '" alt="' + stream.title + '">\
                 ' + badgeHtml + '\
@@ -7257,117 +7533,6 @@ function hideCommentBox() {
     if (commentSection) {
         commentSection.style.display = 'none';
     }
-}
-
-function submitComment() {
-    const textarea = document.getElementById('comment-textarea');
-    const commentText = textarea?.value.trim();
-    
-    if (!commentText) {
-        showToast('Please write a comment first! ✏️');
-        return;
-    }
-    
-    // Get current user or use default
-    const currentUser = state.currentUser || { name: 'You', image: 'https://i.pravatar.cc/200?u=You' };
-    
-    // Add comment
-    if (!currentContentId) {
-        currentContentId = Date.now();
-    }
-    
-    if (!comments[currentContentId]) {
-        comments[currentContentId] = [];
-    }
-    
-    const newComment = {
-        id: Date.now(),
-        author: currentUser.name || 'Anonymous',
-        avatar: currentUser.image || 'https://i.pravatar.cc/200?u=You',
-        text: commentText,
-        time: new Date(),
-        likes: 0
-    };
-    
-    comments[currentContentId].push(newComment);
-    
-    // Clear textarea
-    if (textarea) {
-        textarea.value = '';
-    }
-    
-    // Re-render comments
-    renderComments();
-    
-    // Update comment count
-    updateCommentCount();
-    
-    showToast('Comment posted! ✓');
-}
-
-function renderComments() {
-    const commentsList = document.getElementById('comments-list');
-    if (!commentsList) return;
-    
-    const contentComments = comments[currentContentId] || [];
-    
-    if (contentComments.length === 0) {
-        commentsList.innerHTML = `
-            <div class="empty-comments">
-                <i class="fas fa-comments"></i>
-                <p>No comments yet. Be the first to comment!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    commentsList.innerHTML = contentComments.map(comment => {
-        const timeAgo = getTimeAgo(comment.time);
-        return `
-            <div class="comment-item">
-                <img src="${comment.avatar}" alt="${comment.author}" class="comment-avatar">
-                <div class="comment-content">
-                    <div class="comment-header">
-                        <span class="comment-author">${comment.author}</span>
-                        <span class="comment-time">${timeAgo}</span>
-                    </div>
-                    <p class="comment-text">${comment.text}</p>
-                    <div class="comment-actions">
-                        <span class="comment-action" onclick="likeComment(${comment.id})">
-                            <i class="fas fa-heart"></i> ${comment.likes || 0}
-                        </span>
-                        <span class="comment-action">Reply</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function updateCommentCount() {
-    const commentCountEl = document.getElementById('content-comments');
-    if (commentCountEl) {
-        const count = comments[currentContentId]?.length || 0;
-        commentCountEl.innerHTML = `<i class="fas fa-comment"></i> ${count}`;
-    }
-}
-
-function likeComment(commentId) {
-    const comment = comments[currentContentId]?.find(c => c.id === commentId);
-    if (comment) {
-        comment.likes = (comment.likes || 0) + 1;
-        renderComments();
-        showToast('Comment liked! ❤️');
-    }
-}
-
-function getTimeAgo(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
 }
 
 // ==================== FORUM FUNCTIONS ====================
@@ -8738,8 +8903,604 @@ function contactSeller() {
 }
 
 // ==================== FUN & GAMES ====================
+
+var gamesState = { score: 0, quizIdx: 0, quizAnswers: [], compatAnswers: [], challengesCompleted: {} };
+
+var wyrQuestions = [
+    { a: 'Get 10 love letters from anonymous admirers', b: 'Have one perfect first date' },
+    { a: 'Only be able to whisper', b: 'Only be able to shout' },
+    { a: 'Read your crush\'s mind for a day', b: 'Have your crush read your mind for a day' },
+    { a: 'Go on a spontaneous road trip', b: 'Have a cozy movie marathon night in' },
+    { a: 'Always say what you think', b: 'Never be able to lie' },
+    { a: 'Have unlimited dates for free', b: 'Have unlimited travel for free' },
+    { a: 'Kiss on the first date', b: 'Wait until the third date' },
+    { a: 'Be hopelessly romantic', b: 'Be hilariously funny' },
+    { a: 'Date someone who texts paragraphs', b: 'Date someone who only sends memes' },
+    { a: 'Have your phone read aloud in public', b: 'Have your browser history exposed' },
+    { a: 'Be great at planning dates', b: 'Be great at conversations' },
+    { a: 'Always dress to impress', b: 'Always smell amazing' },
+    { a: 'Know when someone likes you', b: 'Know when someone is lying' },
+    { a: 'Have a partner who cooks', b: 'Have a partner who cleans' },
+    { a: 'Revisit your best date ever', b: 'Have the best date of your life tomorrow' }
+];
+
+var icebreakers = {
+    Funny: [
+        'What\'s the most embarrassing song on your playlist?',
+        'If our first date was a movie, what genre would it be?',
+        'What\'s your most irrational fear?',
+        'What would your stripper name be?',
+        'What\'s the weirdest thing you\'ve Googled recently?',
+        'If you were a ghost, who would you haunt first?',
+        'What\'s the dumbest thing you thought was true as a kid?'
+    ],
+    Deep: [
+        'What\'s a memory that always makes you smile?',
+        'What would you do if you knew you couldn\'t fail?',
+        'What does your ideal weekend look like?',
+        'What\'s something you\'ve changed your mind about?',
+        'If you could relive one moment in your life, which would it be?',
+        'What\'s the best advice you\'ve ever received?',
+        'What matters most to you in a relationship?'
+    ],
+    Flirty: [
+        'What\'s your idea of a perfect date night?',
+        'What do you notice first about someone you\'re attracted to?',
+        'What\'s the most romantic thing anyone has done for you?',
+        'Describe your dream first kiss.',
+        'What\'s your love language?',
+        'What song reminds you of someone special?',
+        'If we were on a deserted island, what\'s the one thing you\'d bring?'
+    ],
+    Fun: [
+        'Pineapple on pizza: yes or no?',
+        'If you could have dinner with anyone, who would it be?',
+        'What\'s your go-to karaoke song?',
+        'Dogs or cats? Or both?',
+        'What\'s your hidden talent?',
+        'Coffee or tea? And how do you take it?',
+        'What\'s the last thing that made you laugh out loud?'
+    ]
+};
+
+var quizQuestions = [
+    { q: 'It\'s Friday night. You want to...', a: ['Hit the club', 'Cook dinner together', 'Explore a night market', 'Stay in with wine'] },
+    { q: 'Your ideal vacation is...', a: ['Backpacking through Europe', 'Beach resort relaxation', 'Road trip with no plan', 'Mountain cabin retreat'] },
+    { q: 'In a relationship, you value...', a: ['Passion and excitement', 'Trust and stability', 'Humor and fun', 'Freedom and space'] },
+    { q: 'Your texting style is...', a: ['Long paragraphs', 'Quick and to the point', 'Memes and reactions', 'Voice notes'] },
+    { q: 'The way to your heart is...', a: ['Grand gestures', 'Thoughtful small acts', 'Making me laugh', 'Intellectual conversations'] },
+    { q: 'You\'d rather...', a: ['Plan every detail', 'Go with the flow', 'Try something new', 'Revisit a favorite'] },
+    { q: 'Your love language is...', a: ['Quality time', 'Physical touch', 'Words of affirmation', 'Acts of service'] },
+    { q: 'Your ideal partner is...', a: ['Adventurous and bold', 'Kind and dependable', 'Witty and charming', 'Mysterious and deep'] },
+    { q: 'At a party you...', a: ['Work the room', 'Find one person to deep talk with', 'Dance all night', 'People watch from a corner'] },
+    { q: 'On a rainy day you...', a: ['Go dance in the rain', 'Curl up with a book', 'Bake something', 'Drive nowhere in particular'] }
+];
+
+var quizResults = {
+    Adventurer: { emoji: '🌍', desc: 'You live for spontaneity and new experiences. Your ideal partner keeps up with your energy and says yes to every wild idea. You bring passion to every relationship.' },
+    Romantic: { emoji: '🌹', desc: 'You believe in soulmates and grand gestures. You crave deep emotional connection and aren\'t afraid to show your vulnerable side. Love is your favorite adventure.' },
+    FreeSpirit: { emoji: '🦋', desc: 'You flow through life with curiosity and openness. You need a partner who respects your independence while still being your home base. Freedom and love can coexist.' },
+    DeepThinker: { emoji: '🔮', desc: 'You crave substance over surface. Meaningful conversations, shared values, and intellectual chemistry are what turn you on. You love deeply and thoughtfully.' }
+};
+
+var flirtRouletteItems = [
+    'Send a flirty good morning text right now 🌅',
+    'Write a 3-line love poem and send it to your crush 💕',
+    'Change your profile pic to your best angle 📸',
+    'DM someone you find attractive with a pickup line 💬',
+    'Post a story that says "thinking of someone special" 🤔',
+    'Compliment 3 people in your contacts today ✨',
+    'Send a voice note saying "I miss you" 😘',
+    'Create a Spotify playlist for your crush 🎵',
+    'Send a 🍕 emoji to someone and say "thinking of dinner together"',
+    'Text your crush: "On a scale of 1 to 10, you\'re a 9... I\'m the 1 you need"',
+    'Post a selfie with the caption "Waiting for your text" 📱',
+    'Send "You looked amazing today" to someone randomly 💫',
+    'Write a dating profile bio using only emojis 🎭',
+    'Send "What are you wearing?" followed by "I hope it\'s a smile" 😄',
+    'Tell someone they have beautiful energy ✨',
+    'Send a meme that says "I like you, but I like pizza more... just kidding" 🍕',
+    'Create a "rate my outfit" poll in your stories 👗',
+    'Send "Are you a magician? Because whenever I look at you, everyone else disappears" 🎩',
+    'Text "I was having a bad day but then I thought of you" 💭',
+    'Send a sunset photo to someone special 🌇',
+    'Post "Looking for someone to binge-watch Netflix with" 📺',
+    'Send "Do you believe in love at first swipe?" 📱',
+    'Tell someone "You make my heart do things" ❤️',
+    'Send "If you were a vegetable, you\'d be a cute-cumber" 🥒',
+    'Text "I\'d tell you you\'re cute, but someone already did" 😏'
+];
+
+var challengeData = [
+    { id: 'c1', text: 'Message 3 new people today', icon: '💬', frequency: 'daily' },
+    { id: 'c2', text: 'Update your profile photo', icon: '📸', frequency: 'weekly' },
+    { id: 'c3', text: 'Send a genuine compliment', icon: '✨', frequency: 'daily' },
+    { id: 'c4', text: 'Try an Icebreaker with someone', icon: '🧊', frequency: 'daily' },
+    { id: 'c5', text: 'Share a story or post', icon: '📖', frequency: 'daily' },
+    { id: 'c6', text: 'Complete a game with a friend', icon: '🎮', frequency: 'weekly' },
+    { id: 'c7', text: 'Ask someone on a virtual date', icon: '💌', frequency: 'weekly' },
+    { id: 'c8', text: 'Comment on 5 posts', icon: '💭', frequency: 'daily' },
+    { id: 'c9', text: 'Write a new bio or update yours', icon: '✍️', frequency: 'weekly' },
+    { id: 'c10', text: 'Play Flirt Roulette and follow through', icon: '🎡', frequency: 'daily' },
+    { id: 'c11', text: 'Send a voice note to someone', icon: '🎤', frequency: 'weekly' },
+    { id: 'c12', text: 'Respond to 3 stories', icon: '📸', frequency: 'daily' }
+];
+
+var bioTemplates = {
+    intros: [
+        'Coffee addict ☕ | Dog person 🐕 | Looking for someone to binge Netflix with',
+        'Half-decent cook 🍳 | Terrible dancer 💃 | Excellent hugger 🤗',
+        'Fluent in sarcasm 😏 | Professional overthinker 🧠 | Amateur adventurer 🌍',
+        'Will trade puns for good conversation 🎭 | Part-time dreamer ✨',
+        'Just a girl/guy standing in front of a salad wishing it was pizza 🍕',
+        'Introvert who will surprise you with my extrovert moments 🎭',
+        'Looking for my partner in crime (and pizza) 🍕',
+        'Sapiosexual with a fitness addiction 💪 | Love deep talks at 2am',
+        'Professional selfie taker 📸 | Aspiring world traveler ✈️',
+        'Recovering serial dater ready for something real ❤️'
+    ],
+    interests: [
+        '🏔️ Hiking | 🎨 Art | 🍷 Wine nights | 🎬 Movie marathons',
+        '🎵 Live music | 📚 Bookworm | 🧘 Yoga | 🌮 Taco enthusiast',
+        '🏋️ Gym life | 🎮 Gamer | 🎸 Music lover | 🌊 Beach bum',
+        '🍳 Foodie | ✈️ Traveler | 📷 Photographer | 🐾 Animal lover',
+        '🎬 Cinephile | 🎭 Theatre | 🍝 Pasta maker | 🌃 Night owl',
+        '📚 Reader | 🧗 Climber | ☕ Cafe hopper | 🎲 Board game nerd',
+        '🌊 Surfer | 🎨 Painter | 🍵 Tea connoisseur | 🎤 Karaoke king/queen',
+        '💃 Dancer | 📱 Tech geek | 🌱 Plant parent | 🍰 Baker'
+    ],
+    closers: [
+        'Swipe right if you love dogs 🐶',
+        'Looking for someone who can keep up 💨',
+        'DM me your worst pickup line 😂',
+        'Let\'s skip the small talk 🙌',
+        'Be the Jim to my Pam 💕',
+        'Serious inquiries only (jk, puns welcome) 😄',
+        'Let\'s make some memories 📸',
+        'Life is short, let\'s make it sweet 🍯',
+        'Looking for my lobster 🦞',
+        'Send help (or your number) 😜'
+    ]
+};
+
+var moodOptions = [
+    { mood: 'Romantic 💕', suggestions: ['Candlelit dinner at home', 'Watch a sunset together', 'Write love letters to each other', 'Couples\' cooking class', 'Dance in the living room'] },
+    { mood: 'Adventurous 🌍', suggestions: ['Try a new restaurant blindly', 'Go stargazing', 'Take a spontaneous road trip', 'Try an escape room', 'Hike to a new viewpoint'] },
+    { mood: 'Chill 😌', suggestions: ['Movie marathon with snacks', 'Picnic in the park', 'Visit a bookstore together', 'Coffee shop hopping', 'Board game night'] },
+    { mood: 'Playful 🎉', suggestions: ['Mini golf date', 'Arcade night', 'Bowling competition', 'Karaoke duet', 'Water balloon fight'] },
+    { mood: 'Deep 💭', suggestions: ['Late-night conversation walk', 'Visit a museum together', 'Read the same book and discuss', 'Share bucket lists', 'Write letters to your future selves'] },
+    { mood: 'Spicy 🔥', suggestions: ['Take a dance class together', 'Dress up for a fancy night out', 'Cook something new together', 'Challenge each other to a game', 'Plan a surprise date'] }
+];
+
+var compatQuestions = [
+    'How important is physical touch to you?',
+    'Do you prefer staying in or going out?',
+    'How do you handle conflict?',
+    'Is humor important in a relationship?',
+    'How much alone time do you need?',
+    'Do you believe in fate or making your own luck?',
+    'How important are shared hobbies?',
+    'Do you prefer planning or spontaneity?'
+];
+
 function renderGames() {
-    // Games are rendered as static HTML in index.html
+    var container = document.getElementById('games-container');
+    if (!container) return;
+
+    container.innerHTML = '<div class="games-grid" id="games-main-grid">' +
+        '<div class="game-card" onclick="launchGame(\'wyr\')"><div class="game-icon">🤔</div><h3>Would You Rather</h3><p>Pick your preference</p></div>' +
+        '<div class="game-card" onclick="launchGame(\'icebreakers\')"><div class="game-icon">🧊</div><h3>Icebreakers</h3><p>Conversation starters</p></div>' +
+        '<div class="game-card" onclick="launchGame(\'quiz\')"><div class="game-icon">🧠</div><h3>Quiz Match</h3><p>Find your dating style</p></div>' +
+        '<div class="game-card" onclick="launchGame(\'roulette\')"><div class="game-icon">🎡</div><h3>Flirt Roulette</h3><p>Spin for a challenge</p></div>' +
+        '<div class="game-card" onclick="launchGame(\'compat\')"><div class="game-icon">💘</div><h3>Compatibility Test</h3><p>8 questions, your match %</p></div>' +
+        '<div class="game-card" onclick="launchGame(\'challenges\')"><div class="game-icon">🏆</div><h3>Challenges</h3><p>Daily & weekly tasks</p></div>' +
+        '<div class="game-card" onclick="showFantasyRequestForm()"><div class="game-icon">🌟</div><h3>Fantasy Requests</h3><p>Submit your fantasy</p></div>' +
+    '</div>' +
+    '<div class="games-tools-section"><h2>Tools</h2><div class="tools-grid">' +
+        '<div class="tool-card" onclick="launchGame(\'bio\')"><div class="tool-icon">✍️</div><h3>Bio Generator</h3><p>Create your perfect bio</p></div>' +
+        '<div class="tool-card" onclick="launchGame(\'pickup\')"><div class="tool-icon">💘</div><h3>Pickup Lines</h3><p>Smooth talk generator</p></div>' +
+        '<div class="tool-card" onclick="launchGame(\'mood\')"><div class="tool-icon">🎭</div><h3>Mood Matcher</h3><p>Date ideas for your vibe</p></div>' +
+        '<div class="tool-card" onclick="launchGame(\'calccompat\')"><div class="tool-icon">🔢</div><h3>Compat Calculator</h3><p>Fun name compat check</p></div>' +
+    '</div></div>';
+}
+
+function gamesBackBtn() {
+    return '<button class="btn btn-secondary btn-sm" onclick="renderGames()" style="margin-bottom:1rem;">← Back to Games</button>';
+}
+
+function launchGame(game) {
+    var container = document.getElementById('games-container');
+    if (!container) return;
+
+    switch (game) {
+        case 'wyr': renderWYR(container); break;
+        case 'icebreakers': renderIcebreakers(container); break;
+        case 'quiz': renderQuiz(container); break;
+        case 'roulette': renderRoulette(container); break;
+        case 'compat': renderCompat(container); break;
+        case 'challenges': renderChallenges(container); break;
+        case 'bio': renderBioGen(container); break;
+        case 'pickup': renderPickupLines(container); break;
+        case 'mood': renderMoodMatcher(container); break;
+        case 'calccompat': renderCalcCompat(container); break;
+    }
+}
+
+function renderWYR(container) {
+    var idx = Math.floor(Math.random() * wyrQuestions.length);
+    var q = wyrQuestions[idx];
+    gamesState.score = 0;
+    gamesState.wyrIdx = idx;
+    gamesState.wyrUsed = [idx];
+    gamesState.wyrTotal = 0;
+
+    function showWYR() {
+        var qi = gamesState.wyrIdx;
+        var question = wyrQuestions[qi];
+        container.innerHTML = gamesBackBtn() +
+            '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+            '<h2 style="margin-bottom:0.5rem;">Would You Rather</h2>' +
+            '<p style="color:var(--text-tertiary);margin-bottom:1.5rem;">Pick your preference!</p>' +
+            '<div style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;margin-bottom:1rem;">' +
+            '<p style="font-size:0.875rem;color:var(--text-tertiary);margin-bottom:0.5rem;">Score: ' + gamesState.score + '/' + gamesState.wyrTotal + '</p>' +
+            '</div>' +
+            '<button class="game-card" style="width:100%;margin-bottom:1rem;text-align:left;" onclick="wyrPick(\'a\')"><h3>' + question.a + '</h3></button>' +
+            '<p style="color:var(--text-tertiary);font-size:0.875rem;margin-bottom:1rem;">— OR —</p>' +
+            '<button class="game-card" style="width:100%;text-align:left;" onclick="wyrPick(\'b\')"><h3>' + question.b + '</h3></button>' +
+            '</div>';
+    }
+    window.wyrPick = function(choice) {
+        gamesState.wyrTotal++;
+        if (Math.random() > 0.4) gamesState.score++;
+        var nextIdx;
+        do { nextIdx = Math.floor(Math.random() * wyrQuestions.length); } while (gamesState.wyrUsed.indexOf(nextIdx) !== -1 && gamesState.wyrUsed.length < wyrQuestions.length);
+        if (gamesState.wyrUsed.length >= wyrQuestions.length) {
+            container.innerHTML = gamesBackBtn() +
+                '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+                '<h2 style="margin-bottom:1rem;">🎉 Round Complete!</h2>' +
+                '<div style="background:var(--bg-secondary);border-radius:12px;padding:2rem;">' +
+                '<p style="font-size:2rem;margin-bottom:0.5rem;">' + gamesState.score + '/' + gamesState.wyrTotal + '</p>' +
+                '<p style="color:var(--text-tertiary);">You played through all the questions!</p>' +
+                '<button class="btn btn-primary" style="margin-top:1rem;" onclick="launchGame(\'wyr\')">Play Again</button>' +
+                '</div></div>';
+            return;
+        }
+        gamesState.wyrIdx = nextIdx;
+        gamesState.wyrUsed.push(nextIdx);
+        showWYR();
+    };
+    showWYR();
+}
+
+function renderIcebreakers(container) {
+    var currentCategory = 'Funny';
+    function showIcebreaker(cat) {
+        currentCategory = cat || currentCategory;
+        var pool = icebreakers[currentCategory];
+        var q = pool[Math.floor(Math.random() * pool.length)];
+        var cats = Object.keys(icebreakers);
+        var catBtns = cats.map(function(c) {
+            return '<button class="btn ' + (c === currentCategory ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="icebreakerCat(\'' + c + '\')" style="margin:2px;">' + c + '</button>';
+        }).join('');
+
+        container.innerHTML = gamesBackBtn() +
+            '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+            '<h2 style="margin-bottom:1rem;">Icebreakers</h2>' +
+            '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-bottom:1.5rem;">' + catBtns + '</div>' +
+            '<div style="background:var(--bg-secondary);border-radius:12px;padding:2rem;margin-bottom:1.5rem;min-height:120px;display:flex;align-items:center;justify-content:center;">' +
+            '<p style="font-size:1.125rem;font-weight:500;line-height:1.6;">"' + q + '"</p>' +
+            '</div>' +
+            '<button class="btn btn-primary" onclick="icebreakerCat(\'' + currentCategory + '\')">🔄 New Question</button>' +
+            '</div>';
+    }
+    window.icebreakerCat = function(cat) { showIcebreaker(cat); };
+    showIcebreaker('Funny');
+}
+
+function renderQuiz(container) {
+    gamesState.quizIdx = 0;
+    gamesState.quizAnswers = [];
+
+    function showQuizQ() {
+        var idx = gamesState.quizIdx;
+        if (idx >= quizQuestions.length) {
+            showQuizResult(container);
+            return;
+        }
+        var q = quizQuestions[idx];
+        var ansBtns = q.a.map(function(a, i) {
+            return '<button class="game-card" style="width:100%;margin-bottom:0.75rem;text-align:left;" onclick="quizAnswer(' + i + ')"><h3>' + a + '</h3></button>';
+        }).join('');
+
+        container.innerHTML = gamesBackBtn() +
+            '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+            '<h2 style="margin-bottom:0.5rem;">Quiz Match</h2>' +
+            '<p style="color:var(--text-tertiary);margin-bottom:0.5rem;">Question ' + (idx + 1) + ' of ' + quizQuestions.length + '</p>' +
+            '<div style="background:var(--bg-secondary);border-radius:8px;height:6px;margin-bottom:1.5rem;"><div style="background:var(--primary-gradient);height:100%;border-radius:8px;width:' + ((idx / quizQuestions.length) * 100) + '%;"></div></div>' +
+            '<div style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">' +
+            '<p style="font-size:1.125rem;font-weight:600;">' + q.q + '</p></div>' +
+            ansBtns + '</div>';
+    }
+
+    window.quizAnswer = function(choice) {
+        gamesState.quizAnswers.push(choice);
+        gamesState.quizIdx++;
+        showQuizQ();
+    };
+
+    showQuizQ();
+}
+
+function showQuizResult(container) {
+    var scores = [0, 0, 0, 0];
+    var weightMap = [[0, 1, 2, 3], [1, 2, 3, 0], [0, 2, 1, 3], [2, 3, 0, 1], [1, 0, 3, 2], [2, 0, 3, 1], [0, 1, 2, 3], [1, 2, 3, 0], [3, 0, 1, 2], [2, 3, 0, 1]];
+    gamesState.quizAnswers.forEach(function(a, i) {
+        if (weightMap[i] && weightMap[i][a] !== undefined) scores[weightMap[i][a]]++;
+    });
+    var maxIdx = scores.indexOf(Math.max.apply(null, scores));
+    var types = ['Adventurer', 'Romantic', 'FreeSpirit', 'DeepThinker'];
+    var result = quizResults[types[maxIdx]];
+
+    container.innerHTML = gamesBackBtn() +
+        '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+        '<h2 style="margin-bottom:1rem;">Your Dating Style</h2>' +
+        '<div style="background:var(--bg-secondary);border-radius:12px;padding:2rem;">' +
+        '<p style="font-size:3rem;margin-bottom:0.5rem;">' + result.emoji + '</p>' +
+        '<h3 style="margin-bottom:1rem;">You are a ' + types[maxIdx] + '!</h3>' +
+        '<p style="color:var(--text-tertiary);line-height:1.6;">' + result.desc + '</p>' +
+        '<button class="btn btn-primary" style="margin-top:1.5rem;" onclick="launchGame(\'quiz\')">Retake Quiz</button>' +
+        '</div></div>';
+}
+
+function renderRoulette(container) {
+    container.innerHTML = gamesBackBtn() +
+        '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+        '<h2 style="margin-bottom:1rem;">Flirt Roulette</h2>' +
+        '<div id="roulette-display" style="background:var(--bg-secondary);border-radius:12px;padding:2rem;min-height:160px;display:flex;align-items:center;justify-content:center;margin-bottom:1.5rem;">' +
+        '<p style="color:var(--text-tertiary);">Spin the wheel for a flirty challenge! 🎡</p></div>' +
+        '<button class="btn btn-primary" id="roulette-spin-btn" onclick="spinRoulette()">🎡 Spin!</button>' +
+        '</div>';
+
+    window.spinRoulette = function() {
+        var btn = document.getElementById('roulette-spin-btn');
+        var display = document.getElementById('roulette-display');
+        if (!btn || !display) return;
+        btn.disabled = true;
+        btn.textContent = 'Spinning...';
+        var count = 0;
+        var interval = setInterval(function() {
+            var randItem = flirtRouletteItems[Math.floor(Math.random() * flirtRouletteItems.length)];
+            display.innerHTML = '<p style="font-size:1.25rem;font-weight:500;">' + randItem + '</p>';
+            count++;
+            if (count > 15) {
+                clearInterval(interval);
+                var finalItem = flirtRouletteItems[Math.floor(Math.random() * flirtRouletteItems.length)];
+                display.innerHTML = '<p style="font-size:1.25rem;font-weight:500;">' + finalItem + '</p>' +
+                    '<button class="btn btn-secondary btn-sm" style="margin-top:1rem;" onclick="navigator.clipboard.writeText(\'' + finalItem.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\');showToast(\'Copied to clipboard!\')">📋 Copy</button>';
+                btn.disabled = false;
+                btn.textContent = '🎡 Spin Again!';
+            }
+        }, 100);
+    };
+}
+
+function renderCompat(container) {
+    gamesState.compatAnswers = [];
+    function showCompatQ() {
+        var idx = gamesState.compatAnswers.length;
+        if (idx >= compatQuestions.length) {
+            showCompatResult(container);
+            return;
+        }
+        var sliderHtml = '<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-tertiary);margin-bottom:0.5rem;"><span>Not at all</span><span>Very much</span></div>' +
+            '<input type="range" min="1" max="10" value="5" id="compat-slider" style="width:100%;accent-color:var(--primary);margin-bottom:1rem;">';
+
+        container.innerHTML = gamesBackBtn() +
+            '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+            '<h2 style="margin-bottom:0.5rem;">Compatibility Test</h2>' +
+            '<p style="color:var(--text-tertiary);margin-bottom:0.5rem;">Question ' + (idx + 1) + ' of ' + compatQuestions.length + '</p>' +
+            '<div style="background:var(--bg-secondary);border-radius:8px;height:6px;margin-bottom:1.5rem;"><div style="background:var(--primary-gradient);height:100%;border-radius:8px;width:' + ((idx / compatQuestions.length) * 100) + '%;"></div></div>' +
+            '<div style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">' +
+            '<p style="font-size:1.125rem;font-weight:600;">' + compatQuestions[idx] + '</p></div>' +
+            sliderHtml +
+            '<button class="btn btn-primary" onclick="compatAnswer()">Next →</button></div>';
+    }
+
+    window.compatAnswer = function() {
+        var slider = document.getElementById('compat-slider');
+        if (slider) gamesState.compatAnswers.push(parseInt(slider.value));
+        showCompatQ();
+    };
+
+    showCompatQ();
+}
+
+function showCompatResult(container) {
+    var total = gamesState.compatAnswers.reduce(function(a, b) { return a + b; }, 0);
+    var max = compatQuestions.length * 10;
+    var pct = Math.round((total / max) * 100);
+    var msg, emoji;
+    if (pct >= 80) { msg = 'Amazing match! You\'re practically soulmates!'; emoji = '🔥'; }
+    else if (pct >= 60) { msg = 'Great potential! There\'s real chemistry here!'; emoji = '💕'; }
+    else if (pct >= 40) { msg = 'Opposites attract! This could be exciting!'; emoji = '⚡'; }
+    else { msg = 'You might need some work, but love finds a way!'; emoji = '🌱'; }
+
+    container.innerHTML = gamesBackBtn() +
+        '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+        '<h2 style="margin-bottom:1rem;">Compatibility Result</h2>' +
+        '<div style="background:var(--bg-secondary);border-radius:12px;padding:2rem;">' +
+        '<p style="font-size:3rem;margin-bottom:0.5rem;">' + emoji + '</p>' +
+        '<p style="font-size:2.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--primary);">' + pct + '%</p>' +
+        '<h3 style="margin-bottom:1rem;">Compatible!</h3>' +
+        '<p style="color:var(--text-tertiary);line-height:1.6;">' + msg + '</p>' +
+        '<button class="btn btn-primary" style="margin-top:1.5rem;" onclick="launchGame(\'compat\')">Try Again</button>' +
+        '</div></div>';
+}
+
+function renderChallenges(container) {
+    var completed = gamesState.challengesCompleted;
+    function showChallenges() {
+        var dailyItems = '';
+        var weeklyItems = '';
+        challengeData.forEach(function(c) {
+            var done = completed[c.id] ? '✅' : '⬜';
+            var style = completed[c.id] ? 'text-decoration:line-through;opacity:0.6;' : '';
+            var btnLabel = completed[c.id] ? 'Undo' : 'Complete';
+            var html = '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem;">' +
+                '<span style="' + style + '">' + c.icon + ' ' + c.text + '</span>' +
+                '<button class="btn btn-sm ' + (completed[c.id] ? 'btn-secondary' : 'btn-primary') + '" onclick="toggleChallenge(\'' + c.id + '\')">' + btnLabel + '</button>' +
+                '</div>';
+            if (c.frequency === 'daily') dailyItems += html;
+            else weeklyItems += html;
+        });
+
+        container.innerHTML = gamesBackBtn() +
+            '<div style="max-width:500px;margin:0 auto;">' +
+            '<h2 style="margin-bottom:1.5rem;text-align:center;">🏆 Challenges</h2>' +
+            '<h3 style="margin-bottom:0.75rem;">📅 Daily Challenges</h3>' + dailyItems +
+            '<h3 style="margin:1.5rem 0 0.75rem;">📆 Weekly Challenges</h3>' + weeklyItems +
+            '</div>';
+    }
+
+    window.toggleChallenge = function(id) {
+        if (completed[id]) delete completed[id];
+        else completed[id] = true;
+        showChallenges();
+    };
+
+    showChallenges();
+}
+
+function renderBioGen(container) {
+    function makeBio() {
+        var intro = bioTemplates.intros[Math.floor(Math.random() * bioTemplates.intros.length)];
+        var interest = bioTemplates.interests[Math.floor(Math.random() * bioTemplates.interests.length)];
+        var closer = bioTemplates.closers[Math.floor(Math.random() * bioTemplates.closers.length)];
+        return intro + '\n\n' + interest + '\n\n' + closer;
+    }
+    var bio = makeBio();
+
+    container.innerHTML = gamesBackBtn() +
+        '<div style="max-width:500px;margin:0 auto;">' +
+        '<h2 style="margin-bottom:1rem;text-align:center;">✍️ Bio Generator</h2>' +
+        '<div id="bio-output" style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;margin-bottom:1rem;white-space:pre-wrap;line-height:1.6;font-size:0.9375rem;">' + bio + '</div>' +
+        '<div style="display:flex;gap:0.5rem;justify-content:center;">' +
+        '<button class="btn btn-primary" onclick="regenerateBio()">🔄 Generate New</button>' +
+        '<button class="btn btn-secondary" onclick="copyBio()">📋 Copy Bio</button>' +
+        '</div></div>';
+
+    window.regenerateBio = function() {
+        var newBio = makeBio();
+        var el = document.getElementById('bio-output');
+        if (el) el.textContent = newBio;
+    };
+    window.copyBio = function() {
+        var el = document.getElementById('bio-output');
+        if (el) { navigator.clipboard.writeText(el.textContent); showToast('Bio copied to clipboard!'); }
+    };
+}
+
+function renderPickupLines(container) {
+    function randomLine() {
+        return flirtRouletteItems[Math.floor(Math.random() * flirtRouletteItems.length)];
+    }
+    var line1 = randomLine(), line2 = randomLine();
+
+    container.innerHTML = gamesBackBtn() +
+        '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+        '<h2 style="margin-bottom:1rem;">💘 Pickup Lines</h2>' +
+        '<div id="pickup-line1" style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;margin-bottom:1rem;font-size:1.125rem;font-weight:500;">' + line1 + '</div>' +
+        '<div id="pickup-line2" style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;font-size:1.125rem;font-weight:500;">' + line2 + '</div>' +
+        '<button class="btn btn-primary" onclick="newPickupLines()">🔄 New Lines</button>' +
+        '</div>';
+
+    window.newPickupLines = function() {
+        var l1 = document.getElementById('pickup-line1');
+        var l2 = document.getElementById('pickup-line2');
+        if (l1) l1.textContent = randomLine();
+        if (l2) l2.textContent = randomLine();
+    };
+    window.copyPickupLine = function(id) {
+        var el = document.getElementById(id);
+        if (el) { navigator.clipboard.writeText(el.textContent); showToast('Copied!'); }
+    };
+}
+
+function renderMoodMatcher(container) {
+    var moodsHtml = moodOptions.map(function(m, i) {
+        return '<button class="game-card" style="width:100%;text-align:left;margin-bottom:0.75rem;" onclick="selectMood(' + i + ')"><h3>' + m.mood + '</h3></button>';
+    }).join('');
+
+    container.innerHTML = gamesBackBtn() +
+        '<div style="max-width:500px;margin:0 auto;">' +
+        '<h2 style="margin-bottom:1rem;text-align:center;">🎭 Mood Matcher</h2>' +
+        '<p style="text-align:center;color:var(--text-tertiary);margin-bottom:1.5rem;">How are you feeling?</p>' +
+        '<div id="mood-list">' + moodsHtml + '</div>' +
+        '<div id="mood-result"></div></div>';
+
+    window.selectMood = function(idx) {
+        var m = moodOptions[idx];
+        var suggestionsHtml = m.suggestions.map(function(s) {
+            return '<li style="padding:0.5rem 0;border-bottom:1px solid var(--border-light);">' + s + '</li>';
+        }).join('');
+        var listEl = document.getElementById('mood-list');
+        if (listEl) listEl.style.display = 'none';
+        var resultEl = document.getElementById('mood-result');
+        if (resultEl) {
+            resultEl.innerHTML = '<div style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;">' +
+                '<h3 style="margin-bottom:1rem;">' + m.mood + ' — Date Ideas</h3>' +
+                '<ul style="list-style:none;padding:0;">' + suggestionsHtml + '</ul>' +
+                '<button class="btn btn-secondary btn-sm" style="margin-top:1rem;" onclick="selectMoodBack()">← Choose Another Mood</button></div>';
+        }
+    };
+    window.selectMoodBack = function() {
+        var listEl = document.getElementById('mood-list');
+        if (listEl) listEl.style.display = 'block';
+        var resultEl = document.getElementById('mood-result');
+        if (resultEl) resultEl.innerHTML = '';
+    };
+}
+
+function renderCalcCompat(container) {
+    container.innerHTML = gamesBackBtn() +
+        '<div style="max-width:500px;margin:0 auto;text-align:center;">' +
+        '<h2 style="margin-bottom:1rem;">🔢 Compatibility Calculator</h2>' +
+        '<div style="background:var(--bg-secondary);border-radius:12px;padding:1.5rem;">' +
+        '<input type="text" id="calc-name1" placeholder="Your name" style="width:100%;padding:0.75rem;border:1px solid var(--border-light);border-radius:8px;margin-bottom:0.75rem;font-size:1rem;background:var(--bg-primary);color:var(--text-primary);box-sizing:border-box;">' +
+        '<input type="text" id="calc-name2" placeholder="Their name" style="width:100%;padding:0.75rem;border:1px solid var(--border-light);border-radius:8px;margin-bottom:1rem;font-size:1rem;background:var(--bg-primary);color:var(--text-primary);box-sizing:border-box;">' +
+        '<button class="btn btn-primary" onclick="calcCompatRun()">Calculate 💕</button>' +
+        '</div>' +
+        '<div id="calc-result" style="margin-top:1.5rem;"></div></div>';
+
+    window.calcCompatRun = function() {
+        var n1 = (document.getElementById('calc-name1').value || '').trim();
+        var n2 = (document.getElementById('calc-name2').value || '').trim();
+        if (!n1 || !n2) { showToast('Enter both names!'); return; }
+        var combined = (n1 + n2).toLowerCase();
+        var hash = 0;
+        for (var i = 0; i < combined.length; i++) {
+            hash = ((hash << 5) - hash) + combined.charCodeAt(i);
+            hash |= 0;
+        }
+        var pct = Math.abs(hash % 101);
+        if (pct < 20) pct += 25;
+        if (pct > 98) pct = 98;
+        var msg, emoji;
+        if (pct >= 85) { msg = 'Written in the stars! ✨'; emoji = '💞'; }
+        else if (pct >= 70) { msg = 'Strong connection here!'; emoji = '💕'; }
+        else if (pct >= 50) { msg = 'There\'s potential! Keep exploring.'; emoji = '💗'; }
+        else { msg = 'A slow burn that could surprise you!'; emoji = '🌱'; }
+
+        var el = document.getElementById('calc-result');
+        if (el) {
+            el.innerHTML = '<div style="background:var(--bg-secondary);border-radius:12px;padding:2rem;">' +
+                '<p style="font-size:2.5rem;margin-bottom:0.5rem;">' + emoji + '</p>' +
+                '<p style="font-size:2rem;font-weight:700;color:var(--primary);margin-bottom:0.25rem;">' + n1 + ' & ' + n2 + '</p>' +
+                '<p style="font-size:2.5rem;font-weight:700;margin-bottom:0.5rem;">' + pct + '%</p>' +
+                '<p style="color:var(--text-tertiary);">' + msg + '</p>' +
+                '</div>';
+        }
+    };
 }
 
 // ==================== FANTASY REQUESTS ====================
@@ -9180,14 +9941,6 @@ function createPersonalsCard(ad) {
                 </div>\
             </div>\
         </div>';
-}
-
-function getTimeAgo(date) {
-    var diff = Date.now() - date;
-    var days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return 'Today';
-    if (days === 1) return '1d ago';
-    return days + 'd ago';
 }
 
 function switchPersonalsTab(tab) {
@@ -13513,6 +14266,7 @@ function sendLiveLocation() {
             var lat = pos.coords.latitude;
             var lng = pos.coords.longitude;
             var mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+            var embedUrl = 'https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Tbyey9OrTtyHjow3eLxjz0lI4T6ZI&q=' + lat + ',' + lng + '&zoom=15';
 
             state.currentChat.messages.push({
                 id: uuidv4(),
@@ -13521,7 +14275,7 @@ function sendLiveLocation() {
                 time: 'Now',
                 delivered: true,
                 read: false,
-                location: { lat: lat, lng: lng, url: mapsUrl }
+                location: { lat: lat, lng: lng, url: mapsUrl, embed: embedUrl }
             });
 
             renderMessages();
@@ -13530,9 +14284,18 @@ function sendLiveLocation() {
             showToast('Location sent!');
         },
         function(err) {
-            showToast('Could not get location: ' + (err.message || 'Unknown error'));
+            console.error('Geolocation error:', err);
+            if (err.code === 1) {
+                showToast('Location permission denied. Please allow location access in your browser settings.');
+            } else if (err.code === 2) {
+                showToast('Location unavailable. Make sure GPS is enabled.');
+            } else if (err.code === 3) {
+                showToast('Location request timed out. Try again.');
+            } else {
+                showToast('Could not get location: ' + (err.message || 'Unknown error'));
+            }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
 }
 
@@ -13595,11 +14358,17 @@ function toggleVoiceRecording() {
 
 function startVoiceRecording() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showToast('Voice recording not supported in this browser');
+        showToast('Voice recording not supported. Use HTTPS.');
         return;
     }
 
     if (!state.currentChat) return;
+
+    // Release any held streams first
+    if (state.localStream) {
+        state.localStream.getTracks().forEach(function(t) { t.stop(); });
+        state.localStream = null;
+    }
 
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
         state.mediaRecorder = new MediaRecorder(stream);
@@ -13620,9 +14389,12 @@ function startVoiceRecording() {
         state.mediaRecorder.start();
 
         // Show recording UI
-        document.getElementById('voice-record-btn').style.display = 'none';
-        document.getElementById('voice-recording-indicator').style.display = 'flex';
-        document.getElementById('message-input').disabled = true;
+        var recordBtn = document.getElementById('voice-record-btn');
+        var indicator = document.getElementById('voice-recording-indicator');
+        var input = document.getElementById('message-input');
+        if (recordBtn) recordBtn.style.display = 'none';
+        if (indicator) indicator.style.display = 'flex';
+        if (input) input.disabled = true;
 
         // Start timer
         var seconds = 0;
@@ -13630,16 +14402,26 @@ function startVoiceRecording() {
             seconds++;
             var m = Math.floor(seconds / 60);
             var s = seconds % 60;
-            document.getElementById('voice-recording-time').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+            var timeEl = document.getElementById('voice-recording-time');
+            if (timeEl) timeEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
         }, 1000);
 
     }).catch(function(err) {
-        showToast('Microphone access denied');
+        console.error('Voice recording mic error:', err);
+        if (err.name === 'NotAllowedError') {
+            showToast('Microphone permission denied. Click the lock icon in your address bar and allow mic access.');
+        } else if (err.name === 'NotReadableError') {
+            showToast('Microphone is busy. Close other apps or tabs using the mic and try again.');
+        } else if (err.name === 'NotFoundError') {
+            showToast('No microphone found. Please connect one and try again.');
+        } else {
+            showToast('Could not access microphone: ' + (err.message || err.name));
+        }
     });
 }
 
 function stopVoiceRecording() {
-    if (!state.isRecording || !state.mediaRecorder) return;
+    if (!state.isRecording || !state.mediaRecorder) return Promise.resolve();
 
     return new Promise(function(resolve) {
         state.mediaRecorder.onstop = function() {
@@ -13648,9 +14430,12 @@ function stopVoiceRecording() {
 
             clearInterval(voiceRecordingInterval);
 
-            document.getElementById('voice-record-btn').style.display = '';
-            document.getElementById('voice-recording-indicator').style.display = 'none';
-            document.getElementById('message-input').disabled = false;
+            var recordBtn = document.getElementById('voice-record-btn');
+            var indicator = document.getElementById('voice-recording-indicator');
+            var input = document.getElementById('message-input');
+            if (recordBtn) recordBtn.style.display = '';
+            if (indicator) indicator.style.display = 'none';
+            if (input) input.disabled = false;
 
             resolve();
         };
@@ -14643,3 +15428,1515 @@ console.log('🚀 Ready to find your perfect connection!');
 console.log('🔌 Real-time messaging enabled');
 console.log('📹 WebRTC video calls enabled');
 console.log('📋 Full CRUD operations loaded');
+
+// ==================== SETTINGS MODALS ====================
+// ==================== RENDER SETTINGS ====================
+function renderSettings() {
+    var container = document.getElementById('view-settings');
+    if (!container) return;
+
+    var notificationsEnabled = localStorage.getItem('koitus_notifications') !== 'false';
+    var locationEnabled = localStorage.getItem('koitus_location') !== 'false';
+    var darkMode = document.body.classList.contains('dark');
+
+    container.innerHTML =
+        '<div class="view-header">' +
+            '<h1>Settings</h1>' +
+        '</div>' +
+        '<div class="settings-container">' +
+            '<div class="settings-section">' +
+                '<h3>Account</h3>' +
+                '<div class="settings-list">' +
+                    '<div class="settings-item" onclick="showEditProfileModal()">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-user"></i>' +
+                            '<span>Edit Profile</span>' +
+                        '</div>' +
+                        '<button class="btn btn-icon btn-sm">' +
+                            '<i class="fas fa-chevron-right"></i>' +
+                        '</button>' +
+                    '</div>' +
+                    '<div class="settings-item" onclick="showChangePasswordModal()">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-lock"></i>' +
+                            '<span>Change Password</span>' +
+                        '</div>' +
+                        '<button class="btn btn-icon btn-sm">' +
+                            '<i class="fas fa-chevron-right"></i>' +
+                        '</button>' +
+                    '</div>' +
+                    '<div class="settings-item" onclick="showPrivacyModal()">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-shield-alt"></i>' +
+                            '<span>Privacy Settings</span>' +
+                        '</div>' +
+                        '<button class="btn btn-icon btn-sm">' +
+                            '<i class="fas fa-chevron-right"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="settings-section">' +
+                '<h3>Preferences</h3>' +
+                '<div class="settings-list">' +
+                    '<div class="settings-item">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-bell"></i>' +
+                            '<span>Notifications</span>' +
+                        '</div>' +
+                        '<label class="toggle-switch">' +
+                            '<input type="checkbox" id="toggle-notifications" ' + (notificationsEnabled ? 'checked' : '') + ' onchange="var t=this;localStorage.setItem(\'koitus_notifications\',t.checked);showNotification(\'Notifications \'+(t.checked?\'enabled\':\'disabled\'),\'info\')">' +
+                            '<span class="toggle-slider"></span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="settings-item">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-location-arrow"></i>' +
+                            '<span>Location Services</span>' +
+                        '</div>' +
+                        '<label class="toggle-switch">' +
+                            '<input type="checkbox" id="toggle-location" ' + (locationEnabled ? 'checked' : '') + ' onchange="var t=this;localStorage.setItem(\'koitus_location\',t.checked);showNotification(\'Location services \'+(t.checked?\'enabled\':\'disabled\'),\'info\')">' +
+                            '<span class="toggle-slider"></span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="settings-item">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-moon"></i>' +
+                            '<span>Dark Mode</span>' +
+                        '</div>' +
+                        '<label class="toggle-switch">' +
+                            '<input type="checkbox" id="toggle-dark-mode" ' + (darkMode ? 'checked' : '') + ' onchange="document.body.classList.toggle(\'dark\',this.checked);localStorage.setItem(\'koitus_dark_mode\',this.checked);showNotification(\'Dark mode \'+(this.checked?\'enabled\':\'disabled\'),\'info\')">' +
+                            '<span class="toggle-slider"></span>' +
+                        '</label>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="settings-section">' +
+                '<h3>Support</h3>' +
+                '<div class="settings-list">' +
+                    '<div class="settings-item" onclick="showHelpCenterModal()">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-question-circle"></i>' +
+                            '<span>Help Center</span>' +
+                        '</div>' +
+                        '<button class="btn btn-icon btn-sm">' +
+                            '<i class="fas fa-chevron-right"></i>' +
+                        '</button>' +
+                    '</div>' +
+                    '<div class="settings-item" onclick="showContactModal()">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-envelope"></i>' +
+                            '<span>Contact Us</span>' +
+                        '</div>' +
+                        '<button class="btn btn-icon btn-sm">' +
+                            '<i class="fas fa-chevron-right"></i>' +
+                        '</button>' +
+                    '</div>' +
+                    '<div class="settings-item" onclick="showTermsModal()">' +
+                        '<div class="settings-item-info">' +
+                            '<i class="fas fa-file-alt"></i>' +
+                            '<span>Terms of Service</span>' +
+                        '</div>' +
+                        '<button class="btn btn-icon btn-sm">' +
+                            '<i class="fas fa-chevron-right"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="settings-section danger-zone">' +
+                '<button class="btn btn-danger btn-block" onclick="deleteAccount()">' +
+                    '<i class="fas fa-trash"></i> Delete Account' +
+                '</button>' +
+            '</div>' +
+        '</div>';
+}
+
+// ==================== EDIT PROFILE MODAL ====================
+function showEditProfileModal() {
+    var existing = document.getElementById('edit-profile-modal');
+    if (existing) existing.remove();
+
+    var u = state.currentUser;
+    var interestsStr = (u.interests || []).join(', ');
+
+    var html =
+        '<div id="edit-profile-modal" class="modal-overlay" style="display:flex;" onclick="closeEditProfileModal(event)">' +
+            '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:520px">' +
+                '<div class="modal-header">' +
+                    '<h2><i class="fas fa-user-edit"></i> Edit Profile</h2>' +
+                    '<button class="modal-close" onclick="closeEditProfileModal()"><i class="fas fa-times"></i></button>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<form id="edit-profile-form" onsubmit="saveEditProfile(event)">' +
+                        '<div class="form-group">' +
+                            '<label for="ep-name">Name</label>' +
+                            '<input type="text" id="ep-name" required value="' + (u.name || '') + '">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="ep-age">Age</label>' +
+                            '<input type="number" id="ep-age" required min="18" max="120" value="' + (u.age || '') + '">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="ep-bio">Bio</label>' +
+                            '<textarea id="ep-bio" rows="3">' + (u.bio || '') + '</textarea>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="ep-interests">Interests (comma separated)</label>' +
+                            '<input type="text" id="ep-interests" value="' + interestsStr + '">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="ep-location">Location</label>' +
+                            '<input type="text" id="ep-location" value="' + (u.location || '') + '">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="ep-looking">Looking For</label>' +
+                            '<select id="ep-looking">' +
+                                '<option value="friendship" ' + (u.lookingFor === 'friendship' ? 'selected' : '') + '>Friendship</option>' +
+                                '<option value="dating" ' + (u.lookingFor === 'dating' ? 'selected' : '') + '>Dating</option>' +
+                                '<option value="relationship" ' + (u.lookingFor === 'relationship' ? 'selected' : '') + '>Relationship</option>' +
+                                '<option value="networking" ' + (u.lookingFor === 'networking' ? 'selected' : '') + '>Networking</option>' +
+                                '<option value="casual" ' + (u.lookingFor === 'casual' ? 'selected' : '') + '>Casual</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="modal-actions">' +
+                            '<button type="button" class="btn btn-ghost" onclick="closeEditProfileModal()">Cancel</button>' +
+                            '<button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>' +
+                        '</div>' +
+                    '</form>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeEditProfileModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('edit-profile-modal');
+        if (modal) modal.remove();
+    }
+}
+
+function saveEditProfile(event) {
+    event.preventDefault();
+    state.currentUser.name = document.getElementById('ep-name').value;
+    state.currentUser.age = parseInt(document.getElementById('ep-age').value);
+    state.currentUser.bio = document.getElementById('ep-bio').value;
+    state.currentUser.interests = document.getElementById('ep-interests').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    state.currentUser.location = document.getElementById('ep-location').value;
+    state.currentUser.lookingFor = document.getElementById('ep-looking').value;
+    localStorage.setItem('koitus_user', JSON.stringify(state.currentUser));
+    closeEditProfileModal();
+    renderProfile();
+    showNotification('Profile updated successfully!', 'success');
+}
+
+// ==================== CHANGE PASSWORD MODAL ====================
+function showChangePasswordModal() {
+    var existing = document.getElementById('change-password-modal');
+    if (existing) existing.remove();
+
+    var html =
+        '<div id="change-password-modal" class="modal-overlay" style="display:flex;" onclick="closeChangePasswordModal(event)">' +
+            '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:440px">' +
+                '<div class="modal-header">' +
+                    '<h2><i class="fas fa-lock"></i> Change Password</h2>' +
+                    '<button class="modal-close" onclick="closeChangePasswordModal()"><i class="fas fa-times"></i></button>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<form id="change-password-form" onsubmit="saveChangePassword(event)">' +
+                        '<div class="form-group">' +
+                            '<label for="cp-current">Current Password</label>' +
+                            '<input type="password" id="cp-current" required>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="cp-new">New Password</label>' +
+                            '<input type="password" id="cp-new" required minlength="6">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="cp-confirm">Confirm New Password</label>' +
+                            '<input type="password" id="cp-confirm" required minlength="6">' +
+                        '</div>' +
+                        '<div class="modal-actions">' +
+                            '<button type="button" class="btn btn-ghost" onclick="closeChangePasswordModal()">Cancel</button>' +
+                            '<button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Update Password</button>' +
+                        '</div>' +
+                    '</form>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeChangePasswordModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('change-password-modal');
+        if (modal) modal.remove();
+    }
+}
+
+function saveChangePassword(event) {
+    event.preventDefault();
+    var current = document.getElementById('cp-current').value;
+    var newPass = document.getElementById('cp-new').value;
+    var confirm = document.getElementById('cp-confirm').value;
+
+    if (newPass !== confirm) {
+        showNotification('New passwords do not match.', 'error');
+        return;
+    }
+    if (newPass.length < 6) {
+        showNotification('Password must be at least 6 characters.', 'warning');
+        return;
+    }
+
+    closeChangePasswordModal();
+    showNotification('Password changed successfully!', 'success');
+}
+
+// ==================== PRIVACY MODAL ====================
+function showPrivacyModal() {
+    var existing = document.getElementById('privacy-modal');
+    if (existing) existing.remove();
+
+    var settings = JSON.parse(localStorage.getItem('koitus_privacy') || '{}');
+
+    var html =
+        '<div id="privacy-modal" class="modal-overlay" style="display:flex;" onclick="closePrivacyModal(event)">' +
+            '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:480px">' +
+                '<div class="modal-header">' +
+                    '<h2><i class="fas fa-shield-alt"></i> Privacy Settings</h2>' +
+                    '<button class="modal-close" onclick="closePrivacyModal()"><i class="fas fa-times"></i></button>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<form id="privacy-form" onsubmit="savePrivacySettings(event)">' +
+                        '<div class="form-group">' +
+                            '<label for="priv-profile-visibility">Who can see my profile</label>' +
+                            '<select id="priv-profile-visibility">' +
+                                '<option value="everyone" ' + (settings.profileVisibility !== 'nobody' && settings.profileVisibility !== 'matches' ? 'selected' : '') + '>Everyone</option>' +
+                                '<option value="matches" ' + (settings.profileVisibility === 'matches' ? 'selected' : '') + '>My Matches Only</option>' +
+                                '<option value="nobody" ' + (settings.profileVisibility === 'nobody' ? 'selected' : '') + '>Nobody</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="priv-messaging">Who can message me</label>' +
+                            '<select id="priv-messaging">' +
+                                '<option value="everyone" ' + (settings.messaging !== 'matches' && settings.messaging !== 'nobody' ? 'selected' : '') + '>Everyone</option>' +
+                                '<option value="matches" ' + (settings.messaging === 'matches' ? 'selected' : '') + '>My Matches Only</option>' +
+                                '<option value="nobody" ' + (settings.messaging === 'nobody' ? 'selected' : '') + '>Nobody</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="settings-item" style="padding:12px 0">' +
+                            '<div class="settings-item-info">' +
+                                '<span>Show Online Status</span>' +
+                            '</div>' +
+                            '<label class="toggle-switch">' +
+                                '<input type="checkbox" id="priv-online-status" ' + (settings.showOnlineStatus !== false ? 'checked' : '') + '>' +
+                                '<span class="toggle-slider"></span>' +
+                            '</label>' +
+                        '</div>' +
+                        '<div class="settings-item" style="padding:12px 0">' +
+                            '<div class="settings-item-info">' +
+                                '<span>Show Distance</span>' +
+                            '</div>' +
+                            '<label class="toggle-switch">' +
+                                '<input type="checkbox" id="priv-show-distance" ' + (settings.showDistance !== false ? 'checked' : '') + '>' +
+                                '<span class="toggle-slider"></span>' +
+                            '</label>' +
+                        '</div>' +
+                        '<div class="modal-actions">' +
+                            '<button type="button" class="btn btn-ghost" onclick="closePrivacyModal()">Cancel</button>' +
+                            '<button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Privacy</button>' +
+                        '</div>' +
+                    '</form>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closePrivacyModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('privacy-modal');
+        if (modal) modal.remove();
+    }
+}
+
+function savePrivacySettings(event) {
+    event.preventDefault();
+    var settings = {
+        profileVisibility: document.getElementById('priv-profile-visibility').value,
+        messaging: document.getElementById('priv-messaging').value,
+        showOnlineStatus: document.getElementById('priv-online-status').checked,
+        showDistance: document.getElementById('priv-show-distance').checked
+    };
+    localStorage.setItem('koitus_privacy', JSON.stringify(settings));
+    closePrivacyModal();
+    showNotification('Privacy settings saved!', 'success');
+}
+
+// ==================== HELP CENTER MODAL ====================
+function showHelpCenterModal() {
+    var existing = document.getElementById('help-center-modal');
+    if (existing) existing.remove();
+
+    var faqs = [
+        { q: 'How do I edit my profile?', a: 'Go to Settings > Account > Edit Profile. You can update your name, age, bio, interests, and more.' },
+        { q: 'How do I find matches?', a: 'Use the Discover tab to browse profiles. Swipe right to like, left to pass. When someone likes you back, it\'s a match!' },
+        { q: 'How does the forum work?', a: 'The Forum tab lets you create posts, reply to discussions, and vote on content. Browse categories to find topics that interest you.' },
+        { q: 'Can I delete my account?', a: 'Yes. Go to Settings, scroll to the Danger Zone section, and click "Delete Account". This action is permanent.' },
+        { q: 'How do I reset my password?', a: 'Go to Settings > Account > Change Password. Enter your current password and a new password, then confirm.' }
+    ];
+
+    var faqItems = faqs.map(function(f, i) {
+        return '<div class="faq-item" style="border-bottom:1px solid var(--gray-200);padding:12px 0">' +
+            '<div class="faq-question" onclick="toggleFaq(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:500">' +
+                '<span>' + f.q + '</span>' +
+                '<i class="fas fa-chevron-down" style="transition:transform 0.2s;font-size:12px"></i>' +
+            '</div>' +
+            '<div class="faq-answer" style="display:none;padding-top:8px;color:var(--gray-600);font-size:0.9rem">' +
+                f.a +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    var html =
+        '<div id="help-center-modal" class="modal-overlay" style="display:flex;" onclick="closeHelpCenterModal(event)">' +
+            '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:560px">' +
+                '<div class="modal-header">' +
+                    '<h2><i class="fas fa-question-circle"></i> Help Center</h2>' +
+                    '<button class="modal-close" onclick="closeHelpCenterModal()"><i class="fas fa-times"></i></button>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<p style="margin-bottom:16px;color:var(--gray-600)">Frequently Asked Questions</p>' +
+                    '<div class="faq-list">' + faqItems + '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function toggleFaq(el) {
+    var answer = el.nextElementSibling;
+    var icon = el.querySelector('.fa-chevron-down');
+    if (answer.style.display === 'none' || answer.style.display === '') {
+        answer.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        answer.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+function closeHelpCenterModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('help-center-modal');
+        if (modal) modal.remove();
+    }
+}
+
+// ==================== CONTACT MODAL ====================
+function showContactModal() {
+    var existing = document.getElementById('contact-modal');
+    if (existing) existing.remove();
+
+    var html =
+        '<div id="contact-modal" class="modal-overlay" style="display:flex;" onclick="closeContactModal(event)">' +
+            '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:480px">' +
+                '<div class="modal-header">' +
+                    '<h2><i class="fas fa-envelope"></i> Contact Us</h2>' +
+                    '<button class="modal-close" onclick="closeContactModal()"><i class="fas fa-times"></i></button>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<form id="contact-form" onsubmit="submitContactForm(event)">' +
+                        '<div class="form-group">' +
+                            '<label for="contact-name">Name</label>' +
+                            '<input type="text" id="contact-name" required>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="contact-email">Email</label>' +
+                            '<input type="email" id="contact-email" required>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="contact-message">Message</label>' +
+                            '<textarea id="contact-message" rows="4" required></textarea>' +
+                        '</div>' +
+                        '<div class="modal-actions">' +
+                            '<button type="button" class="btn btn-ghost" onclick="closeContactModal()">Cancel</button>' +
+                            '<button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send</button>' +
+                        '</div>' +
+                    '</form>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeContactModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('contact-modal');
+        if (modal) modal.remove();
+    }
+}
+
+function submitContactForm(event) {
+    event.preventDefault();
+    closeContactModal();
+    showNotification('Thank you! Your message has been sent.', 'success');
+}
+
+// ==================== TERMS OF SERVICE MODAL ====================
+function showTermsModal() {
+    var existing = document.getElementById('terms-modal');
+    if (existing) existing.remove();
+
+    var html =
+        '<div id="terms-modal" class="modal-overlay" style="display:flex;" onclick="closeTermsModal(event)">' +
+            '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:600px;max-height:80vh">' +
+                '<div class="modal-header">' +
+                    '<h2><i class="fas fa-file-alt"></i> Terms of Service</h2>' +
+                    '<button class="modal-close" onclick="closeTermsModal()"><i class="fas fa-times"></i></button>' +
+                '</div>' +
+                '<div class="modal-body" style="overflow-y:auto;max-height:60vh;line-height:1.6">' +
+                    '<h3>1. Acceptance of Terms</h3>' +
+                    '<p>By accessing and using Koitus, you agree to be bound by these Terms of Service. If you do not agree, please do not use the platform.</p>' +
+                    '<h3>2. User Accounts</h3>' +
+                    '<p>You are responsible for maintaining the confidentiality of your account credentials. You must be at least 18 years old to use this service.</p>' +
+                    '<h3>3. User Conduct</h3>' +
+                    '<p>You agree not to post offensive, harassing, or illegal content. Respect other users and their privacy. Impersonation is strictly prohibited.</p>' +
+                    '<h3>4. Content Ownership</h3>' +
+                    '<p>You retain ownership of content you post. By posting, you grant Koitus a license to display your content within the platform.</p>' +
+                    '<h3>5. Privacy</h3>' +
+                    '<p>Your privacy is important to us. Please review our Privacy Policy to understand how we collect and use your data.</p>' +
+                    '<h3>6. Limitation of Liability</h3>' +
+                    '<p>Koitus is provided "as is." We are not liable for damages arising from your use of the platform, including interactions with other users.</p>' +
+                    '<h3>7. Termination</h3>' +
+                    '<p>We reserve the right to suspend or terminate accounts that violate these terms or engage in harmful behavior.</p>' +
+                    '<h3>8. Changes</h3>' +
+                    '<p>We may update these terms at any time. Continued use after changes constitutes acceptance of the new terms.</p>' +
+                    '<h3>9. Contact</h3>' +
+                    '<p>For questions about these terms, please use the Contact Us form in Settings.</p>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeTermsModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('terms-modal');
+        if (modal) modal.remove();
+    }
+}
+
+// ==================== FIX renderStories FILTER ====================
+function renderStories() {
+    var container = document.getElementById('stories-container');
+    if (!container) return;
+
+    var stories = state.stories || [];
+    var filter = state.storiesFilter || 'all';
+
+    if (filter !== 'all') {
+        stories = stories.filter(function(s) { return s.type && s.type.toLowerCase() === filter; });
+    }
+
+    if (stories.length === 0 && (!state.stories || state.stories.length === 0)) {
+        container.innerHTML = '\
+            <div class="stories-empty">\
+                <div class="empty-icon"><i class="fas fa-book-open"></i></div>\
+                <h3>No Stories Yet</h3>\
+                <p>Be the first to share a story, poem, or blog post!</p>\
+                <button class="btn btn-primary" onclick="showCreateStoryModal()">\
+                    <i class="fas fa-plus"></i> Create Story\
+                </button>\
+            </div>';
+        return;
+    }
+
+    if (stories.length === 0 && state.stories && state.stories.length > 0) {
+        container.innerHTML = '\
+            <div class="stories-categories scroll-x">\
+                <button class="story-cat-btn" onclick="filterStories(\'all\')">All</button>\
+                <button class="story-cat-btn" onclick="filterStories(\'ebook\')">E-Books</button>\
+                <button class="story-cat-btn" onclick="filterStories(\'story\')">Stories</button>\
+                <button class="story-cat-btn" onclick="filterStories(\'poem\')">Poems</button>\
+                <button class="story-cat-btn" onclick="filterStories(\'blog\')">Blog Posts</button>\
+                <button class="story-cat-btn" onclick="filterStories(\'article\')">Articles</button>\
+                <button class="story-cat-btn" onclick="filterStories(\'puff\')">Puff Pieces</button>\
+                <button class="story-cat-btn" onclick="filterStories(\'pdf\')">PDFs</button>\
+            </div>\
+            <div class="stories-empty" style="margin-top:20px">\
+                <div class="empty-icon"><i class="fas fa-filter"></i></div>\
+                <h3>No ' + filter + ' stories found</h3>\
+                <p>Try a different category or create a new one!</p>\
+            </div>';
+        return;
+    }
+
+    container.innerHTML = '\
+        <div class="stories-categories scroll-x">\
+            <button class="story-cat-btn ' + (filter === 'all' ? 'active' : '') + '" onclick="filterStories(\'all\')">All</button>\
+            <button class="story-cat-btn ' + (filter === 'ebook' ? 'active' : '') + '" onclick="filterStories(\'ebook\')">E-Books</button>\
+            <button class="story-cat-btn ' + (filter === 'story' ? 'active' : '') + '" onclick="filterStories(\'story\')">Stories</button>\
+            <button class="story-cat-btn ' + (filter === 'poem' ? 'active' : '') + '" onclick="filterStories(\'poem\')">Poems</button>\
+            <button class="story-cat-btn ' + (filter === 'blog' ? 'active' : '') + '" onclick="filterStories(\'blog\')">Blog Posts</button>\
+            <button class="story-cat-btn ' + (filter === 'article' ? 'active' : '') + '" onclick="filterStories(\'article\')">Articles</button>\
+            <button class="story-cat-btn ' + (filter === 'puff' ? 'active' : '') + '" onclick="filterStories(\'puff\')">Puff Pieces</button>\
+            <button class="story-cat-btn ' + (filter === 'pdf' ? 'active' : '') + '" onclick="filterStories(\'pdf\')">PDFs</button>\
+        </div>\
+        <div class="stories-grid" id="stories-grid">\
+            ' + stories.map(function(s) { return '\
+                <div class="story-card" onclick="openStory(\'' + s.id + '\')">\
+                    <div class="story-card-image">\
+                        <img src="' + (s.image || "https://picsum.photos/seed/" + s.id + "/400/300") + '" alt="' + s.title + '" loading="lazy">\
+                        <span class="story-type-badge">' + s.type + '</span>\
+                    </div>\
+                    <div class="story-card-body">\
+                        <h3>' + s.title + '</h3>\
+                        <p class="story-excerpt">' + (s.excerpt || s.content.substring(0, 120)) + '</p>\
+                        <div class="story-meta">\
+                            <span class="story-author"><i class="fas fa-user"></i> ' + s.author + '</span>\
+                            <span class="story-date">' + s.date + '</span>\
+                            <span class="story-likes"><i class="fas fa-heart"></i> ' + (s.likes || 0) + '</span>\
+                        </div>\
+                    </div>\
+                </div>\
+            '; }).join('') + '\
+        </div>';
+}
+
+// ==================== SHOW CREATE STORY MODAL ====================
+function showCreateStoryModal() {
+    var existing = document.getElementById('create-story-modal');
+    if (existing) existing.remove();
+
+    var html =
+        '<div id="create-story-modal" class="modal-overlay" style="display:flex;" onclick="closeCreateStoryModal(event)">' +
+            '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:520px">' +
+                '<div class="modal-header">' +
+                    '<h2><i class="fas fa-feather-alt"></i> Create Story</h2>' +
+                    '<button class="modal-close" onclick="closeCreateStoryModal()"><i class="fas fa-times"></i></button>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<form id="create-story-form" onsubmit="submitCreateStory(event)">' +
+                        '<div class="form-group">' +
+                            '<label for="cs-title">Title</label>' +
+                            '<input type="text" id="cs-title" required placeholder="Enter a title for your story">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="cs-type">Type</label>' +
+                            '<select id="cs-type" required>' +
+                                '<option value="">Select type...</option>' +
+                                '<option value="ebook">E-Book</option>' +
+                                '<option value="story">Story</option>' +
+                                '<option value="poem">Poem</option>' +
+                                '<option value="blog">Blog Post</option>' +
+                                '<option value="article">Article</option>' +
+                                '<option value="puff">Puff Piece</option>' +
+                                '<option value="pdf">PDF</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="cs-content">Content</label>' +
+                            '<textarea id="cs-content" rows="6" required placeholder="Write your story here..."></textarea>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                            '<label for="cs-image">Image URL (optional)</label>' +
+                            '<input type="url" id="cs-image" placeholder="https://example.com/image.jpg">' +
+                        '</div>' +
+                        '<div class="modal-actions">' +
+                            '<button type="button" class="btn btn-ghost" onclick="closeCreateStoryModal()">Cancel</button>' +
+                            '<button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Publish</button>' +
+                        '</div>' +
+                    '</form>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeCreateStoryModal(event) {
+    if (!event || event.target === event.currentTarget) {
+        var modal = document.getElementById('create-story-modal');
+        if (modal) modal.remove();
+    }
+}
+
+function submitCreateStory(event) {
+    event.preventDefault();
+
+    var newStory = {
+        id: 'story_' + Date.now(),
+        title: document.getElementById('cs-title').value,
+        type: document.getElementById('cs-type').value,
+        content: document.getElementById('cs-content').value,
+        image: document.getElementById('cs-image').value || '',
+        author: state.currentUser ? state.currentUser.name : 'Anonymous',
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        likes: 0,
+        excerpt: document.getElementById('cs-content').value.substring(0, 120)
+    };
+
+    if (!state.stories) state.stories = [];
+    state.stories.unshift(newStory);
+
+    closeCreateStoryModal();
+    state.storiesFilter = 'all';
+    renderStories();
+    showNotification('Your story has been published!', 'success');
+}
+
+
+// ==================== COMMENTS STREAM VIEWER MEDIA PLAYER ====================
+// ==================== COMMENT SYSTEM ====================
+// Add to state object: comments: {}, streamChatMessages: [], streamViewerInterval: null
+
+function getComments(entityType, entityId) {
+    var key = entityType + '_' + entityId;
+    if (!state.comments) state.comments = {};
+    if (!state.comments[key]) state.comments[key] = [];
+    return state.comments[key];
+}
+
+function addComment(entityType, entityId, text, parentId) {
+    if (!text || !text.trim()) {
+        showToast('Comment cannot be empty');
+        return;
+    }
+    if (!state.currentUser) {
+        showToast('Please log in to comment');
+        return;
+    }
+    var comments = getComments(entityType, entityId);
+    var comment = {
+        id: Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        entityType: entityType,
+        entityId: entityId,
+        userId: state.currentUser.id,
+        userName: state.currentUser.name,
+        userImage: state.currentUser.image || sampleProfiles[0].image,
+        text: text.trim(),
+        timestamp: new Date().toISOString(),
+        likes: [],
+        parentId: parentId || null,
+        edited: false
+    };
+    comments.push(comment);
+    renderComments(entityType, entityId);
+    showToast('Comment added');
+}
+
+function updateComment(commentId, newText) {
+    if (!newText || !newText.trim()) {
+        showToast('Comment cannot be empty');
+        return;
+    }
+    var allComments = state.comments || {};
+    var keys = Object.keys(allComments);
+    for (var i = 0; i < keys.length; i++) {
+        var arr = allComments[keys[i]];
+        for (var j = 0; j < arr.length; j++) {
+            if (arr[j].id === commentId) {
+                if (arr[j].userId !== (state.currentUser ? state.currentUser.id : null)) {
+                    showToast('You can only edit your own comments');
+                    return;
+                }
+                arr[j].text = newText.trim();
+                arr[j].edited = true;
+                renderComments(arr[j].entityType, arr[j].entityId);
+                showToast('Comment updated');
+                return;
+            }
+        }
+    }
+}
+
+function deleteComment(commentId) {
+    var allComments = state.comments || {};
+    var keys = Object.keys(allComments);
+    for (var i = 0; i < keys.length; i++) {
+        var arr = allComments[keys[i]];
+        for (var j = 0; j < arr.length; j++) {
+            if (arr[j].id === commentId) {
+                if (arr[j].userId !== (state.currentUser ? state.currentUser.id : null)) {
+                    showToast('You can only delete your own comments');
+                    return;
+                }
+                var et = arr[j].entityType;
+                var eid = arr[j].entityId;
+                // Remove comment and all its replies
+                removeCommentAndReplies(keys[i], commentId);
+                renderComments(et, eid);
+                showToast('Comment deleted');
+                return;
+            }
+        }
+    }
+}
+
+function removeCommentAndReplies(key, commentId) {
+    var arr = state.comments[key] || [];
+    // Collect all reply ids to remove
+    var toRemove = [commentId];
+    var found = true;
+    while (found) {
+        found = false;
+        for (var i = 0; i < arr.length; i++) {
+            if (toRemove.indexOf(arr[i].parentId) !== -1 && toRemove.indexOf(arr[i].id) === -1) {
+                toRemove.push(arr[i].id);
+                found = true;
+            }
+        }
+    }
+    state.comments[key] = arr.filter(function(c) {
+        return toRemove.indexOf(c.id) === -1;
+    });
+}
+
+function likeComment(commentId) {
+    if (!state.currentUser) {
+        showToast('Please log in to like');
+        return;
+    }
+    var allComments = state.comments || {};
+    var keys = Object.keys(allComments);
+    for (var i = 0; i < keys.length; i++) {
+        var arr = allComments[keys[i]];
+        for (var j = 0; j < arr.length; j++) {
+            if (arr[j].id === commentId) {
+                var idx = arr[j].likes.indexOf(state.currentUser.id);
+                if (idx === -1) {
+                    arr[j].likes.push(state.currentUser.id);
+                } else {
+                    arr[j].likes.splice(idx, 1);
+                }
+                renderComments(arr[j].entityType, arr[j].entityId);
+                return;
+            }
+        }
+    }
+}
+
+function renderComments(entityType, entityId) {
+    var container = document.getElementById(entityType + '-' + entityId + '-comments');
+    if (!container) return;
+    var comments = getComments(entityType, entityId);
+    var topLevel = comments.filter(function(c) { return !c.parentId; });
+    var totalCount = comments.length;
+
+    var html = '<div class="comments-section">';
+    html += '<div class="comments-header">Comments (' + totalCount + ')</div>';
+    html += '<div class="comment-input-box">';
+    html += '<textarea id="comment-input-' + entityType + '-' + entityId + '" placeholder="Write a comment..." rows="2"></textarea>';
+    html += '<button class="btn btn-primary btn-sm" onclick="submitComment(\'' + entityType + '\', \'' + entityId + '\')"><i class="fas fa-paper-plane"></i> Post</button>';
+    html += '</div>';
+    html += '<div class="comments-list">';
+    for (var i = 0; i < topLevel.length; i++) {
+        html += createCommentHTML(topLevel[i], 0, entityType, entityId, comments);
+    }
+    if (topLevel.length === 0) {
+        html += '<p style="color:var(--text-tertiary);text-align:center;padding:var(--spacing-4);">No comments yet. Be the first!</p>';
+    }
+    html += '</div>';
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function createCommentHTML(comment, depth, entityType, entityId, allComments) {
+    var maxIndent = 5;
+    var indent = Math.min(depth, maxIndent);
+    var marginLeft = indent * 24;
+    var isOwn = state.currentUser && comment.userId === state.currentUser.id;
+    var hasLiked = state.currentUser && comment.likes.indexOf(state.currentUser.id) !== -1;
+    var replyCount = allComments.filter(function(c) { return c.parentId === comment.id; }).length;
+
+    var html = '<div class="comment-item" style="margin-left:' + marginLeft + 'px;">';
+    html += '<div class="comment-avatar">';
+    html += '<img src="' + comment.userImage + '" alt="' + comment.userName + '">';
+    html += '</div>';
+    html += '<div class="comment-body">';
+    html += '<div class="comment-meta">';
+    html += '<span class="comment-name">' + comment.userName + '</span>';
+    html += '<span class="comment-time">' + getTimeAgo(comment.timestamp) + '</span>';
+    if (comment.edited) {
+        html += '<span class="comment-edited">(edited)</span>';
+    }
+    html += '</div>';
+    html += '<div class="comment-text">' + escapeHTML(comment.text) + '</div>';
+    html += '<div class="comment-actions">';
+    html += '<button class="comment-action-btn ' + (hasLiked ? 'liked' : '') + '" onclick="likeComment(\'' + comment.id + '\')">';
+    html += '<i class="fas fa-heart"></i> ' + (comment.likes.length > 0 ? comment.likes.length : '');
+    html += '</button>';
+    html += '<button class="comment-action-btn" onclick="toggleReplyForm(\'' + entityType + '\', \'' + entityId + '\', \'' + comment.id + '\')">';
+    html += '<i class="fas fa-reply"></i> Reply';
+    if (replyCount > 0) {
+        html += ' (' + replyCount + ')';
+    }
+    html += '</button>';
+    if (isOwn) {
+        html += '<button class="comment-action-btn" onclick="startEditComment(\'' + comment.id + '\', \'' + entityType + '\', \'' + entityId + '\')">';
+        html += '<i class="fas fa-edit"></i> Edit';
+        html += '</button>';
+        html += '<button class="comment-action-btn comment-action-delete" onclick="deleteComment(\'' + comment.id + '\')">';
+        html += '<i class="fas fa-trash"></i> Delete';
+        html += '</button>';
+    }
+    html += '</div>';
+    // Reply form placeholder
+    html += '<div id="reply-form-' + comment.id + '" style="display:none;"></div>';
+    // Nested replies
+    var replies = allComments.filter(function(c) { return c.parentId === comment.id; });
+    if (replies.length > 0) {
+        html += '<div class="comment-replies">';
+        for (var i = 0; i < replies.length; i++) {
+            html += createCommentHTML(replies[i], depth + 1, entityType, entityId, allComments);
+        }
+        html += '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
+function submitComment(entityType, entityId) {
+    var input = document.getElementById('comment-input-' + entityType + '-' + entityId);
+    if (input && input.value.trim()) {
+        addComment(entityType, entityId, input.value.trim(), null);
+    }
+}
+
+function toggleReplyForm(entityType, entityId, commentId) {
+    var formContainer = document.getElementById('reply-form-' + commentId);
+    if (!formContainer) return;
+    if (formContainer.style.display === 'none' || formContainer.innerHTML === '') {
+        formContainer.style.display = 'block';
+        formContainer.innerHTML = '<div class="comment-reply-form">' +
+            '<textarea id="reply-input-' + commentId + '" placeholder="Write a reply..." rows="2"></textarea>' +
+            '<div class="comment-reply-form-actions">' +
+            '<button class="btn btn-primary btn-sm" onclick="submitReply(\'' + entityType + '\', \'' + entityId + '\', \'' + commentId + '\')"><i class="fas fa-paper-plane"></i> Reply</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="cancelReply(\'' + commentId + '\')">Cancel</button>' +
+            '</div></div>';
+    } else {
+        formContainer.style.display = 'none';
+    }
+}
+
+function cancelReply(commentId) {
+    var formContainer = document.getElementById('reply-form-' + commentId);
+    if (formContainer) {
+        formContainer.style.display = 'none';
+        formContainer.innerHTML = '';
+    }
+}
+
+function submitReply(entityType, entityId, parentId) {
+    var input = document.getElementById('reply-input-' + parentId);
+    if (input && input.value.trim()) {
+        addComment(entityType, entityId, input.value.trim(), parentId);
+    }
+}
+
+function startEditComment(commentId, entityType, entityId) {
+    var allComments = state.comments || {};
+    var key = entityType + '_' + entityId;
+    var arr = allComments[key] || [];
+    var comment = null;
+    for (var i = 0; i < arr.length; i++) {
+        if (arr[i].id === commentId) {
+            comment = arr[i];
+            break;
+        }
+    }
+    if (!comment) return;
+
+    var commentEl = document.querySelector('[data-comment-id="' + commentId + '"] .comment-text');
+    if (!commentEl) {
+        // Fallback: find the text element in the rendered tree
+        var items = document.querySelectorAll('.comment-item');
+        // We'll use a simple approach: replace text with edit form inline
+    }
+
+    // Create edit form
+    var key2 = entityType + '_' + entityId;
+    var comments = state.comments[key2] || [];
+    var container = document.getElementById(entityType + '-' + entityId + '-comments');
+    if (!container) return;
+
+    // Re-render with edit mode
+    renderComments(entityType, entityId);
+
+    // After re-render, find and replace the comment text with edit form
+    setTimeout(function() {
+        var allItems = container.querySelectorAll('.comment-item');
+        for (var i = 0; i < allItems.length; i++) {
+            var actionsEl = allItems[i].querySelector('.comment-actions');
+            if (!actionsEl) continue;
+            var editBtn = actionsEl.querySelector('[onclick*="startEditComment"]');
+            if (!editBtn) continue;
+            // Check if this is the right comment by checking the onclick attribute
+            if (editBtn.getAttribute('onclick').indexOf(commentId) !== -1) {
+                var textEl = allItems[i].querySelector('.comment-text');
+                if (textEl) {
+                    var editHTML = '<div class="comment-edit-form">' +
+                        '<textarea id="edit-input-' + commentId + '" rows="2">' + escapeHTML(comment.text) + '</textarea>' +
+                        '<div class="comment-reply-form-actions">' +
+                        '<button class="btn btn-primary btn-sm" onclick="saveEditComment(\'' + commentId + '\', \'' + entityType + '\', \'' + entityId + '\')"><i class="fas fa-check"></i> Save</button>' +
+                        '<button class="btn btn-outline btn-sm" onclick="renderComments(\'' + entityType + '\', \'' + entityId + '\')">Cancel</button>' +
+                        '</div></div>';
+                    textEl.innerHTML = editHTML;
+                }
+                break;
+            }
+        }
+    }, 50);
+}
+
+function saveEditComment(commentId, entityType, entityId) {
+    var input = document.getElementById('edit-input-' + commentId);
+    if (input && input.value.trim()) {
+        updateComment(commentId, input.value.trim());
+    }
+}
+
+function escapeHTML(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+// ==================== STREAM VIEWER MODAL ====================
+
+function openStreamViewer(streamId) {
+    var stream = state.streams.find(function(s) { return s.id === streamId; });
+    if (!stream) {
+        showToast('Stream not found');
+        return;
+    }
+
+    var modal = document.getElementById('stream-viewer-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'stream-viewer-modal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+    }
+
+    var viewerCount = stream.viewers || Math.floor(Math.random() * 5000) + 100;
+
+    modal.innerHTML = '\
+        <div class="stream-viewer-container">\
+            <button class="stream-viewer-close" onclick="closeStreamViewer()"><i class="fas fa-times"></i></button>\
+            <div class="stream-viewer-main">\
+                <div class="stream-viewer-player">\
+                    <div class="stream-video-area">\
+                        <div class="stream-video-placeholder">\
+                            <i class="fas fa-play-circle"></i>\
+                            <p>' + stream.title + '</p>\
+                        </div>\
+                        <div class="stream-video-overlay">\
+                            <span class="stream-live-badge"><span class="live-dot"></span> LIVE</span>\
+                            <span class="stream-viewer-count" id="stream-viewer-count"><i class="fas fa-eye"></i> ' + formatViewerCount(viewerCount) + '</span>\
+                        </div>\
+                    </div>\
+                    <div class="stream-viewer-info">\
+                        <img src="' + stream.streamer.image + '" alt="' + stream.streamer.name + '" class="stream-viewer-avatar">\
+                        <div class="stream-viewer-details">\
+                            <h3>' + stream.streamer.name + '</h3>\
+                            <span class="stream-viewer-category">' + stream.category + '</span>\
+                        </div>\
+                        <div class="stream-viewer-actions">\
+                            <button class="stream-action-btn" id="stream-like-btn" onclick="likeStream(\'' + stream.id + '\')"><i class="fas fa-heart"></i> <span>' + formatViewerCount(stream.likes || 0) + '</span></button>\
+                            <button class="stream-action-btn" onclick="followStreamer(\'' + stream.streamer.name + '\')"><i class="fas fa-user-plus"></i> Follow</button>\
+                            <button class="stream-action-btn" onclick="shareStream(\'' + stream.title + '\')"><i class="fas fa-share"></i> Share</button>\
+                            <button class="stream-action-btn stream-action-tip" onclick="openStreamGiftPanel(\'' + streamId + '\')"><i class="fas fa-gift"></i> Gift</button>\
+                            <button class="stream-action-btn stream-action-tip" onclick="openStreamTipPanel(\'' + streamId + '\')"><i class="fas fa-hand-holding-usd"></i> Tip</button>\
+                            <button class="stream-action-btn stream-action-report" onclick="reportStream(\'' + streamId + '\')"><i class="fas fa-flag"></i></button>\
+                        </div>\
+                    </div>\
+                    <div class="stream-comments-section">\
+                        <div class="stream-comments-header"><i class="fas fa-comments"></i> Live Chat</div>\
+                        <div class="stream-chat-messages" id="stream-chat-messages"></div>\
+                        <div class="stream-chat-input">\
+                            <input type="text" id="stream-chat-input" placeholder="Say something..." onkeypress="if(event.key===\'Enter\')sendStreamChat()">\
+                            <button class="btn btn-primary btn-sm" onclick="sendStreamChat()"><i class="fas fa-paper-plane"></i></button>\
+                        </div>\
+                    </div>\
+                </div>\
+            </div>\
+        </div>';
+
+    modal.style.display = 'flex';
+    modal.onclick = function(e) {
+        if (e.target === modal) closeStreamViewer();
+    };
+
+    // Simulate viewer count
+    if (state.streamViewerInterval) clearInterval(state.streamViewerInterval);
+    state.streamViewerInterval = setInterval(function() {
+        viewerCount += Math.floor(Math.random() * 20) - 5;
+        if (viewerCount < 50) viewerCount = 50;
+        var countEl = document.getElementById('stream-viewer-count');
+        if (countEl) {
+            countEl.innerHTML = '<i class="fas fa-eye"></i> ' + formatViewerCount(viewerCount);
+        }
+    }, 3000);
+
+    // Init chat
+    state.streamChatMessages = [];
+    renderStreamChat();
+    simulateStreamChat(stream);
+}
+
+function closeStreamViewer() {
+    var modal = document.getElementById('stream-viewer-modal');
+    if (modal) modal.remove();
+    if (state.streamViewerInterval) {
+        clearInterval(state.streamViewerInterval);
+        state.streamViewerInterval = null;
+    }
+}
+
+function sendStreamChat() {
+    var input = document.getElementById('stream-chat-input');
+    if (!input || !input.value.trim()) return;
+    if (!state.currentUser) {
+        showToast('Please log in to chat');
+        return;
+    }
+    var msg = {
+        id: Date.now(),
+        userId: state.currentUser.id,
+        userName: state.currentUser.name,
+        userImage: state.currentUser.image || sampleProfiles[0].image,
+        text: input.value.trim(),
+        timestamp: new Date().toISOString(),
+        isOwn: true
+    };
+    if (!state.streamChatMessages) state.streamChatMessages = [];
+    state.streamChatMessages.push(msg);
+    input.value = '';
+    renderStreamChat();
+}
+
+function renderStreamChat() {
+    var container = document.getElementById('stream-chat-messages');
+    if (!container) return;
+    var messages = state.streamChatMessages || [];
+    var html = '';
+    for (var i = 0; i < messages.length; i++) {
+        var m = messages[i];
+        html += '<div class="stream-chat-msg ' + (m.isOwn ? 'own' : '') + '">';
+        html += '<img src="' + m.userImage + '" class="stream-chat-avatar" alt="' + m.userName + '">';
+        html += '<div class="stream-chat-msg-body">';
+        html += '<span class="stream-chat-name">' + m.userName + '</span>';
+        html += '<span class="stream-chat-text">' + escapeHTML(m.text) + '</span>';
+        html += '</div>';
+        html += '</div>';
+    }
+    container.innerHTML = html;
+    container.scrollTop = container.scrollHeight;
+}
+
+function simulateStreamChat(stream) {
+    var chatNames = ['Alex', 'Jordan', 'Sam', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Quinn', 'Avery', 'Charlie'];
+    var chatMessages = [
+        'This is amazing! 🔥',
+        'Love this stream!',
+        'Hey everyone!',
+        'First time here, loving it',
+        'What camera are you using?',
+        'You look great today!',
+        'Keep it up! 💪',
+        'How long have you been streaming?',
+        'Can you do a shoutout?',
+        'This is so entertaining',
+        'Hi from Cape Town! 🇿🇦',
+        'Love from Joburg!',
+        'What category is this?',
+        'Just joined, what did I miss?',
+        'Incredible content as always'
+    ];
+    var chatInterval = setInterval(function() {
+        var modal = document.getElementById('stream-viewer-modal');
+        if (!modal) {
+            clearInterval(chatInterval);
+            return;
+        }
+        var name = chatNames[Math.floor(Math.random() * chatNames.length)];
+        var text = chatMessages[Math.floor(Math.random() * chatMessages.length)];
+        var profileIdx = Math.floor(Math.random() * sampleProfiles.length);
+        var msg = {
+            id: Date.now(),
+            userId: -Math.floor(Math.random() * 1000),
+            userName: name,
+            userImage: sampleProfiles[profileIdx].image,
+            text: text,
+            timestamp: new Date().toISOString(),
+            isOwn: false
+        };
+        if (!state.streamChatMessages) state.streamChatMessages = [];
+        state.streamChatMessages.push(msg);
+        // Keep last 50 messages
+        if (state.streamChatMessages.length > 50) {
+            state.streamChatMessages = state.streamChatMessages.slice(-50);
+        }
+        renderStreamChat();
+    }, 2000 + Math.random() * 3000);
+    state.streamChatInterval = chatInterval;
+}
+
+function formatViewerCount(num) {
+    if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+}
+
+function followStreamer(name) {
+    showToast('Now following ' + name + '!');
+}
+
+function shareStream(title) {
+    if (navigator.share) {
+        navigator.share({ title: title, text: 'Check out this stream: ' + title, url: window.location.href });
+    } else {
+        showToast('Link copied to clipboard!');
+    }
+}
+
+function reportStream(streamId) {
+    showToast('Stream reported. Thank you for your feedback.');
+}
+
+function openStreamGiftPanel(streamId) {
+    var stream = state.streams.find(function(s) { return s.id === streamId; });
+    var streamerName = stream ? stream.streamer.name : 'Streamer';
+    var gifts = [
+        { name: 'Rose', price: 5, emoji: '🌹' },
+        { name: 'Heart', price: 10, emoji: '❤️' },
+        { name: 'Fire', price: 25, emoji: '🔥' },
+        { name: 'Diamond', price: 50, emoji: '💎' },
+        { name: 'Crown', price: 100, emoji: '👑' },
+        { name: 'Rocket', price: 250, emoji: '🚀' }
+    ];
+
+    var existing = document.getElementById('stream-gift-panel');
+    if (existing) existing.remove();
+
+    var panel = document.createElement('div');
+    panel.id = 'stream-gift-panel';
+    panel.className = 'modal-overlay';
+    var html = '<div class="gift-panel-inner">';
+    html += '<div class="gift-panel-header"><h3>Send a Gift to ' + streamerName + '</h3>';
+    html += '<span class="gift-panel-balance">Balance: R' + (state.wallet.balance || 0).toFixed(2) + '</span></div>';
+    html += '<div class="gift-grid">';
+    for (var i = 0; i < gifts.length; i++) {
+        html += '<div class="gift-item" onclick="sendStreamGift(\'' + streamId + '\', \'' + gifts[i].name + '\', ' + gifts[i].price + ', \'' + gifts[i].emoji + '\')">';
+        html += '<span class="gift-emoji">' + gifts[i].emoji + '</span>';
+        html += '<span class="gift-name">' + gifts[i].name + '</span>';
+        html += '<span class="gift-price">R' + gifts[i].price + '</span>';
+        html += '</div>';
+    }
+    html += '</div></div>';
+    panel.innerHTML = html;
+    panel.onclick = function(e) { if (e.target === panel) panel.remove(); };
+    document.body.appendChild(panel);
+}
+
+function sendStreamGift(streamId, name, price, emoji) {
+    if (state.wallet.balance < price) {
+        showToast('Insufficient balance. You need R' + price.toFixed(2) + ' but have R' + (state.wallet.balance || 0).toFixed(2));
+        return;
+    }
+    state.wallet.balance -= price;
+    state.wallet.transactions.unshift({
+        id: Date.now(),
+        type: 'gift_sent',
+        amount: -price,
+        description: 'Stream gift: ' + name + ' ' + emoji,
+        date: new Date().toISOString(),
+        userId: state.currentUser ? state.currentUser.id : null
+    });
+    localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(state.wallet));
+    var panel = document.getElementById('stream-gift-panel');
+    if (panel) panel.remove();
+    showToast(emoji + ' ' + name + ' sent! -R' + price.toFixed(2));
+}
+
+function openStreamTipPanel(streamId) {
+    var stream = state.streams.find(function(s) { return s.id === streamId; });
+    var streamerName = stream ? stream.streamer.name : 'Streamer';
+    var tips = [10, 25, 50, 100, 250, 500];
+
+    var existing = document.getElementById('stream-tip-panel');
+    if (existing) existing.remove();
+
+    var panel = document.createElement('div');
+    panel.id = 'stream-tip-panel';
+    panel.className = 'modal-overlay';
+    var html = '<div class="gift-panel-inner">';
+    html += '<div class="gift-panel-header"><h3>Tip ' + streamerName + '</h3>';
+    html += '<span class="gift-panel-balance">Balance: R' + (state.wallet.balance || 0).toFixed(2) + '</span></div>';
+    html += '<div class="gift-grid">';
+    for (var i = 0; i < tips.length; i++) {
+        html += '<div class="gift-item" onclick="sendStreamTip(\'' + streamId + '\', ' + tips[i] + ')">';
+        html += '<span class="gift-emoji">💰</span>';
+        html += '<span class="gift-name">R' + tips[i] + '</span>';
+        html += '<span class="gift-price">Tip</span>';
+        html += '</div>';
+    }
+    html += '</div></div>';
+    panel.innerHTML = html;
+    panel.onclick = function(e) { if (e.target === panel) panel.remove(); };
+    document.body.appendChild(panel);
+}
+
+function sendStreamTip(streamId, amount) {
+    if (state.wallet.balance < amount) {
+        showToast('Insufficient balance. You need R' + amount.toFixed(2) + ' but have R' + (state.wallet.balance || 0).toFixed(2));
+        return;
+    }
+    state.wallet.balance -= amount;
+    state.wallet.transactions.unshift({
+        id: Date.now(),
+        type: 'tip_sent',
+        amount: -amount,
+        description: 'Stream tip',
+        date: new Date().toISOString(),
+        userId: state.currentUser ? state.currentUser.id : null
+    });
+    localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(state.wallet));
+    var panel = document.getElementById('stream-tip-panel');
+    if (panel) panel.remove();
+    showToast('💰 R' + amount + ' tip sent!');
+}
+
+// ==================== MEDIA PLAYER COMPONENT ====================
+
+function createMediaPlayer(type, src, options) {
+    options = options || {};
+    var playerId = 'media-player-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    var autoplay = options.autoplay ? ' autoplay' : '';
+    var loop = options.loop ? ' loop' : '';
+    var posterAttr = options.poster ? ' poster="' + options.poster + '"' : '';
+    var title = options.title || '';
+
+    if (type === 'video') {
+        return '\
+        <div class="custom-media-player video-player" id="' + playerId + '" data-type="video">\
+            <div class="media-video-wrapper">\
+                <video id="' + playerId + '-video" src="' + src + '"' + posterAttr + autoplay + loop + ' preload="metadata"></video>\
+                <div class="media-play-overlay" id="' + playerId + '-overlay" onclick="playMedia(\'' + playerId + '\')">\
+                    ' + (options.poster ? '<img src="' + options.poster + '" class="media-poster-img">' : '') + '\
+                    <div class="media-play-btn-large"><i class="fas fa-play"></i></div>\
+                </div>\
+                <div class="media-title-bar">' + title + '</div>\
+            </div>\
+            <div class="media-controls">\
+                <button class="media-ctrl-btn" onclick="playMedia(\'' + playerId + '\')" id="' + playerId + '-playbtn"><i class="fas fa-play"></i></button>\
+                <div class="media-progress-container" onclick="seekMedia(event, \'' + playerId + '\')">\
+                    <div class="media-progress-bar" id="' + playerId + '-progress"></div>\
+                    <div class="media-progress-thumb" id="' + playerId + '-thumb"></div>\
+                </div>\
+                <span class="media-time" id="' + playerId + '-time">00:00 / 00:00</span>\
+                <button class="media-ctrl-btn" onclick="toggleMute(\'' + playerId + '\')" id="' + playerId + '-mutebtn"><i class="fas fa-volume-up"></i></button>\
+                <div class="media-volume-slider">\
+                    <input type="range" min="0" max="100" value="100" class="media-volume-range" onchange="setVolume(\'' + playerId + '\', this.value)">\
+                </div>\
+                <button class="media-ctrl-btn media-fullscreen-btn" onclick="toggleFullscreen(\'' + playerId + '\')"><i class="fas fa-expand"></i></button>\
+            </div>\
+        </div>';
+    }
+
+    if (type === 'audio') {
+        return '\
+        <div class="custom-media-player audio-player" id="' + playerId + '" data-type="audio">\
+            <div class="audio-player-inner">\
+                <div class="audio-waveform" id="' + playerId + '-waveform">\
+                    <div class="audio-waveform-bars">\
+                        ' + generateWaveformBars() + '\
+                    </div>\
+                </div>\
+                <div class="audio-info">\
+                    ' + (options.poster ? '<img src="' + options.poster + '" class="audio-thumb">' : '<div class="audio-thumb audio-thumb-placeholder"><i class="fas fa-music"></i></div>') + '\
+                    <div class="audio-details">\
+                        <span class="audio-title">' + title + '</span>\
+                        <span class="audio-time" id="' + playerId + '-time">00:00 / 00:00</span>\
+                    </div>\
+                </div>\
+                <audio id="' + playerId + '-audio" src="' + src + '"' + autoplay + loop + ' preload="metadata"></audio>\
+                <div class="audio-controls">\
+                    <button class="media-ctrl-btn audio-play-btn" onclick="playMedia(\'' + playerId + '\')" id="' + playerId + '-playbtn"><i class="fas fa-play"></i></button>\
+                    <div class="media-progress-container audio-progress" onclick="seekMedia(event, \'' + playerId + '\')">\
+                        <div class="media-progress-bar" id="' + playerId + '-progress"></div>\
+                        <div class="media-progress-thumb" id="' + playerId + '-thumb"></div>\
+                    </div>\
+                    <button class="media-ctrl-btn" onclick="toggleMute(\'' + playerId + '\')" id="' + playerId + '-mutebtn"><i class="fas fa-volume-up"></i></button>\
+                    <div class="media-volume-slider">\
+                        <input type="range" min="0" max="100" value="100" class="media-volume-range" onchange="setVolume(\'' + playerId + '\', this.value)">\
+                    </div>\
+                </div>\
+            </div>\
+        </div>';
+    }
+
+    return '';
+}
+
+function generateWaveformBars() {
+    var html = '';
+    for (var i = 0; i < 40; i++) {
+        var height = Math.floor(Math.random() * 60) + 10;
+        html += '<div class="waveform-bar" style="height:' + height + '%;"></div>';
+    }
+    return html;
+}
+
+function playMedia(playerId) {
+    var player = document.getElementById(playerId);
+    if (!player) return;
+    var mediaType = player.getAttribute('data-type');
+    var mediaEl;
+    var overlay;
+    var playBtn;
+
+    if (mediaType === 'video') {
+        mediaEl = document.getElementById(playerId + '-video');
+        overlay = document.getElementById(playerId + '-overlay');
+        playBtn = document.getElementById(playerId + '-playbtn');
+    } else {
+        mediaEl = document.getElementById(playerId + '-audio');
+        playBtn = document.getElementById(playerId + '-playbtn');
+    }
+
+    if (!mediaEl) return;
+
+    if (mediaEl.paused) {
+        mediaEl.play();
+        if (overlay) overlay.style.display = 'none';
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        startMediaProgress(playerId);
+    } else {
+        mediaEl.pause();
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    }
+}
+
+function startMediaProgress(playerId) {
+    var player = document.getElementById(playerId);
+    if (!player) return;
+    var mediaType = player.getAttribute('data-type');
+    var mediaEl = mediaType === 'video' ? document.getElementById(playerId + '-video') : document.getElementById(playerId + '-audio');
+    if (!mediaEl) return;
+
+    function updateProgress() {
+        if (mediaEl.paused && mediaEl.currentTime === 0) return;
+        var current = mediaEl.currentTime;
+        var duration = mediaEl.duration || 0;
+        var pct = duration > 0 ? (current / duration) * 100 : 0;
+
+        var progressBar = document.getElementById(playerId + '-progress');
+        var thumb = document.getElementById(playerId + '-thumb');
+        var timeEl = document.getElementById(playerId + '-time');
+
+        if (progressBar) progressBar.style.width = pct + '%';
+        if (thumb) thumb.style.left = pct + '%';
+        if (timeEl) timeEl.textContent = formatMediaTime(current) + ' / ' + formatMediaTime(duration);
+
+        // Animate waveform for audio
+        if (mediaType === 'audio' && !mediaEl.paused) {
+            var bars = player.querySelectorAll('.waveform-bar');
+            for (var i = 0; i < bars.length; i++) {
+                var newHeight = Math.floor(Math.random() * 80) + 10;
+                bars[i].style.height = newHeight + '%';
+            }
+        }
+
+        if (!mediaEl.paused) {
+            requestAnimationFrame(updateProgress);
+        }
+    }
+
+    mediaEl.ontimeupdate = updateProgress;
+    mediaEl.onended = function() {
+        var playBtn = document.getElementById(playerId + '-playbtn');
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        var overlay = document.getElementById(playerId + '-overlay');
+        if (overlay) overlay.style.display = 'flex';
+    };
+    updateProgress();
+}
+
+function seekMedia(event, playerId) {
+    var player = document.getElementById(playerId);
+    if (!player) return;
+    var mediaType = player.getAttribute('data-type');
+    var mediaEl = mediaType === 'video' ? document.getElementById(playerId + '-video') : document.getElementById(playerId + '-audio');
+    if (!mediaEl || !mediaEl.duration) return;
+
+    var container = event.currentTarget;
+    var rect = container.getBoundingClientRect();
+    var x = event.clientX - rect.left;
+    var pct = x / rect.width;
+    mediaEl.currentTime = pct * mediaEl.duration;
+}
+
+function toggleMute(playerId) {
+    var player = document.getElementById(playerId);
+    if (!player) return;
+    var mediaType = player.getAttribute('data-type');
+    var mediaEl = mediaType === 'video' ? document.getElementById(playerId + '-video') : document.getElementById(playerId + '-audio');
+    var muteBtn = document.getElementById(playerId + '-mutebtn');
+    if (!mediaEl) return;
+
+    mediaEl.muted = !mediaEl.muted;
+    if (muteBtn) {
+        muteBtn.innerHTML = mediaEl.muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
+    }
+}
+
+function setVolume(playerId, value) {
+    var player = document.getElementById(playerId);
+    if (!player) return;
+    var mediaType = player.getAttribute('data-type');
+    var mediaEl = mediaType === 'video' ? document.getElementById(playerId + '-video') : document.getElementById(playerId + '-audio');
+    var muteBtn = document.getElementById(playerId + '-mutebtn');
+    if (!mediaEl) return;
+
+    mediaEl.volume = value / 100;
+    mediaEl.muted = value == 0;
+    if (muteBtn) {
+        if (value == 0) {
+            muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+        } else if (value < 50) {
+            muteBtn.innerHTML = '<i class="fas fa-volume-down"></i>';
+        } else {
+            muteBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+        }
+    }
+}
+
+function toggleFullscreen(playerId) {
+    var player = document.getElementById(playerId);
+    if (!player) return;
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+    } else {
+        player.requestFullscreen().catch(function() {});
+    }
+}
+
+function formatMediaTime(seconds) {
+    if (!seconds || isNaN(seconds)) return '00:00';
+    var mins = Math.floor(seconds / 60);
+    var secs = Math.floor(seconds % 60);
+    return (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+}
+

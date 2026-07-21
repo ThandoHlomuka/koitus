@@ -5101,9 +5101,26 @@ function markAsRead(messageId, conversationId) {
 }
 
 // ==================== VIDEO CALLS (WebRTC) ====================
+function releaseMediaDevices() {
+    if (state.localStream) {
+        state.localStream.getTracks().forEach(track => track.stop());
+        state.localStream = null;
+    }
+    if (state.peerConnection) {
+        state.peerConnection.close();
+        state.peerConnection = null;
+    }
+}
+
+// Release mic/camera when page is closed or navigated away
+window.addEventListener('beforeunload', releaseMediaDevices);
+
 async function startVideoCallWith(userId) {
     const user = state.profiles.find(p => p.id === userId);
     if (!user) return;
+    
+    // Release any held media devices first
+    releaseMediaDevices();
     
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         showNotification('Camera/microphone not supported. Make sure you are using HTTPS.', 'error');
@@ -5151,13 +5168,14 @@ async function startVideoCallWith(userId) {
         
     } catch (error) {
         console.error('Error accessing media devices:', error);
+        releaseMediaDevices();
         let msg = 'Could not access camera/microphone';
         if (error.name === 'NotAllowedError') {
             msg = 'Permission denied. Click the lock icon in your address bar and allow camera/microphone access, then try again.';
         } else if (error.name === 'NotFoundError') {
             msg = 'No camera or microphone found. Please connect a microphone and try again.';
         } else if (error.name === 'NotReadableError') {
-            msg = 'Microphone is in use by another app. Close other apps using the mic and try again.';
+            msg = 'Microphone is busy. Close other apps or browser tabs using the mic (Zoom, Teams, Discord, etc.) and try again.';
         }
         showNotification(msg, 'error');
     }
@@ -5166,6 +5184,9 @@ async function startVideoCallWith(userId) {
 function startAudioCallWith(userId) {
     const user = state.profiles.find(p => p.id === userId);
     if (!user) return;
+    
+    // Release any held media devices first
+    releaseMediaDevices();
     
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         showNotification('Microphone not supported. Make sure you are using HTTPS.', 'error');
@@ -5201,13 +5222,14 @@ function startAudioCallWith(userId) {
         startCallTimer();
     }).catch(error => {
         console.error('Error accessing microphone:', error);
+        releaseMediaDevices();
         let msg = 'Could not access microphone';
         if (error.name === 'NotAllowedError') {
             msg = 'Microphone permission denied. Click the lock icon in your address bar and allow microphone access, then try again.';
         } else if (error.name === 'NotFoundError') {
             msg = 'No microphone found. Please connect a microphone and try again.';
         } else if (error.name === 'NotReadableError') {
-            msg = 'Microphone is in use by another app. Close other apps using the mic and try again.';
+            msg = 'Microphone is busy. Close other apps or browser tabs using the mic (Zoom, Teams, Discord, etc.) and try again.';
         }
         showNotification(msg, 'error');
     });
@@ -5326,6 +5348,9 @@ async function acceptCall(callId, from) {
     const modal = document.getElementById('incoming-call-modal');
     if (modal) modal.remove();
 
+    // Release any held media devices first
+    releaseMediaDevices();
+
     const callType = (state.activeCall && state.activeCall.type) || 'video';
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -5368,11 +5393,14 @@ async function acceptCall(callId, from) {
         startCallTimer();
     } catch (error) {
         console.error('Error accepting call:', error);
+        releaseMediaDevices();
         let msg = 'Could not access microphone';
         if (error.name === 'NotAllowedError') {
             msg = 'Microphone permission denied. Click the lock icon in your address bar and allow microphone access.';
         } else if (error.name === 'NotFoundError') {
             msg = 'No microphone found. Please connect a microphone.';
+        } else if (error.name === 'NotReadableError') {
+            msg = 'Microphone is busy. Close other apps using the mic and try again.';
         }
         showNotification(msg, 'error');
         rejectCall(callId);

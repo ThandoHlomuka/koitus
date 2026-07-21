@@ -1524,6 +1524,8 @@ function initializeApp() {
     // Boot via Supabase (loads from cloud or falls back to localStorage)
     bootstrapSupabase().then(function() {
         updateNavVisibility();
+        // Safety: ensure sample data is always present as baseline
+        if (!state.streams || state.streams.length === 0) loadSampleData();
         // Re-render current view now that data is loaded
         if (state.currentView) {
             switchView(state.currentView);

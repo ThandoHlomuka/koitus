@@ -788,6 +788,9 @@ async function loadAllData() {
 }
 
 async function bootstrapSupabase() {
+    // Wait for Supabase config to be available (synchronous via Vercel globals, or async via fetch)
+    await (window.__supabaseReady || Promise.resolve());
+
     var sb = getSupabase();
     if (!sb) {
         console.log('☁️ Running in localStorage mode (no Supabase configured)');

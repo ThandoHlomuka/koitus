@@ -7,42 +7,56 @@
 var _supabaseUrl = null;
 var _supabaseAnonKey = null;
 
-(function() {
+// Promise that resolves when Supabase config is available (or fails)
+// Allows bootstrapSupabase() to wait before deciding localStorage vs cloud mode
+window.__supabaseReady = new Promise(function(resolve) {
     // Vercel injects these at build time for the Supabase integration
     if (typeof __SUPABASE_URL !== 'undefined' && typeof __SUPABASE_ANON_KEY !== 'undefined') {
         _supabaseUrl = __SUPABASE_URL;
         _supabaseAnonKey = __SUPABASE_ANON_KEY;
+        resolve();
+        return;
     }
     // Also check for process.env (some bundlers replace at build time)
     try {
         if (typeof process !== 'undefined' && process.env && process.env.SUPABASE_URL) {
             _supabaseUrl = process.env.SUPABASE_URL;
             _supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+            resolve();
+            return;
         }
     } catch(e) {}
     // Detect publishable key (new Supabase key format)
     try {
         if (typeof __SUPABASE_PUBLISHABLE_KEY !== 'undefined') {
             _supabaseAnonKey = __SUPABASE_PUBLISHABLE_KEY;
+            if (_supabaseUrl) { resolve(); return; }
         }
     } catch(e) {}
-    // Fallback: try the Vercel serverless function
-    if (!_supabaseUrl || !_supabaseAnonKey) {
-        fetch('/api/config.js').then(function(r) { return r.json(); }).then(function(cfg) {
-            if (cfg.configured) {
-                _supabaseUrl = cfg.supabaseUrl;
-                _supabaseAnonKey = cfg.supabaseAnonKey || cfg.supabasePublishableKey;
-                supabaseClient = null;
-                initSupabase();
-            } else {
-                console.warn('⚠️ Supabase not configured. Running in offline mode.');
-                if (typeof showSupabaseWarning === 'function') showSupabaseWarning();
-            }
-        }).catch(function() {
-            console.warn('⚠️ Could not reach config endpoint. Running in offline mode.');
-        });
+    // Also check inline script that sets window.__supabaseConfig
+    if (window.__supabaseConfig && window.__supabaseConfig.configured) {
+        _supabaseUrl = window.__supabaseConfig.supabaseUrl;
+        _supabaseAnonKey = window.__supabaseConfig.supabaseAnonKey || window.__supabaseConfig.supabasePublishableKey;
+        resolve();
+        return;
     }
-})();
+    // Fallback: try the Vercel serverless function
+    fetch('/api/config.js').then(function(r) { return r.json(); }).then(function(cfg) {
+        if (cfg.configured) {
+            _supabaseUrl = cfg.supabaseUrl;
+            _supabaseAnonKey = cfg.supabaseAnonKey || cfg.supabasePublishableKey;
+            supabaseClient = null;
+            initSupabase();
+        } else {
+            console.warn('⚠️ Supabase not configured. Running in offline mode.');
+            if (typeof showSupabaseWarning === 'function') showSupabaseWarning();
+        }
+        resolve();
+    }).catch(function() {
+        console.warn('⚠️ Could not reach config endpoint. Running in offline mode.');
+        resolve();
+    });
+});
 
 // ==================== SUPABASE CLIENT ====================
 

@@ -5133,34 +5133,43 @@ async function startVideoCallWith(userId) {
     }
     
     try {
-        // Try video+audio first, fall back to audio-only
+        // Try video+audio first, then video-only, then audio-only
+        let hasVideo = false;
+        let hasAudio = false;
         try {
-            state.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-        } catch (videoErr) {
-            console.warn('Video not available, falling back to audio:', videoErr);
-            state.localStream = await navigator.mediaDevices.getUserMedia({
-                video: false,
-                audio: true
-            });
-            showNotification('Camera unavailable — starting audio call instead', 'warning');
+            state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            hasVideo = true;
+            hasAudio = true;
+        } catch (e1) {
+            try {
+                state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                hasVideo = true;
+                showNotification('Microphone unavailable — video call without audio', 'warning');
+            } catch (e2) {
+                try {
+                    state.localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                    hasAudio = true;
+                    showNotification('Camera unavailable — audio-only call', 'warning');
+                } catch (e3) {
+                    showNotification('No camera or microphone available. Check permissions and close other apps using the mic.', 'error');
+                    return;
+                }
+            }
         }
         
-        const hasVideo = state.localStream.getVideoTracks().length > 0;
-        showCallUI(user, 'caller', hasVideo ? 'video' : 'audio');
+        const callType = hasVideo ? 'video' : 'audio';
+        showCallUI(user, 'caller', callType);
         
         state.socket.emit('initiate_call', {
             from: state.currentUser.id,
             to: userId,
-            type: hasVideo ? 'video' : 'audio'
+            type: callType
         });
         
         state.activeCall = {
             callId: userId + '-' + Date.now(),
             userId,
-            type: hasVideo ? 'video' : 'audio',
+            type: callType,
             status: 'initiating'
         };
         
@@ -5169,15 +5178,7 @@ async function startVideoCallWith(userId) {
     } catch (error) {
         console.error('Error accessing media devices:', error);
         releaseMediaDevices();
-        let msg = 'Could not access camera/microphone';
-        if (error.name === 'NotAllowedError') {
-            msg = 'Permission denied. Click the lock icon in your address bar and allow camera/microphone access, then try again.';
-        } else if (error.name === 'NotFoundError') {
-            msg = 'No camera or microphone found. Please connect a microphone and try again.';
-        } else if (error.name === 'NotReadableError') {
-            msg = 'Microphone is busy. Close other apps or browser tabs using the mic (Zoom, Teams, Discord, etc.) and try again.';
-        }
-        showNotification(msg, 'error');
+        showNotification('Could not start call. Check permissions and close other apps using the mic.', 'error');
     }
 }
 
@@ -5221,17 +5222,29 @@ function startAudioCallWith(userId) {
         
         startCallTimer();
     }).catch(error => {
-        console.error('Error accessing microphone:', error);
-        releaseMediaDevices();
-        let msg = 'Could not access microphone';
-        if (error.name === 'NotAllowedError') {
-            msg = 'Microphone permission denied. Click the lock icon in your address bar and allow microphone access, then try again.';
-        } else if (error.name === 'NotFoundError') {
-            msg = 'No microphone found. Please connect a microphone and try again.';
-        } else if (error.name === 'NotReadableError') {
-            msg = 'Microphone is busy. Close other apps or browser tabs using the mic (Zoom, Teams, Discord, etc.) and try again.';
-        }
-        showNotification(msg, 'error');
+        console.warn('Microphone busy, trying video-only call:', error);
+        // Mic is busy — try video-only so the call still goes through
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
+            state.localStream = stream;
+            showCallUI(user, 'caller', 'video');
+            state.socket.emit('initiate_call', {
+                from: state.currentUser.id,
+                to: userId,
+                type: 'video'
+            });
+            state.activeCall = {
+                callId: userId + '-' + Date.now(),
+                userId,
+                type: 'video',
+                status: 'initiating'
+            };
+            startCallTimer();
+            showNotification('Microphone busy — starting video call instead', 'warning');
+        }).catch(finalErr => {
+            console.error('Cannot access any media device:', finalErr);
+            releaseMediaDevices();
+            showNotification('No camera or microphone available. Check permissions and close other apps using the mic.', 'error');
+        });
     });
 }
 
@@ -5360,23 +5373,35 @@ async function acceptCall(callId, from) {
     }
 
     try {
-        // Try with requested media, fall back to audio-only
+        // Try requested media, cascade: video+audio → video-only → audio-only
+        let hasVideo = false;
+        let hasAudio = false;
         try {
             state.localStream = await navigator.mediaDevices.getUserMedia({
                 video: callType !== 'audio',
                 audio: true
             });
-        } catch (mediaErr) {
-            console.warn('Requested media unavailable, falling back to audio:', mediaErr);
-            state.localStream = await navigator.mediaDevices.getUserMedia({
-                video: false,
-                audio: true
-            });
+            hasVideo = state.localStream.getVideoTracks().length > 0;
+            hasAudio = state.localStream.getAudioTracks().length > 0;
+        } catch (e1) {
+            try {
+                state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                hasVideo = true;
+            } catch (e2) {
+                try {
+                    state.localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                    hasAudio = true;
+                } catch (e3) {
+                    showNotification('No camera or microphone available.', 'error');
+                    rejectCall(callId);
+                    return;
+                }
+            }
         }
         
         const user = state.profiles.find(p => p.id === from);
-        const hasVideo = state.localStream.getVideoTracks().length > 0;
-        showCallUI(user || { name: 'User', image: '' }, 'receiver', hasVideo ? 'video' : 'audio');
+        const finalType = hasVideo ? 'video' : 'audio';
+        showCallUI(user || { name: 'User', image: '' }, 'receiver', finalType);
         
         state.socket.emit('accept_call', {
             callId,
@@ -5386,7 +5411,7 @@ async function acceptCall(callId, from) {
         state.activeCall = {
             callId,
             userId: from,
-            type: hasVideo ? 'video' : 'audio',
+            type: finalType,
             status: 'accepted'
         };
         

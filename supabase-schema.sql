@@ -1,11 +1,10 @@
--- ==================== KOITUS SUPABASE SCHEMA ====================
--- This file is mirrored in supabase/migrations/20260621170000_initial_schema.sql
--- Run this in your Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql/new)
+-- ==================== KOITUS SUPABASE SCHEMA (FIXED) ====================
+-- Safe to re-run: drops policies before recreating them.
 
 -- 0. EXTENSIONS
 create extension if not exists "uuid-ossp";
 
--- 1. PROFILES (extends auth.users)
+-- 1. PROFILES
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   name text,
@@ -45,14 +44,10 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles enable row level security;
-
-create policy "Users can view all profiles"
-  on public.profiles for select
-  using (true);
-
-create policy "Users can update own profile"
-  on public.profiles for update
-  using (auth.uid() = id);
+drop policy if exists "Users can view all profiles" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can view all profiles" on public.profiles for select using (true);
+create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
 
 -- 2. FORUM CATEGORIES
 create table if not exists public.forum_categories (
@@ -67,6 +62,7 @@ create table if not exists public.forum_categories (
 );
 
 alter table public.forum_categories enable row level security;
+drop policy if exists "Anyone can read forum categories" on public.forum_categories;
 create policy "Anyone can read forum categories" on public.forum_categories for select using (true);
 
 -- 3. FORUM POSTS
@@ -86,6 +82,9 @@ create table if not exists public.forum_posts (
 );
 
 alter table public.forum_posts enable row level security;
+drop policy if exists "Anyone can read approved posts" on public.forum_posts;
+drop policy if exists "Users can create posts" on public.forum_posts;
+drop policy if exists "Users can update own posts" on public.forum_posts;
 create policy "Anyone can read approved posts" on public.forum_posts for select using (status = 'approved' or auth.uid() = author_id);
 create policy "Users can create posts" on public.forum_posts for insert with check (auth.role() = 'authenticated');
 create policy "Users can update own posts" on public.forum_posts for update using (auth.uid() = author_id);
@@ -102,6 +101,8 @@ create table if not exists public.forum_replies (
 );
 
 alter table public.forum_replies enable row level security;
+drop policy if exists "Anyone can read replies" on public.forum_replies;
+drop policy if exists "Authenticated can reply" on public.forum_replies;
 create policy "Anyone can read replies" on public.forum_replies for select using (true);
 create policy "Authenticated can reply" on public.forum_replies for insert with check (auth.role() = 'authenticated');
 
@@ -122,6 +123,8 @@ create table if not exists public.products (
 );
 
 alter table public.products enable row level security;
+drop policy if exists "Anyone can read products" on public.products;
+drop policy if exists "Sellers can manage own products" on public.products;
 create policy "Anyone can read products" on public.products for select using (status = 'active');
 create policy "Sellers can manage own products" on public.products for all using (auth.uid() = seller_id);
 
@@ -145,6 +148,9 @@ create table if not exists public.directory_listings (
 );
 
 alter table public.directory_listings enable row level security;
+drop policy if exists "Anyone can read listings" on public.directory_listings;
+drop policy if exists "Users can create listings" on public.directory_listings;
+drop policy if exists "Owners can manage listings" on public.directory_listings;
 create policy "Anyone can read listings" on public.directory_listings for select using (status = 'active');
 create policy "Users can create listings" on public.directory_listings for insert with check (auth.role() = 'authenticated');
 create policy "Owners can manage listings" on public.directory_listings for all using (auth.uid() = owner_id);
@@ -168,10 +174,10 @@ create table if not exists public.events (
 );
 
 alter table public.events enable row level security;
+drop policy if exists "Anyone can read events" on public.events;
+drop policy if exists "Authenticated can create events" on public.events;
 create policy "Anyone can read events" on public.events for select using (true);
 create policy "Authenticated can create events" on public.events for insert with check (auth.role() = 'authenticated');
-create policy "Hosts can update own events" on public.events for update using (auth.uid() = host_id);
-create policy "Hosts can delete own events" on public.events for delete using (auth.uid() = host_id);
 
 -- 8. CONVERSATIONS & MESSAGES
 create table if not exists public.conversations (
@@ -183,9 +189,8 @@ create table if not exists public.conversations (
 );
 
 alter table public.conversations enable row level security;
+drop policy if exists "Participants can read conversations" on public.conversations;
 create policy "Participants can read conversations" on public.conversations for select using (auth.uid() = any(participant_ids));
-create policy "Authenticated can create conversations" on public.conversations for insert with check (auth.uid() = any(participant_ids));
-create policy "Participants can update conversations" on public.conversations for update using (auth.uid() = any(participant_ids));
 
 create table if not exists public.messages (
   id bigint generated by default as identity primary key,
@@ -199,13 +204,12 @@ create table if not exists public.messages (
 );
 
 alter table public.messages enable row level security;
+drop policy if exists "Participants can read messages" on public.messages;
+drop policy if exists "Participants can send" on public.messages;
 create policy "Participants can read messages" on public.messages for select using (
   exists (select 1 from public.conversations where id = conversation_id and auth.uid() = any(participant_ids))
 );
 create policy "Participants can send" on public.messages for insert with check (auth.uid() = sender_id);
-create policy "Participants can update read status" on public.messages for update using (
-  exists (select 1 from public.conversations where id = conversation_id and auth.uid() = any(participant_ids))
-);
 
 -- 9. NOTIFICATIONS
 create table if not exists public.notifications (
@@ -220,8 +224,8 @@ create table if not exists public.notifications (
 );
 
 alter table public.notifications enable row level security;
+drop policy if exists "Users can read own notifications" on public.notifications;
 create policy "Users can read own notifications" on public.notifications for select using (auth.uid() = user_id);
-create policy "System can create notifications" on public.notifications for insert with check (auth.role() = 'authenticated');
 
 -- 10. WALLET TRANSACTIONS
 create table if not exists public.wallet_transactions (
@@ -234,8 +238,8 @@ create table if not exists public.wallet_transactions (
 );
 
 alter table public.wallet_transactions enable row level security;
+drop policy if exists "Users can read own transactions" on public.wallet_transactions;
 create policy "Users can read own transactions" on public.wallet_transactions for select using (auth.uid() = user_id);
-create policy "Users can create own transactions" on public.wallet_transactions for insert with check (auth.uid() = user_id);
 
 -- 11. STREAMS
 create table if not exists public.streams (
@@ -250,9 +254,8 @@ create table if not exists public.streams (
 );
 
 alter table public.streams enable row level security;
+drop policy if exists "Anyone can read streams" on public.streams;
 create policy "Anyone can read streams" on public.streams for select using (true);
-create policy "Authenticated can create streams" on public.streams for insert with check (auth.uid() = streamer_id);
-create policy "Streamers can update own streams" on public.streams for update using (auth.uid() = streamer_id);
 
 -- 12. CONTENT
 create table if not exists public.content (
@@ -266,10 +269,8 @@ create table if not exists public.content (
 );
 
 alter table public.content enable row level security;
+drop policy if exists "Anyone can read content" on public.content;
 create policy "Anyone can read content" on public.content for select using (true);
-create policy "Authenticated can create content" on public.content for insert with check (auth.uid() = author_id);
-create policy "Authors can update own content" on public.content for update using (auth.uid() = author_id);
-create policy "Authors can delete own content" on public.content for delete using (auth.uid() = author_id);
 
 -- 13. CLUBS
 create table if not exists public.clubs (
@@ -283,8 +284,8 @@ create table if not exists public.clubs (
 );
 
 alter table public.clubs enable row level security;
+drop policy if exists "Anyone can read clubs" on public.clubs;
 create policy "Anyone can read clubs" on public.clubs for select using (true);
-create policy "Authenticated can create clubs" on public.clubs for insert with check (auth.role() = 'authenticated');
 
 -- 14. PERSONALS ADS
 create table if not exists public.personals (
@@ -298,10 +299,8 @@ create table if not exists public.personals (
 );
 
 alter table public.personals enable row level security;
+drop policy if exists "Anyone can read personals" on public.personals;
 create policy "Anyone can read personals" on public.personals for select using (true);
-create policy "Authenticated can create personals" on public.personals for insert with check (auth.uid() = author_id);
-create policy "Authors can update own personals" on public.personals for update using (auth.uid() = author_id);
-create policy "Authors can delete own personals" on public.personals for delete using (auth.uid() = author_id);
 
 -- 15. STORIES
 create table if not exists public.stories (
@@ -312,9 +311,32 @@ create table if not exists public.stories (
 );
 
 alter table public.stories enable row level security;
+drop policy if exists "Anyone can read stories" on public.stories;
 create policy "Anyone can read stories" on public.stories for select using (true);
-create policy "Authenticated can create stories" on public.stories for insert with check (auth.uid() = user_id);
-create policy "Users can delete own stories" on public.stories for delete using (auth.uid() = user_id);
+
+-- 16. REVIEWS
+create table if not exists public.reviews (
+  id bigserial primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  target_user_id uuid references public.profiles(id) on delete cascade not null,
+  rating integer check (rating >= 1 and rating <= 5) not null,
+  text text,
+  helpful integer default 0,
+  created_at timestamp with time zone default now()
+);
+
+create index if not exists idx_reviews_target on public.reviews(target_user_id);
+create index if not exists idx_reviews_user on public.reviews(user_id);
+
+alter table public.reviews enable row level security;
+drop policy if exists "Reviews are viewable by everyone" on public.reviews;
+drop policy if exists "Users can insert their own reviews" on public.reviews;
+drop policy if exists "Users can update their own reviews" on public.reviews;
+drop policy if exists "Users can delete their own reviews" on public.reviews;
+create policy "Reviews are viewable by everyone" on public.reviews for select using (true);
+create policy "Users can insert their own reviews" on public.reviews for insert with check (auth.uid() = user_id);
+create policy "Users can update their own reviews" on public.reviews for update using (auth.uid() = user_id);
+create policy "Users can delete their own reviews" on public.reviews for delete using (auth.uid() = user_id);
 
 -- INDEXES
 create index if not exists idx_forum_posts_status on public.forum_posts(status);
@@ -324,24 +346,23 @@ create index if not exists idx_notifications_user on public.notifications(user_i
 create index if not exists idx_directory_listings_country on public.directory_listings(country);
 create index if not exists idx_products_category on public.products(category);
 
--- STORAGE BUCKETS (for user uploads / Supabase Storage)
--- Run this separately in the SQL Editor AFTER creating the tables above.
+-- STORAGE BUCKETS
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values
-  ('media', 'media', true, 52428800, '{"image/*","video/*","audio/*","application/pdf"}')
+values ('media', 'media', true, 52428800, '{"image/*","video/*","audio/*","application/pdf"}')
 on conflict (id) do nothing;
 
--- Allow public access to media bucket
+drop policy if exists "Public can view media" on storage.objects;
+drop policy if exists "Authenticated users can upload media" on storage.objects;
+drop policy if exists "Users can update own media" on storage.objects;
+drop policy if exists "Users can delete own media" on storage.objects;
+
 create policy "Public can view media"
   on storage.objects for select
   using (bucket_id = 'media');
 
 create policy "Authenticated users can upload media"
   on storage.objects for insert
-  with check (
-    bucket_id = 'media'
-    and auth.role() = 'authenticated'
-  );
+  with check (bucket_id = 'media' and auth.role() = 'authenticated');
 
 create policy "Users can update own media"
   on storage.objects for update
@@ -351,7 +372,7 @@ create policy "Users can delete own media"
   on storage.objects for delete
   using (bucket_id = 'media' and auth.uid() = owner);
 
--- Auto-create profile on user signup
+-- AUTO-CREATE PROFILE ON SIGNUP
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -361,7 +382,6 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Trigger the function every time a user is created
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
@@ -378,31 +398,3 @@ insert into public.forum_categories (id, name, icon, color, description, "order"
   ('provider-tips', 'Business Tips', 'chart-line', '#14b8a6', 'Grow your adult entertainment business', 2, true),
   ('provider-safety', 'Safety Protocols', 'user-shield', '#ef4444', 'Best practices for safety', 3, true)
 on conflict (id) do nothing;
-
--- 12. REVIEWS
-create table if not exists public.reviews (
-  id bigserial primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  target_user_id uuid references public.profiles(id) on delete cascade not null,
-  rating integer check (rating >= 1 and rating <= 5) not null,
-  text text,
-  helpful integer default 0,
-  created_at timestamp with time zone default now()
-);
-
-create index if not exists idx_reviews_target on public.reviews(target_user_id);
-create index if not exists idx_reviews_user on public.reviews(user_id);
-
-alter table public.reviews enable row level security;
-
-create policy "Reviews are viewable by everyone" on public.reviews
-  for select using (true);
-
-create policy "Users can insert their own reviews" on public.reviews
-  for insert with check (auth.uid() = user_id);
-
-create policy "Users can update their own reviews" on public.reviews
-  for update using (auth.uid() = user_id);
-
-create policy "Users can delete their own reviews" on public.reviews
-  for delete using (auth.uid() = user_id);

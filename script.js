@@ -3077,7 +3077,7 @@ function openFullProfile(userId) {
 
     const meta = document.getElementById('full-profile-meta');
     const age = user.age || calculateAge(user.dob);
-    const distance = user.distance || calculateDistance(user.location);
+    const distance = user.distance ? user.distance + 'km' : 'Unknown';
     meta.innerHTML = '<span class="meta-item"><i class="fas fa-map-marker-alt"></i> ' + escapeHtml(distance) + '</span>' +
         '<span class="meta-item"><i class="fas fa-birthday-cake"></i> ' + age + '</span>' +
         (user.callRate ? '<span class="meta-item"><i class="fas fa-coins"></i> R' + user.callRate + '/min</span>' : '') +
@@ -4102,10 +4102,6 @@ function handleFileAttachment(file) {
     } else {
         reader.readAsDataURL(file);
     }
-}
-
-function toggleEmojiPicker() {
-    toggleChatEmojiPicker();
 }
 
 function startVideoCall() {
@@ -6474,24 +6470,6 @@ toastStyle.textContent = `
 `;
 document.head.appendChild(toastStyle);
 
-// Helper function to calculate distance between two coordinates (in km)
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon1 - lon2);
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c;
-    return d;
-}
-
-function deg2rad(deg) {
-    return deg * (Math.PI / 180);
-}
-
 // ==================== WALLET FUNCTIONS ====================
 function renderWallet() {
     // Update balance display
@@ -7957,48 +7935,6 @@ function renderAdminPosts(status) {
             </div>
         </div>
     `).join('');
-}
-
-function approvePost(postId) {
-    const post = pendingApprovalPosts.find(p => p.id === postId);
-    if (post) {
-        post.status = 'approved';
-        
-        // Add to appropriate forum
-        if (post.type === 'provider') {
-            const existingIndex = state.providerForumPosts.findIndex(p => p.id === postId);
-            if (existingIndex >= 0) {
-                state.providerForumPosts[existingIndex].status = 'approved';
-            }
-        } else {
-            const existingIndex = state.forumPosts.findIndex(p => p.id === postId);
-            if (existingIndex >= 0) {
-                state.forumPosts[existingIndex].status = 'approved';
-            }
-        }
-        
-        updateAdminPanel();
-        if (currentForumType === 'user') {
-            renderForumPosts();
-        } else {
-            renderProviderForumPosts();
-        }
-        showToast('Post approved! ✓');
-    }
-}
-
-function rejectPost(postId) {
-    const post = pendingApprovalPosts.find(p => p.id === postId);
-    if (post) {
-        post.status = 'rejected';
-        
-        // Remove from main forum arrays
-        state.forumPosts = state.forumPosts.filter(p => p.id !== postId);
-        state.providerForumPosts = state.providerForumPosts.filter(p => p.id !== postId);
-        
-        updateAdminPanel();
-        showToast('Post rejected');
-    }
 }
 
 // ==================== PROVIDER ACCESS FUNCTIONS ====================

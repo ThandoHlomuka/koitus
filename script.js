@@ -1536,6 +1536,13 @@ function initializeApp() {
         }
         console.log('💬 Koitus App Initialized');
         console.log('👤 User:', state.currentUser || 'Guest');
+    }).catch(function(err) {
+        console.error('❌ Bootstrap failed, loading sample data:', err);
+        loadUserData();
+        loadSampleData();
+        if (state.currentView) {
+            switchView(state.currentView);
+        }
     });
 }
 

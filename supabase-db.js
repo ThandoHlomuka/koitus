@@ -768,7 +768,11 @@ async function loadAllData() {
         }
     } catch (e) {}
 
-    // Track what loaded
+    // Always load sample data as baseline so all pages have content
+    loadUserData();
+    loadSampleData();
+
+    // Now load from Supabase — DB helpers replace state arrays where data exists
     var loaded = { profiles: 0, forum: 0, directory: 0, products: 0, events: 0 };
 
     try { var p = await ProfileDB.getAll(); loaded.profiles = p ? p.length : 0; } catch(e) { loaded.profiles = -1; }
@@ -781,14 +785,6 @@ async function loadAllData() {
     try { await ClubsDB.getAll(); } catch(e) {}
 
     console.log('📊 Supabase load results:', loaded);
-
-    // If no data loaded from Supabase (fresh project or tables missing), fall back
-    var hasData = loaded.profiles > 0 || loaded.forum > 0 || loaded.directory > 0 || loaded.products > 0 || loaded.events > 0;
-    if (!hasData) {
-        console.log('📂 No data from Supabase — loading from localStorage/samples');
-        loadUserData();
-        loadSampleData();
-    }
 }
 
 async function bootstrapSupabase() {

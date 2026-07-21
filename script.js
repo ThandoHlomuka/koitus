@@ -5105,29 +5105,45 @@ async function startVideoCallWith(userId) {
     const user = state.profiles.find(p => p.id === userId);
     if (!user) return;
     
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showNotification('Camera/microphone not supported. Make sure you are using HTTPS.', 'error');
+        return;
+    }
+    
     if (!state.socket || !state.socket.connected) {
         showNotification('Chat server not connected', 'error');
         return;
     }
     
     try {
-        state.localStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
+        // Try video+audio first, fall back to audio-only
+        try {
+            state.localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+        } catch (videoErr) {
+            console.warn('Video not available, falling back to audio:', videoErr);
+            state.localStream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: true
+            });
+            showNotification('Camera unavailable — starting audio call instead', 'warning');
+        }
         
-        showCallUI(user, 'caller', 'video');
+        const hasVideo = state.localStream.getVideoTracks().length > 0;
+        showCallUI(user, 'caller', hasVideo ? 'video' : 'audio');
         
         state.socket.emit('initiate_call', {
             from: state.currentUser.id,
             to: userId,
-            type: 'video'
+            type: hasVideo ? 'video' : 'audio'
         });
         
         state.activeCall = {
             callId: userId + '-' + Date.now(),
             userId,
-            type: 'video',
+            type: hasVideo ? 'video' : 'audio',
             status: 'initiating'
         };
         
@@ -5135,13 +5151,26 @@ async function startVideoCallWith(userId) {
         
     } catch (error) {
         console.error('Error accessing media devices:', error);
-        showNotification('Could not access camera/microphone', 'error');
+        let msg = 'Could not access camera/microphone';
+        if (error.name === 'NotAllowedError') {
+            msg = 'Permission denied. Click the lock icon in your address bar and allow camera/microphone access, then try again.';
+        } else if (error.name === 'NotFoundError') {
+            msg = 'No camera or microphone found. Please connect a microphone and try again.';
+        } else if (error.name === 'NotReadableError') {
+            msg = 'Microphone is in use by another app. Close other apps using the mic and try again.';
+        }
+        showNotification(msg, 'error');
     }
 }
 
 function startAudioCallWith(userId) {
     const user = state.profiles.find(p => p.id === userId);
     if (!user) return;
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showNotification('Microphone not supported. Make sure you are using HTTPS.', 'error');
+        return;
+    }
     
     if (!state.socket || !state.socket.connected) {
         showNotification('Chat server not connected', 'error');
@@ -5172,7 +5201,15 @@ function startAudioCallWith(userId) {
         startCallTimer();
     }).catch(error => {
         console.error('Error accessing microphone:', error);
-        showNotification('Could not access microphone', 'error');
+        let msg = 'Could not access microphone';
+        if (error.name === 'NotAllowedError') {
+            msg = 'Microphone permission denied. Click the lock icon in your address bar and allow microphone access, then try again.';
+        } else if (error.name === 'NotFoundError') {
+            msg = 'No microphone found. Please connect a microphone and try again.';
+        } else if (error.name === 'NotReadableError') {
+            msg = 'Microphone is in use by another app. Close other apps using the mic and try again.';
+        }
+        showNotification(msg, 'error');
     });
 }
 
@@ -5291,14 +5328,30 @@ async function acceptCall(callId, from) {
 
     const callType = (state.activeCall && state.activeCall.type) || 'video';
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showNotification('Microphone not supported. Make sure you are using HTTPS.', 'error');
+        rejectCall(callId);
+        return;
+    }
+
     try {
-        state.localStream = await navigator.mediaDevices.getUserMedia({
-            video: callType !== 'audio',
-            audio: true
-        });
+        // Try with requested media, fall back to audio-only
+        try {
+            state.localStream = await navigator.mediaDevices.getUserMedia({
+                video: callType !== 'audio',
+                audio: true
+            });
+        } catch (mediaErr) {
+            console.warn('Requested media unavailable, falling back to audio:', mediaErr);
+            state.localStream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: true
+            });
+        }
         
         const user = state.profiles.find(p => p.id === from);
-        showCallUI(user || { name: 'User', image: '' }, 'receiver', callType);
+        const hasVideo = state.localStream.getVideoTracks().length > 0;
+        showCallUI(user || { name: 'User', image: '' }, 'receiver', hasVideo ? 'video' : 'audio');
         
         state.socket.emit('accept_call', {
             callId,
@@ -5308,13 +5361,20 @@ async function acceptCall(callId, from) {
         state.activeCall = {
             callId,
             userId: from,
-            type: callType,
+            type: hasVideo ? 'video' : 'audio',
             status: 'accepted'
         };
         
         startCallTimer();
     } catch (error) {
         console.error('Error accepting call:', error);
+        let msg = 'Could not access microphone';
+        if (error.name === 'NotAllowedError') {
+            msg = 'Microphone permission denied. Click the lock icon in your address bar and allow microphone access.';
+        } else if (error.name === 'NotFoundError') {
+            msg = 'No microphone found. Please connect a microphone.';
+        }
+        showNotification(msg, 'error');
         rejectCall(callId);
     }
 }

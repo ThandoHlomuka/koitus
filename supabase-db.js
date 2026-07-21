@@ -115,7 +115,7 @@ var ProfileDB = {
         if (!sb) return state.profiles;
         try {
             var { data } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
-            if (data) state.profiles = data;
+            if (data && data.length > 0) state.profiles = data;
             return state.profiles;
         } catch (e) {
             console.warn('ProfileDB.getAll fallback:', e.message);
@@ -171,7 +171,7 @@ var ForumDB = {
             var query = sb.from('forum_posts').select('*, author:author_id(name, avatar, online)').eq('status', 'approved').order('created_at', { ascending: false });
             if (category && category !== 'all') query = query.eq('category', category);
             var { data } = await query;
-            if (data) state.forumPosts = data;
+            if (data && data.length > 0) state.forumPosts = data;
             return state.forumPosts;
         } catch (e) {
             console.warn('ForumDB.getPosts fallback:', e.message);
@@ -253,7 +253,7 @@ var DirectoryDB = {
         try {
             var query = sb.from('directory_listings').select('*, owner:owner_id(name, avatar)').eq('status', 'active');
             var { data } = await query.order('created_at', { ascending: false });
-            if (data) state.directory.listings = data;
+            if (data && data.length > 0) state.directory.listings = data;
             return state.directory.listings;
         } catch (e) {
             console.warn('DirectoryDB.getAll fallback:', e.message);
@@ -308,7 +308,7 @@ var ProductDB = {
         if (!sb) return state.products.filter(function(p) { return p.status === 'active'; });
         try {
             var { data } = await sb.from('products').select('*, seller:seller_id(name, avatar)').eq('status', 'active').order('created_at', { ascending: false });
-            if (data) state.products = data;
+            if (data && data.length > 0) state.products = data;
             return state.products;
         } catch (e) {
             console.warn('ProductDB.getAll fallback:', e.message);
@@ -347,7 +347,7 @@ var EventDB = {
         if (!sb) return state.events;
         try {
             var { data } = await sb.from('events').select('*, host:host_id(name, avatar)').order('created_at', { ascending: false });
-            if (data) state.events = data;
+            if (data && data.length > 0) state.events = data;
             return state.events;
         } catch (e) {
             console.warn('EventDB.getAll fallback:', e.message);
@@ -645,7 +645,7 @@ var PersonalsDB = {
         if (!sb) return state.personals;
         try {
             var { data } = await sb.from('personals').select('*, author:author_id(name, avatar)').order('created_at', { ascending: false });
-            if (data) state.personals = data;
+            if (data && data.length > 0) state.personals = data;
             return state.personals;
         } catch (e) {
             console.warn('PersonalsDB.getAll fallback:', e.message);
@@ -684,7 +684,7 @@ var StreamsDB = {
         if (!sb) return state.streams;
         try {
             var { data } = await sb.from('streams').select('*, streamer:streamer_id(name, avatar)').order('created_at', { ascending: false });
-            if (data) state.streams = data;
+            if (data && data.length > 0) state.streams = data;
             return state.streams;
         } catch (e) {
             console.warn('StreamsDB.getAll fallback:', e.message);
@@ -723,7 +723,7 @@ var ClubsDB = {
         if (!sb) return state.clubs;
         try {
             var { data } = await sb.from('clubs').select('*').order('created_at', { ascending: false });
-            if (data) state.clubs = data;
+            if (data && data.length > 0) state.clubs = data;
             return state.clubs;
         } catch (e) {
             console.warn('ClubsDB.getAll fallback:', e.message);
